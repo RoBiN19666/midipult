@@ -370,6 +370,13 @@ def main():
         if not item:
             common.ok(matched=None)
             return
+        # Голосовой запуск: сначала гасим штатный диалог Алисы, иначе
+        # первый speak встаёт в очередь за её TTS и действия перемешиваются.
+        try:
+            post_json(LUNA + "/api/alice/speech/cancel", {}, timeout=5)
+        except Exception:
+            pass
+        time.sleep(0.35)
         common.respond(200, {"matched": item.get("name"), "result": run_scenario(item)})
         return
 
