@@ -68,9 +68,11 @@ def test_html_structure():
         check("теги <%s> сбалансированы" % tag, opens == closes, "%d/%d" % (opens, closes))
 
     check("есть viewport", 'name="viewport"' in html)
-    check("нет внешних ресурсов",
-          not re.search(r'(src|href)="https?://', html),
-          "станция работает офлайн")
+    external = re.findall(r'(?:src|href)="(https?://[^"]+)"', html)
+    external = [url for url in external
+                if not url.startswith("https://github.com/RoBiN19666/midipult")]
+    check("нет внешних ресурсов", not external,
+          ", ".join(external) or "станция работает офлайн")
 
 
 def test_js_syntax():
