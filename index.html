@@ -2251,6 +2251,29 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     });
   }
 
+  function collectSpeech(first, signal) {
+    var best = extractTranscript(first);
+    var final = !!(first && first.final);
+    var tries = 0;
+
+    function again() {
+      if (final || tries >= 3) return Promise.resolve(best);
+      tries++;
+      return lunaSpeech(2500, signal).then(function (data) {
+        var text = extractTranscript(data);
+        var changed = !!text && text !== best;
+        if (text && text.length > best.length) best = text;
+        if (data && data.final) final = true;
+        if (!changed) return best;
+        return again();
+      }).catch(function () {
+        return best;
+      });
+    }
+
+    return again();
+  }
+
   function listen() {
     if (listening) {
       if (listenCtrl) listenCtrl.abort();
@@ -2281,28 +2304,36 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       // Текстовая «Алиса» переводит колонку в follow-up-режим.
       return cgi('command.py', { text: 'Алиса' }, { timeout: 20000, signal: listenCtrl.signal });
     }).then(function () {
-      // Дать Алисе произнести «Слушаю» и открыть микрофон.
-      return new Promise(function (resolve) { setTimeout(resolve, 5000); });
-    }).then(function () {
-      if (listenCtrl.signal.aborted) throw new Error('Отменено');
-      el.micHint.textContent = 'Слушаю… говорите';
-      setTranscript('…', false);
-      started = Date.now();
-      timer = setInterval(function () {
-        el.micTimer.textContent = ((Date.now() - started) / 1000).toFixed(1) + ' с';
-      }, 100);
-      return lunaSpeech(15000, listenCtrl.signal);
-    }).then(function (data) {
-      luna('/api/alice/speech/cancel', {}, { timeout: 8000 }).catch(function () {});
-      var text = extractTranscript(data);
-      if (text) {
-        setTranscript(text, false);
-        el.btnRepeat.disabled = false;
-        toast('Распознано: ' + text, 'ok');
-      } else {
-        setTranscript('Не расслышал. Нажмите ещё раз и говорите после «Слушаю».', true);
-        toast('Пустой ответ микрофона', 'warn');
-      }
+      // Начинаем слушать сразу после ответа Алисы, не теряя follow-up-окно.
+      var speech = lunaSpeech(20000, listenCtrl.signal).then(
+        function (data) { return { data: data }; },
+        function (err) { return { err: err }; }
+      );
+      return new Promise(function (resolve) { setTimeout(resolve, 5000); }).then(function () {
+        if (listenCtrl.signal.aborted) throw new Error('Отменено');
+        el.micHint.textContent = 'Слушаю… говорите';
+        setTranscript('…', false);
+        started = Date.now();
+        timer = setInterval(function () {
+          el.micTimer.textContent = ((Date.now() - started) / 1000).toFixed(1) + ' с';
+        }, 100);
+        return speech;
+      });
+    }).then(function (result) {
+      if (result.err) throw result.err;
+      var firstText = extractTranscript(result.data);
+      if (firstText) setTranscript(firstText + '…', false);
+      return collectSpeech(result.data, listenCtrl.signal).then(function (text) {
+        luna('/api/alice/speech/cancel', {}, { timeout: 8000 }).catch(function () {});
+        if (text) {
+          setTranscript(text, false);
+          el.btnRepeat.disabled = false;
+          toast('Распознано: ' + text, 'ok');
+        } else {
+          setTranscript('Не расслышал. Нажмите ещё раз и говорите после «Слушаю».', true);
+          toast('Пустой ответ микрофона', 'warn');
+        }
+      });
     }).catch(function (err) {
       var msg = String((err && err.message) || '');
       if (/timeout waiting for speech|Превышено время|timeout/i.test(msg)) {
