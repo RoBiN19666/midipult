@@ -3214,6 +3214,13 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     input.className = 'net-input';
     input.placeholder = type.hint || '';
     input.value = value == null ? '' : value;
+    if (type.id === 'clock_text') {
+      input.maxLength = 32;
+      input.placeholder = 'До 32 символов';
+      input.addEventListener('input', function () {
+        if (this.value.length > 32) this.value = this.value.slice(0, 32);
+      });
+    }
 
     var remove = document.createElement('button');
     remove.className = 'btn sm ghost';
@@ -3766,6 +3773,9 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
         ev.preventDefault();
         el.btnDisplayText.click();
       }
+    });
+    el.displayText.addEventListener('input', function () {
+      if (this.value.length > 32) this.value = this.value.slice(0, 32);
     });
 
     /* кольцо */
