@@ -1995,8 +1995,9 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       return;
     }
     if (text.length > 32) { toast('Максимум 32 символа', 'warn'); return; }
+    var duration = Math.min(15000, Math.max(3000, 1000 + text.length * 200));
     withBusy(el.btnDisplayText, function () {
-      return luna('/api/clock/text', { text: text }, { timeout: 25000 }).then(function () {
+      return luna('/api/clock/text', { text: text, duration_ms: duration }, { timeout: 25000 }).then(function () {
         toast('Бегущая строка запущена', 'ok');
         markOverride(true);
       }).catch(function (err) {
