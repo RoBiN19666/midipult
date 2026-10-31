@@ -423,7 +423,6 @@ def handle(text):
 
     scenario = run_scenario(text)
     if scenario.get("matched"):
-        stop_alice_speech()
         log("сценарий: %s <- %r" % (scenario.get("matched"), text))
         return True
 
