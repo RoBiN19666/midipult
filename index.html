@@ -770,14 +770,14 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     <h2 id="h-voice"><span class="dot"></span>Голос</h2>
     <div class="voice-grid">
       <div class="mic-wrap">
-        <button class="mic" id="btnMic" aria-label="Слушать" title="Слушать без слова Алиса">
+        <button class="mic" id="btnMic" aria-label="Распознать фразу" title="Записать фразу для распознавания">
           <svg aria-hidden="true"><use href="#i-mic"/></svg>
         </button>
-        <div class="mic-hint" id="micHint">Нажмите и говорите — без «Алиса»</div>
+        <div class="mic-hint" id="micHint">Запись фразы · скажите «Алиса, …»</div>
         <div class="mic-timer" id="micTimer"></div>
       </div>
       <div class="voice-side">
-        <div class="transcript empty" id="transcript" aria-live="polite">Нажмите микрофон и скажите команду — «Алиса» не нужна.</div>
+        <div class="transcript empty" id="transcript" aria-live="polite">Скажите фразу с обращением «Алиса» — без него распознавание пустое.</div>
         <div class="row">
           <button class="btn sm" id="btnRepeat" disabled>Повторить Алисе</button>
           <button class="btn sm ghost" id="btnCancelListen" hidden>Отменить</button>
@@ -2243,14 +2243,6 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     el.transcript.classList.toggle('empty', !!isEmpty);
   }
 
-  function lunaSpeech(timeout, signal) {
-    return request('/luna/api/alice/speech?timeout_ms=' + timeout, {
-      method: 'GET',
-      timeout: timeout + 3000,
-      signal: signal
-    });
-  }
-
   function listen() {
     if (listening) {
       if (listenCtrl) listenCtrl.abort();
@@ -2258,11 +2250,11 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     }
     listening = true;
     listenCtrl = new AbortController();
-    var voiceWasRunning = false;
+    var wasPlaying = (typeof State.playing === 'boolean') ? State.playing : null;
 
     el.btnMic.classList.add('listening');
     el.btnCancelListen.hidden = false;
-    el.micHint.textContent = 'Слушаю… говорите';
+    el.micHint.textContent = 'Записываю… скажите «Алиса, …»';
     setTranscript('…', false);
     el.btnRepeat.disabled = true;
 
@@ -2273,46 +2265,44 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
 
     busyStart();
 
-    cgi('voicectl.py', {}, { timeout: 8000, silent: true }).then(function (data) {
-      voiceWasRunning = !!(data && data.running);
-      if (voiceWasRunning) {
-        return cgi('voicectl.py', { stop: 1 }, { timeout: 12000, silent: true });
-      }
-    }).catch(function () {
-      return null;
-    }).then(function () {
-      // Текстовая «Алиса» переводит колонку в follow-up-режим.
-      return cgi('command.py', { text: 'Алиса' }, { timeout: 20000, signal: listenCtrl.signal });
-    }).then(function () {
-      // Дать Алисе произнести «Слушаю» и открыть микрофон.
-      return new Promise(function (resolve) { setTimeout(resolve, 2200); });
-    }).then(function () {
-      return lunaSpeech(15000, listenCtrl.signal);
-    }).then(function (data) {
-      luna('/api/alice/speech/cancel', {}, { timeout: 8000 }).catch(function () {});
+    luna('/api/alice/recognize', {}, { timeout: 120000, signal: listenCtrl.signal }).then(function (data) {
       var text = extractTranscript(data);
       if (text) {
         setTranscript(text, false);
         el.btnRepeat.disabled = false;
         toast('Распознано: ' + text, 'ok');
       } else {
-        setTranscript('Не расслышал. Попробуйте ещё раз.', true);
+        setTranscript('Не расслышал. Скажите фразу с обращением «Алиса, …».', true);
         toast('Пустой ответ микрофона', 'warn');
       }
     }).catch(function (err) {
-      setTranscript('Не удалось распознать: ' + err.message, true);
-      if (err.message !== 'Отменено') toast('Микрофон: ' + err.message, 'bad');
+      var msg = String((err && err.message) || '');
+      if (/timeout waiting for recognition|Превышено время|timeout/i.test(msg)) {
+        setTranscript('Не расслышал. Скажите фразу с обращением «Алиса, …».', true);
+        toast('Не расслышал', 'warn');
+      } else {
+        setTranscript('Не удалось распознать: ' + msg, true);
+        if (msg !== 'Отменено') toast('Микрофон: ' + msg, 'bad');
+      }
     }).finally(function () {
       clearInterval(timer);
       listening = false;
       listenCtrl = null;
       el.btnMic.classList.remove('listening');
       el.btnCancelListen.hidden = true;
-      el.micHint.textContent = 'Нажмите и говорите — без «Алиса»';
+      el.micHint.textContent = 'Запись фразы · скажите «Алиса, …»';
       el.micTimer.textContent = '';
       busyEnd();
-      if (voiceWasRunning) {
-        cgi('voicectl.py', { start: 1 }, { timeout: 15000, silent: true }).catch(function () {});
+      if (wasPlaying !== null) {
+        setTimeout(function () {
+          refreshPlayer().then(function () {
+            if (typeof State.playing === 'boolean' && State.playing !== wasPlaying) {
+              cgi('media.py', { action: wasPlaying ? 'play' : 'pause' },
+                { timeout: 9000, silent: true }).catch(function () {});
+              setPlaying(wasPlaying);
+            }
+          });
+        }, 800);
       }
     });
   }
