@@ -119,7 +119,11 @@ def run_action(action):
     elif kind == "volume":
         post_cgi("volume.py", {"level": common.to_int(action.get("value"), 30, 0, 100)}, timeout=15)
     elif kind == "clock_text":
-        post_json(LUNA + "/api/clock/text", {"text": str(action.get("text") or "")[:60]}, timeout=8)
+        text = str(action.get("text") or "")[:32]
+        duration = min(15000, max(3000, 1000 + len(text) * 200))
+        post_json(LUNA + "/api/clock/text",
+                  {"text": text, "duration_ms": duration},
+                  timeout=5 + duration / 1000.0)
     elif kind == "vpn":
         if common.truthy(action.get("on")):
             post_cgi("vpn.py", {"start": 1}, timeout=120)
