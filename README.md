@@ -137,6 +137,16 @@
 
 Проверено на прошивке с `maind`, `aliced`, `bluealsad`, `unbound`.
 
+## Проверено на
+
+- **Яндекс Станция Миди (Cucumber)**, прошивка **47.17**
+  (`/data/fw_version`: `number = 0x6699`);
+- ядро **5.4.180**, Buildroot **2023.11.1**;
+- root + Entware, Luna на `8099`, `maind`, `aliced`, `bluealsad`, `unbound`.
+
+На других версиях прошивки проект не проверялся: пути к Luna, sysfs и IPC
+могут отличаться.
+
 ---
 
 ## Быстрый старт
