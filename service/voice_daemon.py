@@ -177,6 +177,8 @@ VPN_WORDS = ("впн", "vpn", "в п н", "вэ пэ эн", "ви пи эн", "�
 LLM_WORDS = ("нейросет", "нейронк", "нейро сеть", "нейро", "жпт", "gpt", "чат гпт")
 RADIO_LIST = ("какие радио", "какие станции", "список радио", "перечисли радио",
               "что за радио", "какие есть радио", "какие радиостанции",
+              "какие радио ты знаешь", "какие радиостанции ты знаешь",
+              "перечисли список радио", "что за радиостанции",
               "что ты знаешь про радио")
 ON_WORDS = ("включи", "включить", "вруби", "запусти", "подними", "активируй")
 OFF_WORDS = ("выключи", "выключить", "отключи", "отключить", "выруби", "останови", "опусти")
@@ -412,6 +414,13 @@ def run_scenario(text):
 
 
 def handle(text):
+    # Список радио обрабатываем до сценариев: иначе Алиса успевает
+    # ответить, пока ждём HTTP-ответ scenarios.py.
+    intent = match(text)
+    if intent and intent[0] == "radio_list":
+        log("команда: %s %s <- %r" % (intent[0], intent[1], text))
+        return perform(*intent)
+
     scenario = run_scenario(text)
     if scenario.get("matched"):
         stop_alice_speech()
@@ -422,7 +431,6 @@ def handle(text):
         log("нейросеть: переключение <- %r" % text)
         return True
 
-    intent = match(text)
     if intent:
         log("команда: %s %s <- %r" % (intent[0], intent[1], text))
         return perform(*intent)
