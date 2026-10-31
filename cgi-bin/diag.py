@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
 
 PORTS = (8055, 8099, 9875, 1961)
-PROCESS_KEYS = ("luna", "glagol", "aliced", "alice_light", "lighttpd", "mypult")
+PROCESS_KEYS = ("luna", "glagol", "aliced", "lighttpd", "mypult")
 
 
 # --------------------------------------------------------------------------- #

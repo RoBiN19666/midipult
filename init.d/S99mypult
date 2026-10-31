@@ -23,7 +23,6 @@ LUNA_ARGS="--listen 0.0.0.0:8099 --data-dir /data/quazar/luna/data"
 LIGHTTPD="/opt/sbin/lighttpd"
 LIGHTTPD_CONF="/opt/etc/lighttpd/myweb.conf"
 WEBROOT="/data/myweb"
-ALICE_LIGHT="/data/quazar/luna/alice_light.sh"
 
 # Мост к IPC aliced для озвучки. Если на колонке порт 9875 уже слушает
 # socat/aliced — оставьте пустым. Иначе укажите unix-сокет aliced, например:
@@ -109,7 +108,7 @@ start_web() {    if is_listening 8055; then
     return 1
 }
 
-# ----------------------------------------------------------- alice_light ----
+# ----------------------------------------------------------- голос -----------
 start_voice() {
     [ -f /data/mypult/voice_daemon.py ] || return 0
     if [ -f /data/mypult/voice.pid ]; then
@@ -172,29 +171,6 @@ stop_state() {
         [ -n "$_pid" ] && kill "$_pid" 2>/dev/null
         rm -f /tmp/mypult-state.pid
     fi
-}
-
-start_alice_light() {
-    # Голосовой пульт сам занимает recognize — не запускаем конкурента.
-    if [ -f /data/mypult/voice.pid ]; then
-        _voice_pid=$(cat /data/mypult/voice.pid 2>/dev/null)
-        if [ -n "$_voice_pid" ] && kill -0 "$_voice_pid" 2>/dev/null; then
-            log "alice_light: пропускаю, работает голосовой пульт (pid $_voice_pid)"
-            return 0
-        fi
-    fi
-    if ps 2>/dev/null | grep -q "[a]lice_light.sh"; then
-        log "alice_light: уже работает"
-        return 0
-    fi
-    if [ ! -f "$ALICE_LIGHT" ]; then
-        log "alice_light: НЕТ $ALICE_LIGHT (пропускаю)"
-        return 0
-    fi
-    nohup /bin/sh "$ALICE_LIGHT" >>"$LOG" 2>&1 &
-    echo $! >"$RUNDIR/alice_light.pid"
-    log "alice_light: запущен, pid $(cat "$RUNDIR/alice_light.pid" 2>/dev/null)"
-    return 0
 }
 
 # ------------------------------------------------ IPC-мост на 9875 (опция) --
@@ -275,7 +251,6 @@ stop_all() {
     stop_voice
     stop_state
     stop_web
-    stop_pidfile "$RUNDIR/alice_light.pid" "alice_light"
     stop_pidfile "$RUNDIR/socat.pid" "socat"
     stop_pidfile "$RUNDIR/luna.pid" "luna"
 }
@@ -292,11 +267,6 @@ status_all() {
     if is_listening 8099; then echo "luna       : up   (8099)"; else echo "luna       : down"; fi
     if is_listening 9875; then echo "ipc 9875   : up"; else echo "ipc 9875   : down"; fi
     if is_listening 8055; then echo "lighttpd   : up   (8055)"; else echo "lighttpd   : down"; fi
-    if ps 2>/dev/null | grep -q "[a]lice_light.sh"; then
-        echo "alice_light: up"
-    else
-        echo "alice_light: down"
-    fi
 }
 
 # ------------------------------------------------ подсветка кольца -----------
@@ -365,7 +335,6 @@ case "$1" in
         restore_volume
         start_voice
         start_state
-        start_alice_light
         start_ring_backlight
         start_dns_auto
         start_vpn_auto
@@ -383,7 +352,6 @@ case "$1" in
         restore_volume
         start_voice
         start_state
-        start_alice_light
         start_ring_backlight
         start_dns_auto
         start_vpn_auto

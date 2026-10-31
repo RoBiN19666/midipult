@@ -6,8 +6,8 @@
     POST /cgi-bin/voicectl.py {"start":1}
     POST /cgi-bin/voicectl.py {"stop":1}
 
-При старте останавливает alice_light.sh (он тоже занимает recognize),
-при остановке — возвращает его.
+Проект управляет только своим голосовым демоном и не трогает другие
+пользовательские процессы.
 """
 
 from __future__ import annotations
@@ -24,7 +24,6 @@ import common  # noqa: E402
 DAEMON = "/data/mypult/voice_daemon.py"
 PIDFILE = "/data/mypult/voice.pid"
 LOG = "/data/mypult/voice.log"
-ALICE_LIGHT = "/data/quazar/luna/alice_light.sh"
 PY = "/opt/bin/python3"
 
 
@@ -46,47 +45,12 @@ def alive(pid):
         return False
 
 
-def alice_light_pids():
-    code, out, _ = common.run(
-        ["/bin/sh", "-c", "ps | grep '[a]lice_light.sh' | awk '{print $1}'"], timeout=6)
-    pids = []
-    for line in (out or "").splitlines():
-        line = line.strip()
-        if line.isdigit():
-            pids.append(int(line))
-    return pids
-
-
-def stop_alice_light():
-    pids = alice_light_pids()
-    for pid in pids:
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError:
-            pass
-    return pids
-
-
-def start_alice_light():
-    if not os.path.isfile(ALICE_LIGHT):
-        return False
-    if alice_light_pids():
-        return True
-    subprocess.Popen(
-        ["/bin/sh", ALICE_LIGHT],
-        stdout=open(LOG, "ab"), stderr=subprocess.STDOUT,
-        start_new_session=True, close_fds=True,
-    )
-    return True
-
-
 def start():
     pid = read_pid()
     if alive(pid):
         return
     if not os.path.isfile(DAEMON):
         raise RuntimeError("нет %s — обновите установку" % DAEMON)
-    stop_alice_light()
     log_file = open(LOG, "ab")
     proc = subprocess.Popen(
         [PY, DAEMON],
@@ -115,7 +79,6 @@ def stop():
         os.remove(PIDFILE)
     except OSError:
         pass
-    start_alice_light()
 
 
 def status():
@@ -124,7 +87,6 @@ def status():
         "ok": True,
         "running": alive(pid),
         "pid": pid if alive(pid) else None,
-        "alice_light": bool(alice_light_pids()),
         "daemon_present": os.path.isfile(DAEMON),
         "log": None,
     }
