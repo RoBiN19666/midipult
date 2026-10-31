@@ -58,7 +58,7 @@ lighttpd ── static /data/myweb/index.html
 ```
 index.html                 SPA целиком (HTML+CSS+JS)
 index.py                   серверный PIN-гейт и отдача index.html
-manifest.json, icon.svg    PWA
+manifest.json, icon.svg    PWA-ярлык (без service worker)
 version.json               версия и дата
 CHANGELOG.md               история
 FAQ.md, README.md          документация
@@ -237,7 +237,6 @@ CGI запускаются от root: иначе недоступны sysfs, `am
               ├── restore_volume    (volume.json)
               ├── start_voice       (voice_daemon.py + voice.pid)
               ├── start_state       (state_daemon.py на 8057)
-              ├── start_alice_light (пропускается, если работает демон)
               ├── start_ring_backlight (ring.json → ток)
               ├── start_dns_auto
               └── start_vpn_auto    (если autostart)
@@ -271,6 +270,12 @@ CGI запускаются от root: иначе недоступны sysfs, `am
 `deploy/push-to-station.ps1` находит колонку, считает хэш, поднимает патч-версию,
 шлёт tar по SSH и запускает install. Флаги: `-Station`, `-NoBump`, `-NoInstall`,
 `-NoScan`, `-Message`.
+
+`deploy/uninstall.sh` останавливает только процессы пульта, делает бэкап в
+`/data/mypult-uninstall-<дата>`, удаляет `/data/myweb`, init-скрипты и
+`myweb.conf`. `alice_light` не запускается и не восстанавливается.
+Luna/YAM/Entware не затрагиваются; `--purge` дополнительно удаляет
+`/data/mypult`, `--dry-run` только показывает план.
 
 ---
 

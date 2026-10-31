@@ -76,6 +76,13 @@ cp -f "$SRC/service/voice_daemon.py" /data/mypult/voice_daemon.py \
     sed -i 's/\r$//' /data/mypult/voice_daemon.py 2>/dev/null
 fi
 
+if [ -f "$SRC/deploy/uninstall.sh" ]; then
+    cp -f "$SRC/deploy/uninstall.sh" /data/mypult/uninstall.sh || \
+        warn "не скопировался uninstall.sh"
+    chmod 700 /data/mypult/uninstall.sh 2>/dev/null
+    sed -i 's/\r$//' /data/mypult/uninstall.sh 2>/dev/null
+fi
+
 say "копирую конфиг lighttpd и init-скрипт"
 cp -f "$SRC/lighttpd/myweb.conf" "$CONF" || die "не скопировался myweb.conf"
 

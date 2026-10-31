@@ -751,7 +751,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
         </div>
         <div class="row" style="margin-top:10px">
           <button class="btn sm" id="btnVoiceDaemon">Голосовой пульт: выкл</button>
-          <span class="seg-note" id="voiceDaemonStatus">alice_light работает</span>
+          <span class="seg-note" id="voiceDaemonStatus">голосовой пульт выключен</span>
         </div>
       </div>
     </div>
@@ -2736,8 +2736,8 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       el.btnVoiceDaemon.textContent = data.running ? 'Голосовой пульт: вкл' : 'Голосовой пульт: выкл';
       el.btnVoiceDaemon.setAttribute('aria-pressed', data.running ? 'true' : 'false');
       el.voiceDaemonStatus.textContent = data.running
-        ? 'слушает «Алиса, …» · alice_light на паузе'
-        : (data.alice_light ? 'alice_light работает' : 'alice_light выключен');
+        ? 'слушает «Алиса, …»'
+        : 'выключен';
     }).catch(function (err) {
       el.voiceDaemonStatus.textContent = err.message;
     });
