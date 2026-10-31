@@ -338,6 +338,23 @@ textarea{min-height:88px;resize:vertical;display:block}
 input[type="text"]:focus,textarea:focus{outline:2px solid rgba(124,92,255,.55);outline-offset:1px;border-color:transparent}
 input::placeholder,textarea::placeholder{color:#6d7891}
 
+input[type="checkbox"]{
+  -webkit-appearance:none;appearance:none;width:18px;height:18px;flex:0 0 auto;
+  margin:0;border-radius:5px;border:1px solid rgba(255,255,255,.24);
+  background:rgba(255,255,255,.05);display:inline-grid;place-items:center;
+  vertical-align:middle;cursor:pointer;
+}
+input[type="checkbox"]:checked{background:linear-gradient(135deg,#7c5cff,#4f7cff);border-color:transparent}
+input[type="checkbox"]:checked::after{
+  content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;
+  transform:rotate(-45deg) translateY(-1px);
+}
+input[type="checkbox"]:focus-visible{outline:2px solid rgba(124,92,255,.55);outline-offset:2px}
+body.light input[type="checkbox"]{background:#fffdfa;border-color:rgba(76,62,48,.3)}
+body.light input[type="checkbox"]:checked{background:linear-gradient(135deg,#7c5cff,#4f7cff);border-color:transparent}
+body.light .btn:disabled{opacity:.55;filter:grayscale(.25)}
+body.light .btn.danger:disabled{opacity:1;background:rgba(190,18,60,.10);border-color:rgba(190,18,60,.18);color:rgba(127,29,29,.65)}
+
 /* ---------- clock ---------- */
 .clock-wrap{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:12px 0 6px}
 .clock-time{
@@ -386,6 +403,7 @@ input::placeholder,textarea::placeholder{color:#6d7891}
 .seg-edit:hover{color:#e9fff7;background:rgba(24,48,40,.95)}
 .seg-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .seg-note{font-size:11.5px;color:var(--muted);flex:1 1 160px}
+.c-clock > .seg-note,.bt-list > .seg-note{flex:0 0 auto}
 .display-extra{margin-top:12px;flex-wrap:nowrap}
 .display-extra input{height:42px;font-size:13.5px;min-width:0}
 .bright-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
@@ -501,7 +519,7 @@ input[type="color"]::-moz-color-swatch{border:2px solid rgba(255,255,255,.32);bo
     background:linear-gradient(135deg,rgba(124,92,255,.62),rgba(34,211,238,.32));
     border-color:transparent;
   }
-  main.grid{padding:0 12px 24px;gap:12px}
+  main.grid{padding:0 12px 24px;gap:12px;align-items:start}
   .card{padding:16px;border-radius:16px}
   .row{flex-wrap:wrap}
   .clock-wrap{flex-direction:column;align-items:stretch;gap:12px}
@@ -1233,6 +1251,12 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
   }
 
   /* ─────────── состояние ─────────── */
+  function stripAnsi(value) {
+    return String(value == null ? '' : value)
+      .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+      .replace(/\r/g, '');
+  }
+
   var State = {
     luna: null,
     glagol: null,
@@ -3381,7 +3405,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
   function loadLogs() {
     return cgi('logs.py', { name: el.logName.value, lines: 200 }, { timeout: 10000, silent: true })
       .then(function (data) {
-        el.logsBox.textContent = data.text || '(пусто)';
+        el.logsBox.textContent = stripAnsi(data.text || '(пусто)');
         el.logsBox.scrollTop = el.logsBox.scrollHeight;
       }).catch(function (err) {
         el.logsBox.textContent = 'Логи: ' + err.message;
