@@ -559,6 +559,8 @@ footer{
   font-size:12px;color:#6c7793;
 }
 footer .ok{color:var(--muted)}
+footer .repo-link{color:inherit;text-decoration:none;border-bottom:1px solid transparent;transition:color .18s,border-color .18s}
+footer .repo-link:hover{color:var(--text);border-bottom-color:var(--accent)}
 dialog{
   width:min(700px,94vw);max-height:86vh;padding:18px;border-radius:18px;overflow:auto;
   border:1px solid var(--stroke);background:#0e1220;color:var(--text);
@@ -568,6 +570,16 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
 .dlg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .dlg-head h3{margin:0;font-size:15px}
 .dlg-head h3 small{font-size:11px;font-weight:500;color:var(--muted);margin-left:8px;letter-spacing:.02em}
+.faq-list{display:grid;gap:8px}
+.faq-list details{border:1px solid var(--stroke);border-radius:12px;background:rgba(255,255,255,.035);padding:0 12px}
+.faq-list summary{cursor:pointer;padding:11px 0;font-size:13.5px;font-weight:600;list-style:none;display:flex;gap:8px;align-items:center}
+.faq-list summary::-webkit-details-marker{display:none}
+.faq-list summary::before{content:"+";color:var(--accent2);font-size:16px;line-height:1;width:12px;flex:0 0 auto}
+.faq-list details[open] summary::before{content:"−"}
+.faq-list p{margin:0 0 11px;font-size:13px;line-height:1.5;color:var(--muted)}
+.faq-list code{font-size:12px;color:var(--text);background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px}
+body.light .faq-list details{background:rgba(76,62,48,.035)}
+body.light .faq-list code{background:rgba(76,62,48,.07)}
 .svc{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
 .svc span{
   font-size:11.5px;padding:5px 9px;border-radius:999px;border:1px solid var(--stroke);
@@ -613,6 +625,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
   <div class="topbar-right">
     <div class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Проверка…</span></div>
     <button class="btn ghost sm" id="btnTheme" aria-label="Светлая тема" title="Светлая тема">☼</button>
+    <button class="btn ghost sm" id="btnFaq" aria-label="FAQ" title="FAQ">?</button>
     <button class="btn ghost sm" id="btnDebug" aria-label="Диагностика">⚙</button>
   </div>
 </header>
@@ -1136,7 +1149,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
 </main>
 
 <footer>
-  <span>MidiPult <span id="verTag">v—</span> · vanilla JS · lighttpd + CGI</span>
+  <span><a class="repo-link" href="https://github.com/RoBiN19666/midipult" target="_blank" rel="noopener" title="MidiPult на GitHub">MidiPult <span id="verTag">v—</span></a> · vanilla JS · lighttpd + CGI</span>
   <span class="ok" id="footStatus">—</span>
 </footer>
 
@@ -1153,6 +1166,65 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
   <div class="row">
     <button class="btn sm" id="btnRefreshStatus">Проверить снова</button>
     <button class="btn sm primary" id="btnDiag">Проверить API</button>
+  </div>
+</dialog>
+
+<dialog id="faqDlg">
+  <div class="dlg-head">
+    <h3>FAQ</h3>
+    <button class="btn sm ghost" id="btnCloseFaq">Закрыть</button>
+  </div>
+  <div class="faq-list">
+    <details open>
+      <summary>Что такое MidiPult?</summary>
+      <p>Локальная панель для рутованной Станции Миди: дисплей, кольцо, плеер,
+      радио, голосовые команды, нейросеть, VPN и сценарии. Работает на самой
+      колонке и открывается в браузере.</p>
+    </details>
+    <details>
+      <summary>Как открыть пульт с телефона?</summary>
+      <p>Подключите телефон к той же Wi-Fi сети и откройте
+      <code>http://&lt;IP-колонки&gt;:8055/</code>. Ярлык можно добавить на
+      главный экран браузера.</p>
+    </details>
+    <details>
+      <summary>Как включить голосовые команды?</summary>
+      <p>В карточке «Голос» нажмите «Голосовой пульт: вкл». После перезагрузки
+      он запускается сам. Фразы начинайте с «Алиса», например «Алиса, включи
+      VPN».</p>
+    </details>
+    <details>
+      <summary>Почему Алиса иногда отвечает сама?</summary>
+      <p>Она получает фразу раньше пульта, и отмена не всегда успевает. Для
+      команд без наложения используйте текстовое поле «Текстовая команда» или
+      кнопки сценариев.</p>
+    </details>
+    <details>
+      <summary>Как подключить нейросеть?</summary>
+      <p>Откройте «Нейросеть», выберите провайдера, вставьте API-ключ и модель,
+      затем нажмите «Сохранить». Ключ хранится на колонке.</p>
+    </details>
+    <details>
+      <summary>Как включить VPN?</summary>
+      <p>В «Сети» вставьте ссылку на подписку, сохраните её, выберите сервер и
+      нажмите «Включить».</p>
+    </details>
+    <details>
+      <summary>Как поставить PIN?</summary>
+      <p>В «Системе» введите код из 4–8 цифр и нажмите «Включить PIN». После
+      этого панель будет спрашивать его при входе.</p>
+    </details>
+    <details>
+      <summary>Как обновить или удалить пульт?</summary>
+      <p>Обновление — повторный запуск установщика. Удаление — команда
+      <code>sh /data/mypult/uninstall.sh</code>; настройки сохранятся,
+      <code>--purge</code> удаляет и их.</p>
+    </details>
+    <details>
+      <summary>Где посмотреть ошибки?</summary>
+      <p>В «Системе» есть логи и кнопка диагностики. Основные файлы:
+      <code>/tmp/mypult.log</code> и <code>/data/mypult/voice.log</code>.</p>
+    </details>
   </div>
 </dialog>
 
@@ -3709,6 +3781,11 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       if (typeof el.debugDlg.showModal === 'function') el.debugDlg.showModal();
       else el.debugDlg.setAttribute('open', '');
     });
+    el.btnFaq.addEventListener('click', function () {
+      if (typeof el.faqDlg.showModal === 'function') el.faqDlg.showModal();
+      else el.faqDlg.setAttribute('open', '');
+    });
+    el.btnCloseFaq.addEventListener('click', function () { el.faqDlg.close(); });
     el.btnCloseDebug.addEventListener('click', function () { el.debugDlg.close(); });
     el.btnTheme.addEventListener('click', function () {
       var light = !document.body.classList.contains('light');
@@ -4138,7 +4215,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       'volume', 'volumeVal', 'btnVolDown', 'btnVolUp', 'btnMute',
       'btnMic', 'micHint', 'micTimer', 'transcript', 'btnRepeat', 'btnCancelListen',
       'command', 'btnSendCmd', 'ttsText', 'ttsCount', 'btnTtsClear', 'btnSay', 'ttsChips',
-      'toasts', 'debugDlg', 'btnDebug', 'btnTheme', 'btnCloseDebug', 'svcState', 'logBox', 'btnRefreshStatus',
+      'toasts', 'debugDlg', 'btnDebug', 'btnTheme', 'btnFaq', 'faqDlg', 'btnCloseFaq', 'btnCloseDebug', 'svcState', 'logBox', 'btnRefreshStatus',
       'btnDiag', 'diagBox',
       'verTag', 'verLine',
       'llmProviderSelect', 'llmModel', 'llmModelCustomWrap', 'llmModelCustom', 'llmBase', 'llmKey',
