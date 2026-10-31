@@ -58,7 +58,7 @@ lighttpd ── static /data/myweb/index.html
 ```
 index.html                 SPA целиком (HTML+CSS+JS)
 index.py                   серверный PIN-гейт и отдача index.html
-manifest.json, icon.svg    PWA
+manifest.json, icon.svg    PWA-ярлык (без service worker)
 version.json               версия и дата
 CHANGELOG.md               история
 FAQ.md, README.md          документация
