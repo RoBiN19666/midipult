@@ -135,12 +135,11 @@
 Если пакеты ставить нельзя, запустите с `MYPULT_NO_PACKAGES=1` — установщик
 только проверит и покажет, чего не хватает.
 
-Проверено на прошивке с `maind`, `aliced`, `bluealsad`, `unbound`.
-
 ## Проверено на
 
-- **Яндекс Станция Миди (Cucumber)**, прошивка **47.17**
-  (`/data/fw_version`: `number = 0x6699`);
+- **Яндекс Станция Миди (Cucumber)**, прошивка
+  **`0.369.1.46.4778262955.20261013`** (quasar 3.21;
+  `/data/fw_version`: `data = 47.17`, `number = 0x6699`);
 - ядро **5.4.180**, Buildroot **2023.11.1**;
 - root + Entware, Luna на `8099`, `maind`, `aliced`, `bluealsad`, `unbound`.
 
