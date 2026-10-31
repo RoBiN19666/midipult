@@ -2250,6 +2250,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     }
     listening = true;
     listenCtrl = new AbortController();
+    var wasPlaying = (typeof State.playing === 'boolean') ? State.playing : null;
 
     el.btnMic.classList.add('listening');
     el.btnCancelListen.hidden = false;
@@ -2292,6 +2293,17 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       el.micHint.textContent = 'Запись фразы · скажите «Алиса, …»';
       el.micTimer.textContent = '';
       busyEnd();
+      if (wasPlaying !== null) {
+        setTimeout(function () {
+          refreshPlayer().then(function () {
+            if (typeof State.playing === 'boolean' && State.playing !== wasPlaying) {
+              cgi('media.py', { action: wasPlaying ? 'play' : 'pause' },
+                { timeout: 9000, silent: true }).catch(function () {});
+              setPlaying(wasPlaying);
+            }
+          });
+        }, 800);
+      }
     });
   }
 
