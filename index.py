@@ -31,6 +31,15 @@ input{width:100%;box-sizing:border-box;padding:13px;border-radius:12px;border:1p
 button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;cursor:pointer;
  background:linear-gradient(120deg,#7c5cff,#22d3ee);color:#fff;font-weight:600}
 #err{min-height:18px;margin-top:10px;color:#fb7185;font-size:13px}
+@media (prefers-color-scheme: light){
+ :root{color-scheme:light}
+ body{background:#f4efe7;color:#20242c}
+ .card{background:linear-gradient(160deg,#fffdf9,#f8f1e8);
+  border-color:rgba(76,62,48,.16);box-shadow:0 24px 60px rgba(78,58,38,.14)}
+ p{color:#6d675e}
+ input{background:#fffdfa;color:#20242c;border-color:rgba(76,62,48,.2)}
+ #err{color:#be123c}
+}
 </style></head><body>
 <form class="card" id="f">
   <h1>Пульт защищён PIN</h1>
