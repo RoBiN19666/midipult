@@ -95,6 +95,11 @@ def post_cgi(script, payload, timeout=30):
 def run_action(action):
     kind = action.get("type")
     if kind == "speak":
+        # Голосовой запуск мог заглушить штатную Алису — вернуть звук.
+        try:
+            post_cgi("volume.py", {"unmute": 1}, timeout=8)
+        except Exception:
+            pass
         post_cgi("speak.py", {"text": str(action.get("text") or "")[:1900]}, timeout=30)
     elif kind == "led":
         color = str(action.get("color") or "#00E676")
