@@ -568,6 +568,16 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
 .dlg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .dlg-head h3{margin:0;font-size:15px}
 .dlg-head h3 small{font-size:11px;font-weight:500;color:var(--muted);margin-left:8px;letter-spacing:.02em}
+.faq-list{display:grid;gap:8px}
+.faq-list details{border:1px solid var(--stroke);border-radius:12px;background:rgba(255,255,255,.035);padding:0 12px}
+.faq-list summary{cursor:pointer;padding:11px 0;font-size:13.5px;font-weight:600;list-style:none;display:flex;gap:8px;align-items:center}
+.faq-list summary::-webkit-details-marker{display:none}
+.faq-list summary::before{content:"+";color:var(--accent2);font-size:16px;line-height:1;width:12px;flex:0 0 auto}
+.faq-list details[open] summary::before{content:"−"}
+.faq-list p{margin:0 0 11px;font-size:13px;line-height:1.5;color:var(--muted)}
+.faq-list code{font-size:12px;color:var(--text);background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px}
+body.light .faq-list details{background:rgba(76,62,48,.035)}
+body.light .faq-list code{background:rgba(76,62,48,.07)}
 .svc{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
 .svc span{
   font-size:11.5px;padding:5px 9px;border-radius:999px;border:1px solid var(--stroke);
@@ -613,6 +623,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
   <div class="topbar-right">
     <div class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Проверка…</span></div>
     <button class="btn ghost sm" id="btnTheme" aria-label="Светлая тема" title="Светлая тема">☼</button>
+    <button class="btn ghost sm" id="btnFaq" aria-label="FAQ" title="FAQ">?</button>
     <button class="btn ghost sm" id="btnDebug" aria-label="Диагностика">⚙</button>
   </div>
 </header>
@@ -1153,6 +1164,50 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
   <div class="row">
     <button class="btn sm" id="btnRefreshStatus">Проверить снова</button>
     <button class="btn sm primary" id="btnDiag">Проверить API</button>
+  </div>
+</dialog>
+
+<dialog id="faqDlg">
+  <div class="dlg-head">
+    <h3>FAQ</h3>
+    <button class="btn sm ghost" id="btnCloseFaq">Закрыть</button>
+  </div>
+  <div class="faq-list">
+    <details open>
+      <summary>Почему Алиса отвечает вместе с пультом?</summary>
+      <p>Алиса получает фразу раньше голосового демона: Luna отдаёт текст только
+      после финального распознавания. Отмена «стоп»/mute опаздывает, поэтому
+      её ответ иногда слышен.</p>
+      <p>Обход: текстовое поле «Текстовая команда» или кнопка «Запустить» у
+      сценария — они не запускают диалог Алисы.</p>
+    </details>
+    <details>
+      <summary>Почему кнопка микрофона требует «Алиса»?</summary>
+      <p>Это режим recognition-only: Luna записывает и распознаёт фразу, но не
+      открывает штатный диалог. Безопасного push-to-talk через Luna нет.</p>
+    </details>
+    <details>
+      <summary>Сценарий голосом выполняется не по порядку</summary>
+      <p>До версии 0.2.9 первый <code>speak</code> ждал TTS Алисы. Сейчас
+      штатный ответ отменяется до действий. Если overlap всё равно мешает,
+      запускайте сценарий кнопкой.</p>
+    </details>
+    <details>
+      <summary>Сколько символов можно вывести на дисплей?</summary>
+      <p>До 32 символов: цифры, латиница без K/M/V/W/X/Z, <code>_</code> и
+      <code>-</code>. Длительность прокрутки подбирается автоматически.</p>
+    </details>
+    <details>
+      <summary>Почему Love Radio играет не мой регион?</summary>
+      <p>Пульт передаёт Алисе только название станции; поток и регион выбирает
+      её каталог. Прямой URL потока Glagol не поддерживает.</p>
+    </details>
+    <details>
+      <summary>Как удалить пульт?</summary>
+      <p>По SSH: <code>sh /data/mypult/uninstall.sh</code>. Настройки
+      сохранятся; полное удаление — <code>--purge</code>. Перед удалением
+      создаётся бэкап.</p>
+    </details>
   </div>
 </dialog>
 
@@ -3709,6 +3764,11 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       if (typeof el.debugDlg.showModal === 'function') el.debugDlg.showModal();
       else el.debugDlg.setAttribute('open', '');
     });
+    el.btnFaq.addEventListener('click', function () {
+      if (typeof el.faqDlg.showModal === 'function') el.faqDlg.showModal();
+      else el.faqDlg.setAttribute('open', '');
+    });
+    el.btnCloseFaq.addEventListener('click', function () { el.faqDlg.close(); });
     el.btnCloseDebug.addEventListener('click', function () { el.debugDlg.close(); });
     el.btnTheme.addEventListener('click', function () {
       var light = !document.body.classList.contains('light');
@@ -4138,7 +4198,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       'volume', 'volumeVal', 'btnVolDown', 'btnVolUp', 'btnMute',
       'btnMic', 'micHint', 'micTimer', 'transcript', 'btnRepeat', 'btnCancelListen',
       'command', 'btnSendCmd', 'ttsText', 'ttsCount', 'btnTtsClear', 'btnSay', 'ttsChips',
-      'toasts', 'debugDlg', 'btnDebug', 'btnTheme', 'btnCloseDebug', 'svcState', 'logBox', 'btnRefreshStatus',
+      'toasts', 'debugDlg', 'btnDebug', 'btnTheme', 'btnFaq', 'faqDlg', 'btnCloseFaq', 'btnCloseDebug', 'svcState', 'logBox', 'btnRefreshStatus',
       'btnDiag', 'diagBox',
       'verTag', 'verLine',
       'llmProviderSelect', 'llmModel', 'llmModelCustomWrap', 'llmModelCustom', 'llmBase', 'llmKey',
