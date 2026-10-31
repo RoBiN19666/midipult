@@ -22,6 +22,10 @@
 |---|---|
 | ![Нейросеть](docs/img/ai.png) | ![Сценарии](docs/img/scenarios.png) |
 
+**Светлая тема:**
+
+![Светлая тема MidiPult](docs/img/light.png)
+
 ---
 
 ## Возможности

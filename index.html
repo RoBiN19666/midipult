@@ -26,28 +26,39 @@
   --shadow:0 22px 55px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.05);
 }
 body.light{
-  --bg:#eef1f8;
-  --card-a:rgba(255,255,255,.92);
-  --card-b:rgba(248,250,255,.96);
-  --stroke:rgba(15,23,42,.12);
-  --text:#111827;
-  --muted:#5b6478;
-  --shadow:0 18px 40px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.7);
+  --bg:#f4efe7;
+  --card-a:rgba(255,252,247,.96);
+  --card-b:rgba(247,240,231,.98);
+  --stroke:rgba(76,62,48,.14);
+  --text:#20242c;
+  --muted:#6d675e;
+  --shadow:0 24px 54px rgba(78,58,38,.10), inset 0 1px 0 rgba(255,255,255,.9);
 }
-body.light::before{opacity:.25}
-body.light .topbar,body.light .tabs{background:rgba(255,255,255,.72);border-color:rgba(15,23,42,.12)}
-body.light .tab{color:#334155}
+body.light .aurora{opacity:.3;filter:saturate(.9)}
+body.light .tabs{background:rgba(255,252,247,.82);border-color:rgba(76,62,48,.13);box-shadow:0 12px 32px rgba(78,58,38,.10), inset 0 1px 0 rgba(255,255,255,.9)}
+body.light .tab{color:#625b52}
+body.light .tab:hover{background:rgba(76,62,48,.06);color:#20242c}
 body.light .tab[aria-pressed="true"]{color:#fff}
-body.light .card{background:linear-gradient(160deg,rgba(255,255,255,.97),rgba(243,246,255,.99));border-color:rgba(15,23,42,.12)}
-body.light .btn.ghost{background:rgba(15,23,42,.05);color:#111827;border-color:rgba(15,23,42,.16)}
-body.light .net-input,body.light select,body.light input[type="text"],body.light input[type="password"],body.light input[type="number"],body.light input[type="time"]{background:#fff;color:#111827;border-color:rgba(15,23,42,.2)}
-body.light .chip,body.light .llm-chip{background:rgba(15,23,42,.06);color:#111827;border-color:rgba(15,23,42,.14)}
-body.light .pill{background:rgba(255,255,255,.9);border-color:rgba(15,23,42,.12);color:#111827}
-body.light .log,body.light pre{background:#0f172a;color:#dbeafe;border-color:rgba(15,23,42,.4)}
-body.light .seg-note,body.light p,body.light .field-top label{color:#4b5563}
-body.light .media-cover{border-color:rgba(15,23,42,.18)}
-body.light .banner{background:rgba(251,191,36,.18);color:#7c4a03}
-body.light .toast{background:#111827;color:#f8fafc}
+body.light .card{background:linear-gradient(155deg,rgba(255,253,249,.98),rgba(247,240,231,.98));border-color:rgba(76,62,48,.14)}
+body.light .card::after{background:radial-gradient(420px 180px at 12% -10%,rgba(124,92,255,.08),transparent 70%)}
+body.light .clock-time{background:linear-gradient(120deg,#202838,#5b4bdb 70%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 8px 20px rgba(91,75,219,.18))}
+body.light .logo{color:#4d3fd8;background:linear-gradient(140deg,#ece8ff,#ddf5ff);border-color:rgba(77,63,216,.18);box-shadow:0 10px 24px rgba(77,63,216,.14)}
+body.light .btn.ghost{background:rgba(255,252,247,.78);color:#252a33;border-color:rgba(76,62,48,.18)}
+body.light .net-input,body.light select,body.light input[type="text"],body.light input[type="password"],body.light input[type="number"],body.light input[type="time"]{background:#fffdfa;color:#20242c;border-color:rgba(76,62,48,.2)}
+body.light .chip,body.light .llm-chip{background:rgba(76,62,48,.055);color:#2b303a;border-color:rgba(76,62,48,.14)}
+body.light .chip[aria-pressed="true"]{background:rgba(124,92,255,.16);border-color:rgba(124,92,255,.6)}
+body.light .pill{background:rgba(255,252,247,.78);border-color:rgba(76,62,48,.13);color:#6d675e}
+body.light .pill.ok{color:#047857}
+body.light .pill.warn{color:#92400e}
+body.light .pill.bad{color:#be123c}
+body.light .log,body.light pre{background:#0f172a;color:#dbeafe;border-color:rgba(76,62,48,.4)}
+body.light .seg-note,body.light p,body.light .field-top label{color:#5f594f}
+body.light .media-cover{border-color:rgba(76,62,48,.18)}
+body.light .banner{background:rgba(251,191,36,.16);color:#7c4a03}
+body.light .toast{background:#20242c;color:#f8fafc}
+body.light .ring .core{background:radial-gradient(circle at 50% 35%,#fffdfa,#eee5d9);border-color:rgba(76,62,48,.13)}
+body.light input[type="color"]::-webkit-color-swatch{border-color:rgba(76,62,48,.25)}
+body.light input[type="color"]::-moz-color-swatch{border-color:rgba(76,62,48,.25)}
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{
