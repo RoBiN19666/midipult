@@ -2259,18 +2259,15 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     listening = true;
     listenCtrl = new AbortController();
     var voiceWasRunning = false;
+    var started = 0;
+    var timer = null;
 
     el.btnMic.classList.add('listening');
     el.btnCancelListen.hidden = false;
-    el.micHint.textContent = 'Слушаю… говорите';
-    setTranscript('…', false);
+    el.micHint.textContent = 'Готовлю микрофон…';
+    setTranscript('Отправляю Алисе «Алиса»…', false);
     el.btnRepeat.disabled = true;
-
-    var started = Date.now();
-    var timer = setInterval(function () {
-      el.micTimer.textContent = ((Date.now() - started) / 1000).toFixed(1) + ' с';
-    }, 100);
-
+    el.micTimer.textContent = '';
     busyStart();
 
     cgi('voicectl.py', {}, { timeout: 8000, silent: true }).then(function (data) {
@@ -2285,8 +2282,15 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       return cgi('command.py', { text: 'Алиса' }, { timeout: 20000, signal: listenCtrl.signal });
     }).then(function () {
       // Дать Алисе произнести «Слушаю» и открыть микрофон.
-      return new Promise(function (resolve) { setTimeout(resolve, 2200); });
+      return new Promise(function (resolve) { setTimeout(resolve, 5000); });
     }).then(function () {
+      if (listenCtrl.signal.aborted) throw new Error('Отменено');
+      el.micHint.textContent = 'Слушаю… говорите';
+      setTranscript('…', false);
+      started = Date.now();
+      timer = setInterval(function () {
+        el.micTimer.textContent = ((Date.now() - started) / 1000).toFixed(1) + ' с';
+      }, 100);
       return lunaSpeech(15000, listenCtrl.signal);
     }).then(function (data) {
       luna('/api/alice/speech/cancel', {}, { timeout: 8000 }).catch(function () {});
@@ -2296,14 +2300,20 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
         el.btnRepeat.disabled = false;
         toast('Распознано: ' + text, 'ok');
       } else {
-        setTranscript('Не расслышал. Попробуйте ещё раз.', true);
+        setTranscript('Не расслышал. Нажмите ещё раз и говорите после «Слушаю».', true);
         toast('Пустой ответ микрофона', 'warn');
       }
     }).catch(function (err) {
-      setTranscript('Не удалось распознать: ' + err.message, true);
-      if (err.message !== 'Отменено') toast('Микрофон: ' + err.message, 'bad');
+      var msg = String((err && err.message) || '');
+      if (/timeout waiting for speech|Превышено время|timeout/i.test(msg)) {
+        setTranscript('Не расслышал. Нажмите ещё раз и говорите после «Слушаю».', true);
+        toast('Не расслышал', 'warn');
+      } else {
+        setTranscript('Не удалось распознать: ' + msg, true);
+        if (msg !== 'Отменено') toast('Микрофон: ' + msg, 'bad');
+      }
     }).finally(function () {
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
       listening = false;
       listenCtrl = null;
       el.btnMic.classList.remove('listening');
