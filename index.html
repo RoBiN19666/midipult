@@ -770,10 +770,10 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
     <h2 id="h-voice"><span class="dot"></span>Голос</h2>
     <div class="voice-grid">
       <div class="mic-wrap">
-        <button class="mic" id="btnMic" aria-label="Слушать">
+        <button class="mic" id="btnMic" aria-label="Распознать фразу" title="Распознать фразу; диалог Алисы не запускается">
           <svg aria-hidden="true"><use href="#i-mic"/></svg>
         </button>
-        <div class="mic-hint" id="micHint">Нажмите и скажите «Алиса, …»</div>
+        <div class="mic-hint" id="micHint">Запись фразы · скажите «Алиса, …»</div>
         <div class="mic-timer" id="micTimer"></div>
       </div>
       <div class="voice-side">
@@ -2253,7 +2253,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
 
     el.btnMic.classList.add('listening');
     el.btnCancelListen.hidden = false;
-    el.micHint.textContent = 'Слушаю… говорите';
+    el.micHint.textContent = 'Записываю… скажите «Алиса, …»';
     setTranscript('…', false);
     el.btnRepeat.disabled = true;
 
@@ -2283,7 +2283,7 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
       listenCtrl = null;
       el.btnMic.classList.remove('listening');
       el.btnCancelListen.hidden = true;
-      el.micHint.textContent = 'Нажмите и скажите «Алиса, …»';
+      el.micHint.textContent = 'Запись фразы · скажите «Алиса, …»';
       el.micTimer.textContent = '';
       busyEnd();
     });
