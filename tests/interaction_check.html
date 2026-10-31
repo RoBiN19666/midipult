@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>interaction check</title>
+<style>body{font:13px monospace;background:#111;color:#0f0}iframe{width:1240px;height:900px;border:1px solid #333}</style>
+</head>
+<body>
+<pre id="out">pending</pre>
+<iframe id="frame" src="/index.html"></iframe>
+<script>
+(function () {
+  var lines = [];
+  var frame = document.getElementById('frame');
+  var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+
+  frame.addEventListener('load', async function () {
+    var w = frame.contentWindow;
+    var d = frame.contentDocument;
+    w.addEventListener('error', function (e) { lines.push('JSERR ' + e.message); });
+
+    var click = function (sel) {
+      var el = d.querySelector(sel);
+      if (!el) { throw new Error('нет элемента ' + sel); }
+      el.click();
+      return el;
+    };
+
+    try {
+      await sleep(900);
+      lines.push('pill=' + d.getElementById('pill').className.trim());
+      lines.push('pillText=' + d.getElementById('pillText').textContent);
+      lines.push('netLine=' + d.getElementById('netLine').textContent);
+
+      // палитра
+      click('[data-mode="rainbow"]');
+      await sleep(600);
+      lines.push('ringHex=' + d.getElementById('ringHex').textContent);
+      lines.push('rainbowPressed=' + d.querySelector('[data-mode="rainbow"]').getAttribute('aria-pressed'));
+
+      // цвет
+      var picker = d.getElementById('colorPicker');
+      picker.value = '#ff8800';
+      picker.dispatchEvent(new w.Event('input', { bubbles: true }));
+      await sleep(500);
+      lines.push('colorCode=' + d.getElementById('colorCode').textContent);
+
+      // громкость
+      var vol = d.getElementById('volume');
+      vol.value = '70';
+      vol.dispatchEvent(new w.Event('input', { bubbles: true }));
+      await sleep(500);
+      lines.push('volume=' + d.getElementById('volumeVal').textContent);
+
+      // часы
+      click('#btnSync');
+      await sleep(400);
+      lines.push('clockToasts=' + d.querySelectorAll('.toast').length);
+
+      // озвучка
+      var tts = d.getElementById('ttsText');
+      tts.value = 'Проверка озвучки';
+      tts.dispatchEvent(new w.Event('input', { bubbles: true }));
+      click('#btnSay');
+      await sleep(800);
+      lines.push('ttsCount=' + d.getElementById('ttsCount').textContent);
+
+      // микрофон
+      click('#btnMic');
+      await sleep(900);
+      lines.push('transcript=' + d.getElementById('transcript').textContent.trim());
+      lines.push('cancelHidden=' + (d.getElementById('btnCancelListen').hidden ? 'yes' : 'no'));
+
+      // журнал
+      click('#btnDebug');
+      await sleep(200);
+      lines.push('dialogOpen=' + d.getElementById('debugDlg').open);
+      lines.push('svc=' + d.getElementById('svcState').textContent);
+    } catch (err) {
+      lines.push('ERR ' + err.message);
+    }
+
+    document.getElementById('out').textContent = lines.join('\n');
+    document.title = 'DONE ' + lines.length;
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>led state</title></head>
+<body>
+<script>
+localStorage.setItem('mypult.ledMode', '"off"');
+localStorage.setItem('mypult.color', '"#FF8800"');
+localStorage.setItem('mypult.ledColors', JSON.stringify(new Array(24).fill('#FF8800')));
+location.replace('/index.html');
+</script>
+</body></html>

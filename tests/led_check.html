@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>led check</title>
+<style>body{margin:0;font:12px monospace;background:#111;color:#0f0}iframe{width:1240px;height:900px;border:0}</style>
+</head>
+<body>
+<pre id="out">pending</pre>
+<iframe id="f" src="/index.html"></iframe>
+<script>
+(function () {
+  var f = document.getElementById('f');
+  f.addEventListener('load', function () {
+    setTimeout(function () {
+      var w = f.contentWindow;
+      var d = f.contentDocument;
+      var lines = [];
+      var fire = function (el, type) {
+        el.dispatchEvent(new w.MouseEvent(type || 'click', { bubbles: true, cancelable: true }));
+      };
+
+      try {
+        var dots = d.querySelectorAll('#ringDots b');
+        fire(dots[4]);
+        lines.push('hint=' + d.getElementById('ledHint').textContent);
+        lines.push('selected=' + d.querySelectorAll('#ringDots b.sel').length);
+
+        var picker = d.getElementById('colorPicker');
+        picker.value = '#ff00ff';
+        picker.dispatchEvent(new w.Event('input', { bubbles: true }));
+        lines.push('ringHex=' + d.getElementById('ringHex').textContent);
+        lines.push('dot5=' + dots[4].style.background);
+
+        var wave = d.querySelector('[data-mode="wave"]');
+        fire(wave);
+        lines.push('wavePressed=' + wave.getAttribute('aria-pressed'));
+      } catch (err) {
+        lines.push('ERR ' + err.message);
+      }
+
+      document.getElementById('out').textContent = lines.join('\n');
+    }, 900);
+  });
+})();
+</script>
+</body></html>

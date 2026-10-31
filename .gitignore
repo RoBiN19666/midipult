@@ -1,0 +1,46 @@
+# ─── локальное состояние деплоя ───────────────────────────────────────────
+.mypult-station
+.mypult-hash
+push.log
+deploy/.mypult-station
+known_hosts
+*.log
+
+# ─── секреты и данные конкретной колонки ──────────────────────────────────
+# токены, подписки и ключи появляются уже на устройстве, но на всякий случай
+secrets/
+*.secret
+cgi-bin/glagol.conf.local
+# если кто-то скопирует рабочие конфиги в папку проекта
+auth.json
+llm.json
+vpn.json
+chats.json
+scenarios.json
+radio.json
+dns.json
+ring.json
+volume.json
+voice.json
+auto_brightness.json
+tz.json
+glagol.json
+*.pem
+*.key
+.env
+
+# ─── Python ───────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.volume-cache.json
+tests/__pycache__/
+
+# ─── скриншоты с личными данными (IP, SSID, подписка) ────────────────────
+tests/*.png
+tests/shot-*.png
+screenshots/
+
+# ─── временное ────────────────────────────────────────────────────────────
+.tmp/
+tmp/
+dist/

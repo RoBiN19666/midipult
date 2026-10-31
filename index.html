@@ -1,0 +1,4145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta name="theme-color" content="#07090f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%230f1220'/%3E%3Ccircle cx='32' cy='28' r='15' fill='none' stroke='url(%23g)' stroke-width='4'/%3E%3Ccircle cx='32' cy='28' r='6' fill='%2322d3ee'/%3E%3Cpath d='M14 50h36' stroke='url(%23g)' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M20 56h24' stroke='url(%23g)' stroke-width='2.5' stroke-linecap='round' opacity='.5'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.json">
+<title>MidiPult — пульт станции Миди</title>
+<style>
+:root{
+  --bg:#07090f;
+  --card-a:rgba(30,35,52,.78);
+  --card-b:rgba(13,16,25,.88);
+  --stroke:rgba(255,255,255,.085);
+  --text:#eef2ff;
+  --muted:#8f9bb3;
+  --accent:#7c5cff;
+  --accent2:#22d3ee;
+  --ok:#34d399;
+  --warn:#fbbf24;
+  --bad:#fb7185;
+  --radius:20px;
+  --shadow:0 22px 55px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.05);
+}
+body.light{
+  --bg:#eef1f8;
+  --card-a:rgba(255,255,255,.92);
+  --card-b:rgba(248,250,255,.96);
+  --stroke:rgba(15,23,42,.12);
+  --text:#111827;
+  --muted:#5b6478;
+  --shadow:0 18px 40px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.7);
+}
+body.light::before{opacity:.25}
+body.light .topbar,body.light .tabs{background:rgba(255,255,255,.72);border-color:rgba(15,23,42,.12)}
+body.light .tab{color:#334155}
+body.light .tab[aria-pressed="true"]{color:#fff}
+body.light .card{background:linear-gradient(160deg,rgba(255,255,255,.97),rgba(243,246,255,.99));border-color:rgba(15,23,42,.12)}
+body.light .btn.ghost{background:rgba(15,23,42,.05);color:#111827;border-color:rgba(15,23,42,.16)}
+body.light .net-input,body.light select,body.light input[type="text"],body.light input[type="password"],body.light input[type="number"],body.light input[type="time"]{background:#fff;color:#111827;border-color:rgba(15,23,42,.2)}
+body.light .chip,body.light .llm-chip{background:rgba(15,23,42,.06);color:#111827;border-color:rgba(15,23,42,.14)}
+body.light .pill{background:rgba(255,255,255,.9);border-color:rgba(15,23,42,.12);color:#111827}
+body.light .log,body.light pre{background:#0f172a;color:#dbeafe;border-color:rgba(15,23,42,.4)}
+body.light .seg-note,body.light p,body.light .field-top label{color:#4b5563}
+body.light .media-cover{border-color:rgba(15,23,42,.18)}
+body.light .banner{background:rgba(251,191,36,.18);color:#7c4a03}
+body.light .toast{background:#111827;color:#f8fafc}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100vh;
+  font-family:"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  color:var(--text);background:var(--bg);overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+button,input,textarea{font-family:inherit}
+[hidden]{display:none !important}
+
+/* ---------- background ---------- */
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.aurora span{position:absolute;display:block;width:52vmax;height:52vmax;border-radius:50%;filter:blur(90px);opacity:.5;animation:float 24s ease-in-out infinite alternate}
+.aurora span:nth-child(1){background:radial-gradient(circle at 30% 30%,#6d4bff,transparent 65%);top:-20vmax;left:-14vmax}
+.aurora span:nth-child(2){background:radial-gradient(circle at 60% 40%,#0e7490,transparent 65%);bottom:-24vmax;right:-16vmax;animation-delay:-8s}
+.aurora span:nth-child(3){background:radial-gradient(circle at 50% 50%,#ff3d81,transparent 65%);top:38%;left:58%;opacity:.22;animation-delay:-16s}
+@keyframes float{to{transform:translate3d(6vmax,-4vmax,0) scale(1.15)}}
+
+/* ---------- topbar ---------- */
+.topbar{
+  max-width:1200px;margin:0 auto;padding:22px 18px 6px;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.logo{
+  width:46px;height:46px;flex:0 0 auto;border-radius:15px;display:grid;place-items:center;
+  font-size:20px;color:#dcd6ff;
+  background:linear-gradient(140deg,rgba(124,92,255,.38),rgba(34,211,238,.22));
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 10px 30px rgba(124,92,255,.28);
+}
+.brand h1{font-size:17px;margin:0;letter-spacing:.2px;line-height:1.25}
+.brand p{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.3}
+.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+
+.pill{
+  display:inline-flex;align-items:center;gap:9px;padding:8px 14px;border-radius:999px;
+  background:rgba(255,255,255,.05);border:1px solid var(--stroke);
+  font-size:13px;color:var(--muted);white-space:nowrap;
+}
+.pill i{width:9px;height:9px;border-radius:50%;background:var(--muted);transition:background .3s,box-shadow .3s}
+.pill.ok{color:#c7ffe9}
+.pill.ok i{background:var(--ok);box-shadow:0 0 12px var(--ok)}
+.pill.warn{color:#ffe9bf}
+.pill.warn i{background:var(--warn);box-shadow:0 0 12px var(--warn)}
+.pill.bad{color:#ffd8df}
+.pill.bad i{background:var(--bad);box-shadow:0 0 12px var(--bad)}
+.pill.busy i{background:var(--accent2);box-shadow:0 0 12px var(--accent2);animation:blink .9s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+.banner{
+  display:none;max-width:1200px;margin:14px auto 0;padding:12px 16px;
+  border-radius:14px;background:rgba(251,113,133,.11);
+  border:1px solid rgba(251,113,133,.38);color:#ffdbe1;font-size:13.5px;line-height:1.5;
+}
+.banner.show{display:block}
+.banner code{background:rgba(0,0,0,.3);padding:1px 6px;border-radius:6px;font-size:12.5px}
+
+/* ---------- layout ---------- */
+main.grid{
+  max-width:1200px;margin:16px auto 0;padding:0 18px 30px;
+  display:grid;gap:16px;grid-template-columns:repeat(12,1fr);
+}
+.card{
+  grid-column:span 12;position:relative;padding:20px;border-radius:var(--radius);
+  background:linear-gradient(160deg,var(--card-a),var(--card-b));
+  border:1px solid var(--stroke);box-shadow:var(--shadow);
+  backdrop-filter:blur(18px) saturate(130%);
+  -webkit-backdrop-filter:blur(18px) saturate(130%);
+  overflow:hidden;
+}
+.card::after{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:radial-gradient(420px 180px at 12% -10%,rgba(124,92,255,.16),transparent 70%);
+}
+.card > *{position:relative;z-index:1}
+  .radio-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chip-x{margin-left:7px;opacity:.55;font-size:14px;line-height:1}
+  .chip-x:hover{opacity:1}
+  #scName, #scPhrases{width:100%}
+  .media-progress{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12px;color:var(--muted)}
+  .media-progress input{flex:1;min-width:0}
+  .pin-gate{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(7,9,15,.88);backdrop-filter:blur(14px)}
+  .pin-gate[hidden]{display:none}
+  .pin-card{width:min(92vw,340px);padding:24px;border-radius:20px;border:1px solid var(--stroke);background:var(--card-b);box-shadow:var(--shadow);display:grid;gap:12px;text-align:center}
+  .pin-card h2{margin:0;font-size:18px}
+  .pin-card input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--text);font-size:20px;text-align:center;letter-spacing:6px}
+  main .card.dragging{opacity:.45}
+  main .card h2{cursor:grab}
+  main .card h2:active{cursor:grabbing}
+
+  /* навигация по разделам: одна аккуратная капсула вместо полосы */
+  .tabs{
+    position:sticky;top:10px;z-index:60;
+    display:flex;gap:4px;width:max-content;max-width:100%;
+    margin:0 auto 16px;padding:6px;
+    border-radius:999px;
+    background:rgba(12,16,28,.62);
+    border:1px solid rgba(255,255,255,.08);
+    backdrop-filter:blur(20px) saturate(1.3);
+    -webkit-backdrop-filter:blur(20px) saturate(1.3);
+    box-shadow:0 12px 34px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.06);
+    overflow-x:auto;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{
+    flex:0 0 auto;height:36px;padding:0 15px;border-radius:999px;
+    border:0;background:transparent;color:var(--muted);
+    font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+    white-space:nowrap;transition:color .18s,background .18s,box-shadow .18s;
+  }
+  .tab:hover{color:var(--text);background:rgba(255,255,255,.05)}
+  .tab[aria-pressed="true"]{
+    color:#fff;
+    background:linear-gradient(135deg,rgba(124,92,255,.55),rgba(34,211,238,.28));
+    box-shadow:0 6px 18px rgba(124,92,255,.35), inset 0 1px 0 rgba(255,255,255,.15);
+  }
+
+  .card.is-hidden{display:none !important}
+  .card{animation:cardIn .22s ease both}
+  @keyframes cardIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  .bt-list{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+  .bt-item{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+    background:rgba(255,255,255,.04);border:1px solid var(--stroke);font-size:13px;
+  }
+  .bt-item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bt-item small{color:var(--muted);font-size:11px}
+
+  .net-input{
+    height:38px;padding:0 12px;border-radius:12px;border:1px solid var(--stroke);
+    background:rgba(255,255,255,.04);color:var(--text);font-size:14px;flex:1;min-width:0;
+  }
+  select.net-input{
+    -webkit-appearance:none;appearance:none;cursor:pointer;
+    padding-right:34px;
+    background-image:
+      linear-gradient(45deg,transparent 50%,#8f9bb3 50%),
+      linear-gradient(135deg,#8f9bb3 50%,transparent 50%);
+    background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;
+    background-size:5px 5px,5px 5px;
+    background-repeat:no-repeat;
+    background-color:rgba(255,255,255,.04);
+    transition:border-color .18s,box-shadow .18s;
+  }
+  select.net-input:hover{border-color:rgba(124,92,255,.45)}
+  select.net-input:focus{
+    outline:none;border-color:rgba(124,92,255,.65);
+    box-shadow:0 0 0 3px rgba(124,92,255,.16);
+  }
+  select.net-input option{background:#161a26;color:var(--text)}
+  #scType{flex:0 1 260px;max-width:260px}
+
+  .sys-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+  .sys-tile{
+    padding:12px;border-radius:14px;background:rgba(255,255,255,.04);
+    border:1px solid var(--stroke);display:flex;flex-direction:column;gap:4px;
+  }
+  .sys-label{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .sys-tile strong{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+  .sys-tile small{font-size:11.5px;color:var(--muted);line-height:1.35}
+  .sys-bar{height:6px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden;margin:4px 0 2px}
+  .sys-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#7c5cff,#22d3ee);transition:width .4s}
+  .sys-bar i.warn{background:linear-gradient(90deg,#fbbf24,#f97316)}
+  .sys-bar i.bad{background:linear-gradient(90deg,#fb7185,#ef4444)}
+
+  .llm-providers{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .llm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:12px}
+  .llm-field{display:flex;flex-direction:column;gap:6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .llm-field select,.llm-field input{
+    height:42px;padding:0 12px;border-radius:12px;border:1px solid var(--stroke);
+    background:rgba(255,255,255,.04);color:var(--text);font-size:14px;
+    text-transform:none;letter-spacing:0;
+  }
+  .llm-field select{
+    -webkit-appearance:none;appearance:none;padding-right:34px;
+    background-image:linear-gradient(45deg,transparent 50%,#8f9bb3 50%),linear-gradient(135deg,#8f9bb3 50%,transparent 50%);
+    background-position:calc(100% - 18px) 19px,calc(100% - 13px) 19px;
+    background-size:5px 5px,5px 5px;background-repeat:no-repeat;
+  }
+  .llm-field select option{background:#161a26;color:var(--text)}
+  .llm-field select:focus,.llm-field input:focus{outline:2px solid rgba(124,92,255,.55);outline-offset:1px}
+  .llm-toggle{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--text);align-self:end;padding-bottom:9px}
+  .llm-toggle input{width:18px;height:18px;accent-color:#7c5cff}
+  #llmAnswer{min-height:54px;margin-top:12px;white-space:pre-wrap}
+
+  @media(min-width:760px){
+    .c-clock{grid-column:span 7}
+    .c-led{grid-column:span 5}
+    .c-media{grid-column:span 5}
+    .c-voice{grid-column:span 7}
+    .c-tts{grid-column:span 12}
+    .c-llm{grid-column:span 12}
+    .c-radio{grid-column:span 12}
+    .c-vpn{grid-column:span 12}
+    .c-sys{grid-column:span 12}
+    .c-bt,.c-net{grid-column:span 6}
+    .c-zigbee{grid-column:span 12}
+    .c-scenarios{grid-column:span 12}
+  }
+  @media(min-width:760px) and (max-width:860px){
+    .c-bt,.c-net{grid-column:span 12}
+  }
+.card h2{
+  margin:0 0 2px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;display:flex;align-items:center;gap:8px;
+}
+.card h2 .dot{width:6px;height:6px;border-radius:50%;background:linear-gradient(140deg,var(--accent),var(--accent2))}
+
+/* ---------- controls ---------- */
+.btn{
+  --btn-bg:rgba(255,255,255,.07);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:11px 16px;border-radius:12px;border:1px solid var(--stroke);
+  background:var(--btn-bg);color:var(--text);font-size:14px;font-weight:600;
+  cursor:pointer;user-select:none;white-space:nowrap;
+  transition:transform .12s ease,filter .2s ease,background .2s ease,border-color .2s ease;
+}
+.btn:hover{filter:brightness(1.2)}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none;transform:none}
+.btn:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+.btn.primary{background:linear-gradient(135deg,#7c5cff,#4f7cff);border-color:transparent;box-shadow:0 12px 26px rgba(92,110,255,.32)}
+.btn.danger{background:linear-gradient(135deg,#f43f5e,#b91c1c);border-color:transparent}
+.btn.ghost{background:rgba(255,255,255,.03)}
+.btn.sm{padding:8px 12px;font-size:13px;border-radius:10px}
+.btn.icon{padding:0;width:52px;height:52px;border-radius:50%;flex:0 0 auto}
+.btn.icon.big{width:64px;height:64px}
+.btn.icon.big svg{width:26px;height:26px}
+.ic{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.field{margin-top:14px}
+.field-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+.field-top output{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+.field-top label{color:var(--muted)}
+
+input[type="range"]{
+  -webkit-appearance:none;appearance:none;width:100%;height:26px;margin:0;
+  background:transparent;cursor:pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track{height:6px;border-radius:99px;background:linear-gradient(90deg,rgba(124,92,255,.85),rgba(34,211,238,.75))}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;margin-top:-7px;
+  box-shadow:0 0 0 4px rgba(124,92,255,.22),0 2px 6px rgba(0,0,0,.5);
+}
+input[type="range"]::-moz-range-track{height:6px;border-radius:99px;background:linear-gradient(90deg,rgba(124,92,255,.85),rgba(34,211,238,.75))}
+input[type="range"]::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(124,92,255,.22)}
+input[type="range"]:focus-visible{outline:2px solid var(--accent2);outline-offset:4px;border-radius:99px}
+
+input[type="text"],textarea{
+  width:100%;padding:12px 14px;border-radius:13px;border:1px solid var(--stroke);
+  background:rgba(255,255,255,.04);color:var(--text);font-size:15px;line-height:1.45;
+}
+input[type="text"]{height:46px}
+textarea{min-height:88px;resize:vertical;display:block}
+input[type="text"]:focus,textarea:focus{outline:2px solid rgba(124,92,255,.55);outline-offset:1px;border-color:transparent}
+input::placeholder,textarea::placeholder{color:#6d7891}
+
+/* ---------- clock ---------- */
+.clock-wrap{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin:12px 0 6px}
+.clock-time{
+  font-size:clamp(46px,10vw,66px);font-weight:700;line-height:1;letter-spacing:-1.5px;
+  font-variant-numeric:tabular-nums;
+  background:linear-gradient(120deg,#ffffff,#a9bcff 70%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 6px 24px rgba(124,92,255,.35));
+}
+.clock-sub{font-size:12.5px;color:var(--muted);margin-top:6px}
+.clock-actions{display:flex;flex-direction:column;gap:8px;min-width:196px;flex:1 1 196px;max-width:230px}
+.clock-actions .btn{width:100%}
+.c-clock{display:flex;flex-direction:column}
+
+.display-preview{
+  position:relative;margin-top:16px;min-height:150px;
+  display:flex;flex-direction:column;justify-content:center;
+  flex:1 1 auto;
+  border-radius:16px;overflow:hidden;
+  background:radial-gradient(120% 130% at 50% -10%,#101d18,#060a09 72%);
+  border:1px solid rgba(120,255,200,.12);
+  box-shadow:inset 0 0 46px rgba(0,255,170,.07);
+  transition:opacity .35s ease;
+}
+.display-preview::before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 4px);
+}
+.seg7{position:relative;display:block;width:100%;height:auto;padding:12px 24px 20px}
+.seg7 rect{fill:#0d1512;transition:fill .16s ease}
+.seg7 rect.on{fill:#c9ffe8;filter:drop-shadow(0 0 7px rgba(52,211,153,.85))}
+.seg7 circle{fill:#0d1512;transition:fill .16s ease}
+.seg7 circle.on{fill:#c9ffe8;filter:drop-shadow(0 0 7px rgba(52,211,153,.85))}
+.display-preview.editing .seg7 rect{cursor:pointer}
+.display-preview.editing .seg7 rect:hover{fill:#2f5d4d}
+.display-preview.editing{border-color:rgba(120,255,200,.3)}
+.display-preview em{
+  position:absolute;left:12px;bottom:8px;font-style:normal;
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#5d7c72;
+}
+.seg-edit{
+  position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:10px;z-index:3;
+  border:1px solid rgba(120,255,200,.28);background:rgba(8,14,12,.82);
+  color:#a7e8cf;cursor:pointer;font-size:14px;line-height:1;
+}
+.seg-edit:hover{color:#e9fff7;background:rgba(24,48,40,.95)}
+.seg-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.seg-note{font-size:11.5px;color:var(--muted);flex:1 1 160px}
+.display-extra{margin-top:12px;flex-wrap:nowrap}
+.display-extra input{height:42px;font-size:13.5px;min-width:0}
+.bright-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.bright-chips .chip{padding:6px 11px;font-size:12px}
+
+/* ---------- led ---------- */
+.ring{position:relative;width:220px;height:220px;margin:8px auto 2px;--r:88px}
+.ring .dots{position:absolute;inset:0}
+.ring .dots b{
+  position:absolute;left:50%;top:50%;width:13px;height:13px;margin:-6.5px;border-radius:50%;
+  background:#171b26;color:transparent;cursor:pointer;
+  transform:rotate(calc(var(--i) * 15deg)) translateY(calc(-1 * var(--r)));
+  transition:background .28s ease,box-shadow .28s ease,color .28s ease;
+}
+.ring .dots b.sel{outline:2px solid #fff;outline-offset:2px;z-index:2}
+.led-hint{font-size:11.5px;color:var(--muted);text-align:center;margin-top:8px;min-height:16px}
+.ring .core{
+  position:absolute;inset:48px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.06),rgba(0,0,0,.18));
+  border:1px solid rgba(255,255,255,.06);
+}
+.ring .core strong{font-size:15px;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+.ring .core span{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.ring.flash{animation:ringFlash .55s ease}
+@keyframes ringFlash{0%{filter:brightness(1)}35%{filter:brightness(1.45)}100%{filter:brightness(1)}}
+
+.led-controls{display:flex;align-items:center;gap:14px;margin-top:10px}
+input[type="color"]{
+  -webkit-appearance:none;appearance:none;width:56px;height:56px;padding:0;border:none;
+  border-radius:16px;background:transparent;cursor:pointer;flex:0 0 auto;
+}
+input[type="color"]::-webkit-color-swatch-wrapper{padding:0}
+input[type="color"]::-webkit-color-swatch{border:2px solid rgba(255,255,255,.32);border-radius:16px}
+input[type="color"]::-moz-color-swatch{border:2px solid rgba(255,255,255,.32);border-radius:16px}
+.led-labels{display:flex;flex-direction:column;gap:2px;min-width:0}
+.led-labels span{font-size:11px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.led-labels code{font-size:15px;font-weight:600;letter-spacing:.5px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.04);color:var(--text);
+  font-size:12.5px;font-weight:500;cursor:pointer;transition:background .2s,border-color .2s;
+}
+.chip:hover{background:rgba(255,255,255,.1)}
+.chip[aria-pressed="true"]{border-color:rgba(124,92,255,.75);background:rgba(124,92,255,.2)}
+.chip .sw{width:12px;height:12px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+
+/* ---------- media ---------- */
+.media-now{display:flex;align-items:center;gap:12px;margin:14px 0 16px}
+.media-art{
+  width:56px;height:56px;flex:0 0 auto;border-radius:16px;display:grid;place-items:center;
+  color:#dbe4ff;background:linear-gradient(140deg,rgba(124,92,255,.35),rgba(34,211,238,.18));
+  border:1px solid rgba(255,255,255,.1);overflow:hidden;
+}
+.media-art img{width:100%;height:100%;object-fit:cover;display:block}
+.media-title{font-size:15px;font-weight:600}
+.media-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.transport{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 8px}
+.btn.play{background:linear-gradient(135deg,#7c5cff,#4f7cff);border-color:transparent;box-shadow:0 12px 30px rgba(92,110,255,.35)}
+.vol-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center}
+.vol-row .btn{padding:6px 10px;font-size:15px;line-height:1}
+
+/* ---------- voice ---------- */
+.voice-grid{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;margin-top:14px}
+.mic-wrap{display:flex;flex-direction:column;align-items:center;gap:9px;min-width:104px}
+.mic{
+  width:88px;height:88px;border-radius:50%;border:none;cursor:pointer;
+  display:grid;place-items:center;color:#080a12;
+  background:linear-gradient(140deg,#8b6dff,#22d3ee);
+  box-shadow:0 16px 40px rgba(34,211,238,.28);
+  transition:transform .15s ease,filter .2s ease;
+}
+.mic svg{width:34px;height:34px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mic:hover{filter:brightness(1.08)}
+.mic:active{transform:scale(.94)}
+.mic:focus-visible{outline:2px solid #fff;outline-offset:4px}
+.mic.listening{animation:pulse 1.7s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(124,92,255,.55),0 16px 40px rgba(34,211,238,.28)}100%{box-shadow:0 0 0 28px rgba(124,92,255,0),0 16px 40px rgba(34,211,238,.28)}}
+.mic-hint{font-size:12px;color:var(--muted);text-align:center;line-height:1.35}
+.mic-timer{font-size:12px;color:var(--accent2);font-variant-numeric:tabular-nums;min-height:15px}
+.voice-side{min-width:0}
+.transcript{
+  min-height:58px;padding:13px 15px;border-radius:14px;
+  background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.13);
+  font-size:15px;line-height:1.45;color:#e2e8ff;word-break:break-word;
+}
+.transcript.empty{color:var(--muted);font-style:italic}
+.voice-side .row{margin-top:10px}
+.voice-side .field{margin-top:14px}
+
+@media(max-width:560px){
+  .voice-grid{grid-template-columns:1fr;justify-items:center}
+  .voice-side{width:100%}
+  .clock-actions{max-width:none}
+  .ring{--r:78px;width:198px;height:198px}
+  .card{padding:17px}
+}
+
+/* мобильный адаптив: меню в две строки, карточки в один столбец */
+@media (max-width:700px){
+  .topbar{padding:12px 14px;gap:10px}
+  .brand h1{font-size:16px}
+  .brand p{font-size:11px}
+  .pill{padding:6px 10px;font-size:11.5px}
+  .tabs{
+    width:100%;max-width:100%;flex-wrap:wrap;justify-content:center;
+    border-radius:18px;gap:6px;padding:8px;overflow:visible;
+  }
+  .tab{height:34px;padding:0 12px;font-size:12.5px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+  .tab[aria-pressed="true"]{
+    background:linear-gradient(135deg,rgba(124,92,255,.62),rgba(34,211,238,.32));
+    border-color:transparent;
+  }
+  main.grid{padding:0 12px 24px;gap:12px}
+  .card{padding:16px;border-radius:16px}
+  .row{flex-wrap:wrap}
+  .clock-wrap{flex-direction:column;align-items:stretch;gap:12px}
+  .clock-actions{max-width:none;min-width:0;flex:none}
+  .seg7{padding:10px 12px 16px}
+  .llm-grid{grid-template-columns:1fr}
+  .bt-item{flex-wrap:wrap}
+  .bt-item .name{flex:1 1 100%}
+  .radio-grid{gap:6px}
+  .chip{font-size:12px;padding:7px 11px}
+  .media-art{width:48px;height:48px}
+  .clock-actions{max-width:none;width:100%}
+  #scType{flex:1 1 100%;max-width:100%}
+  .sys-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ---------- tts ---------- */
+.counter{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+#ttsText{min-height:96px}
+
+/* ---------- toast ---------- */
+.toasts{
+  position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;
+  display:flex;flex-direction:column;gap:8px;width:min(92vw,430px);pointer-events:none;
+}
+.toast{
+  padding:11px 15px;border-radius:12px;font-size:13.5px;line-height:1.4;
+  background:rgba(18,22,34,.96);border:1px solid var(--stroke);
+  box-shadow:0 14px 34px rgba(0,0,0,.5);animation:toastIn .22s ease;
+  word-break:break-word;
+}
+.toast.ok{border-color:rgba(52,211,153,.5)}
+.toast.warn{border-color:rgba(251,191,36,.5)}
+.toast.bad{border-color:rgba(251,113,133,.55)}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+/* ---------- footer / dialog ---------- */
+footer{
+  max-width:1200px;margin:0 auto;padding:0 18px 34px;
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  font-size:12px;color:#6c7793;
+}
+footer .ok{color:var(--muted)}
+dialog{
+  width:min(700px,94vw);max-height:86vh;padding:18px;border-radius:18px;overflow:auto;
+  border:1px solid var(--stroke);background:#0e1220;color:var(--text);
+  box-shadow:0 30px 80px rgba(0,0,0,.65);
+}
+dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.dlg-head h3{margin:0;font-size:15px}
+.dlg-head h3 small{font-size:11px;font-weight:500;color:var(--muted);margin-left:8px;letter-spacing:.02em}
+.svc{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.svc span{
+  font-size:11.5px;padding:5px 9px;border-radius:999px;border:1px solid var(--stroke);
+  background:rgba(255,255,255,.04);color:var(--muted);
+}
+.svc span.on{color:#c7ffe9;border-color:rgba(52,211,153,.45)}
+.svc span.off{color:#ffd8df;border-color:rgba(251,113,133,.45)}
+.log{
+  max-height:300px;overflow:auto;margin:0 0 12px;padding:11px 12px;border-radius:12px;
+  background:#070a11;border:1px solid rgba(255,255,255,.05);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:11.5px;line-height:1.6;color:#9fb0c9;white-space:pre-wrap;word-break:break-word;
+}
+.log .err{color:#ffb3c0}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important}
+}
+</style>
+</head>
+<body>
+
+<div class="pin-gate" id="pinGate" hidden>
+  <div class="pin-card">
+    <h2>Пульт защищён PIN</h2>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="8"
+           placeholder="PIN" autocomplete="current-password" aria-label="PIN">
+    <button class="btn sm" id="btnPinLogin">Войти</button>
+    <div class="seg-note" id="pinError"></div>
+  </div>
+</div>
+
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">◈</div>
+    <div>
+      <h1>MidiPult</h1>
+      <p id="netLine">проверяю сервисы…</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="pill" id="pill" role="status" aria-live="polite"><i></i><span id="pillText">Проверка…</span></div>
+    <button class="btn ghost sm" id="btnTheme" aria-label="Светлая тема" title="Светлая тема">☼</button>
+    <button class="btn ghost sm" id="btnDebug" aria-label="Диагностика">⚙</button>
+  </div>
+</header>
+
+<div class="banner" id="offlineBanner">
+  <strong>Luna не отвечает.</strong> Проверьте шлюз на колонке:
+  <code>/data/quazar/luna/bin/luna --listen 0.0.0.0:8099 --data-dir /data/quazar/luna/data &amp;</code>
+</div>
+
+<nav class="tabs" id="tabs" aria-label="Разделы">
+  <button class="tab" data-tab="display" aria-pressed="true">◐ Дисплей</button>
+  <button class="tab" data-tab="sound" aria-pressed="false">♪ Звук</button>
+  <button class="tab" data-tab="ai" aria-pressed="false">✦ Нейросеть</button>
+  <button class="tab" data-tab="network" aria-pressed="false">⇄ Сеть</button>
+  <button class="tab" data-tab="system" aria-pressed="false">▤ Система</button>
+  <button class="tab" data-tab="scenarios" aria-pressed="false">▦ Сценарии</button>
+</nav>
+
+<main class="grid">
+
+  <!-- ───────── дисплей ───────── -->
+  <section class="card c-clock" data-group="display" aria-labelledby="h-clock">
+    <h2 id="h-clock"><span class="dot"></span>Дисплей</h2>
+    <div class="clock-wrap">
+      <div>
+        <div class="clock-time" id="clockTime">--:--</div>
+        <div class="clock-sub" id="clockSub">часы колонки</div>
+      </div>
+      <div class="clock-actions">
+        <button class="btn primary" id="btnSync">
+          <svg class="ic" aria-hidden="true"><use href="#i-sync"/></svg>Синхронизировать
+        </button>
+        <button class="btn ghost" id="btnScreenOff">
+          <svg class="ic" aria-hidden="true"><use href="#i-power"/></svg>Погасить экран
+        </button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-top"><label for="brightness">Яркость дисплея</label><output id="brightnessVal">170</output></div>
+      <input type="range" id="brightness" min="10" max="255" step="1" value="170">
+      <div class="bright-chips" id="brightChips">
+        <button class="chip" data-bright="30">Ночь</button>
+        <button class="chip" data-bright="110">День</button>
+        <button class="chip" data-bright="170">Стандарт</button>
+        <button class="chip" data-bright="255">Максимум</button>
+      </div>
+    </div>
+    <div class="display-preview" id="displayPreview">
+      <svg class="seg7" id="seg7" viewBox="0 0 480 180" role="img" aria-label="Семисегментный дисплей">
+        <g id="seg7Digits"></g>
+        <circle cx="232" cy="62" r="9" class="on"/>
+        <circle cx="232" cy="118" r="9" class="on"/>
+      </svg>
+      <em>предпросмотр дисплея</em>
+      <button class="seg-edit" id="btnDraw" type="button" title="Режим рисования" aria-label="Рисовать на дисплее">✏️</button>
+    </div>
+    <div class="seg-toolbar" id="segToolbar" hidden>
+      <button class="btn sm" id="btnSegSend" disabled>Показать</button>
+      <button class="btn sm ghost" id="btnSegClear">Очистить</button>
+      <button class="btn sm ghost" id="btnSegDone">Готово</button>
+      <span class="seg-note" id="segNote">Соберите ЧЧ:ММ из палочек</span>
+    </div>
+    <div class="row display-extra">
+      <input type="text" id="displayText" maxlength="32" placeholder="Бегущая строка: до 32 символов" autocomplete="off">
+      <button class="btn sm" id="btnDisplayText">Текст</button>
+      <button class="btn sm ghost" id="btnClockBack" hidden title="Вернуть часы">Часы</button>
+    </div>
+    <div class="seg-note" style="margin-top:6px">До 32 символов: 0–9, A–Y (кроме K, M, V, W, X, Z), «_», «-». Пробел станет «_».</div>
+  </section>
+
+  <!-- ───────── кольцо ───────── -->
+  <section class="card c-led" data-group="display" aria-labelledby="h-led">
+    <h2 id="h-led"><span class="dot"></span>Кольцо</h2>
+    <div class="ring" id="ring">
+      <div class="dots" id="ringDots"></div>
+      <div class="core"><strong id="ringHex">#00E676</strong><span>24 LED</span></div>
+    </div>
+    <div class="led-hint" id="ledHint">Нажмите на диод, чтобы задать ему свой цвет</div>
+    <div class="led-controls">
+      <input type="color" id="colorPicker" value="#00e676" aria-label="Цвет кольца">
+      <div class="led-labels"><span>Цвет</span><code id="colorCode">#00E676</code></div>
+    </div>
+    <div class="chips" id="presets">
+      <button class="chip" data-hex="#ffffff" aria-pressed="false"><i class="sw" style="background:#fff"></i>Белый</button>
+      <button class="chip" data-hex="#ffd7a8" aria-pressed="false"><i class="sw" style="background:#ffd7a8"></i>Тёплый</button>
+      <button class="chip" data-hex="#ff3b3b" aria-pressed="false"><i class="sw" style="background:#ff3b3b"></i>Красный</button>
+      <button class="chip" data-hex="#22c55e" aria-pressed="false"><i class="sw" style="background:#22c55e"></i>Зелёный</button>
+      <button class="chip" data-hex="#3b82f6" aria-pressed="false"><i class="sw" style="background:#3b82f6"></i>Синий</button>
+      <button class="chip" data-mode="rainbow" aria-pressed="false">🌈 Радуга</button>
+      <button class="chip" data-mode="gradient" aria-pressed="false">🎨 Градиент</button>
+      <button class="chip" data-mode="wave" aria-pressed="false">🌊 Волна</button>
+      <button class="chip" data-mode="candle" aria-pressed="false">🕯 Свеча</button>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <div class="field-top"><label for="ringBrightness">Яркость кольца</label><output id="ringBrightVal">255</output></div>
+      <input type="range" id="ringBrightness" min="0" max="255" step="1" value="255" aria-label="Яркость кольца">
+    </div>
+    <div class="field" style="margin-top:14px">
+      <div class="field-top"><label for="ringSpeed">Скорость / дыхание</label><output id="ringSpeedVal">фикс</output></div>
+      <input type="range" id="ringSpeed" min="0" max="300" step="10" value="0" aria-label="Скорость анимации и мигания кольца">
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn danger sm" id="btnLedOff">Выключить кольцо</button>
+    </div>
+  </section>
+
+  <!-- ───────── плеер ───────── -->
+  <section class="card c-media" data-group="sound" aria-labelledby="h-media">
+    <h2 id="h-media"><span class="dot"></span>Плеер</h2>
+    <div class="media-now">
+      <div class="media-art" aria-hidden="true">
+        <img id="mediaCover" alt="" hidden>
+        <svg class="ic" id="mediaArtIcon" style="width:26px;height:26px"><use href="#i-music"/></svg>
+      </div>
+      <div>
+        <div class="media-title" id="mediaTitle">Glagol</div>
+        <div class="media-sub" id="mediaSub">ws://127.0.0.1:1961</div>
+      </div>
+    </div>
+    <div class="transport">
+      <button class="btn icon" id="btnPrev" aria-label="Предыдущий трек">
+        <svg class="ic" aria-hidden="true"><use href="#i-prev"/></svg>
+      </button>
+      <button class="btn icon big play" id="btnPlay" aria-label="Воспроизвести">
+        <svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>
+      </button>
+      <button class="btn icon" id="btnNext" aria-label="Следующий трек">
+        <svg class="ic" aria-hidden="true"><use href="#i-next"/></svg>
+      </button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm ghost" id="btnMusic" title="Вернуться к Яндекс Музыке">Яндекс Музыка</button>
+      <span class="seg-note" id="mediaKind"></span>
+    </div>
+    <div class="media-progress" id="mediaProgress">
+      <span id="mediaPos">0:00</span>
+      <input type="range" id="mediaSeek" min="0" max="1000" step="1" value="0" aria-label="Перемотка">
+      <span id="mediaDur">0:00</span>
+    </div>
+    <div class="field">
+      <div class="field-top"><label for="volume">Громкость</label><output id="volumeVal">40%</output></div>
+      <div class="vol-row">
+        <button class="btn ghost" id="btnVolDown" aria-label="Тише">−</button>
+        <input type="range" id="volume" min="0" max="100" step="1" value="40" aria-label="Громкость">
+        <button class="btn ghost" id="btnVolUp" aria-label="Громче">+</button>
+        <button class="btn ghost" id="btnMute" aria-label="Без звука">
+          <svg class="ic" aria-hidden="true"><use href="#i-mute"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── голос ───────── -->
+  <section class="card c-voice" data-group="sound" aria-labelledby="h-voice">
+    <h2 id="h-voice"><span class="dot"></span>Голос</h2>
+    <div class="voice-grid">
+      <div class="mic-wrap">
+        <button class="mic" id="btnMic" aria-label="Слушать">
+          <svg aria-hidden="true"><use href="#i-mic"/></svg>
+        </button>
+        <div class="mic-hint" id="micHint">Нажмите и скажите «Алиса, …»</div>
+        <div class="mic-timer" id="micTimer"></div>
+      </div>
+      <div class="voice-side">
+        <div class="transcript empty" id="transcript" aria-live="polite">Скажите фразу с обращением «Алиса» — без него распознавание пустое.</div>
+        <div class="row">
+          <button class="btn sm" id="btnRepeat" disabled>Повторить Алисе</button>
+          <button class="btn sm ghost" id="btnCancelListen" hidden>Отменить</button>
+        </div>
+        <div class="field">
+          <div class="field-top"><label for="command">Текстовая команда</label></div>
+          <div class="row" style="flex-wrap:nowrap">
+            <input type="text" id="command" placeholder="Алиса, какая погода?" autocomplete="off">
+            <button class="btn primary sm" id="btnSendCmd">Отправить</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn sm" id="btnVoiceDaemon">Голосовой пульт: выкл</button>
+          <span class="seg-note" id="voiceDaemonStatus">alice_light работает</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── радио ───────── -->
+  <section class="card c-radio" data-group="sound" aria-labelledby="h-radio">
+    <h2 id="h-radio"><span class="dot"></span>Радио</h2>
+    <div class="radio-grid" id="radioChips"></div>
+    <div class="row" style="margin-top:10px">
+      <input id="radioName" class="net-input" placeholder="Свой канал: например, Радио Шансон" autocomplete="off">
+      <button class="btn sm ghost" id="btnRadioAdd">Добавить</button>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm ghost" id="btnRadioPrev" aria-label="Предыдущая станция">◀</button>
+      <button class="btn sm" id="btnRadioStop">Стоп</button>
+      <button class="btn sm ghost" id="btnRadioNext" aria-label="Следующая станция">▶</button>
+      <span class="seg-note" id="radioStatus">выберите станцию</span>
+    </div>
+  </section>
+
+  <!-- ───────── озвучка ───────── -->
+  <section class="card c-tts" data-group="sound" aria-labelledby="h-tts">
+    <h2 id="h-tts"><span class="dot"></span>Озвучка голосом Алисы</h2>
+    <div class="field" style="margin-top:12px">
+      <textarea id="ttsText" maxlength="2000" placeholder="Введите фразу — колонка произнесёт её штатным голосом…"></textarea>
+    </div>
+    <div class="row between" style="margin-top:10px">
+      <span class="counter"><span id="ttsCount">0</span>/2000</span>
+      <div class="row">
+        <button class="btn ghost sm" id="btnTtsClear">Очистить</button>
+        <button class="btn primary" id="btnSay">
+          <svg class="ic" aria-hidden="true"><use href="#i-volume"/></svg>Сказать
+        </button>
+      </div>
+    </div>
+    <div class="chips" id="ttsChips">
+      <button class="chip" data-text="Доброе утро!">Доброе утро</button>
+      <button class="chip" data-text="Я пульт управления. Приятно познакомиться.">Приветствие</button>
+      <button class="chip" data-text="Таймер на пять минут поставлен.">Таймер</button>
+      <button class="chip" data-text="Проверка связи прошла успешно.">Проверка связи</button>
+    </div>
+  </section>
+
+  <!-- ───────── нейросеть ───────── -->
+  <section class="card c-llm" data-group="ai" aria-labelledby="h-llm">
+    <h2 id="h-llm"><span class="dot"></span>Нейросеть</h2>
+
+    <div class="llm-providers" id="llmProfiles" role="group" aria-label="Профили"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm ghost" id="btnLlmNew">+ Новый профиль</button>
+      <span class="seg-note" id="llmActive"></span>
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm ghost" id="btnChatPrev" aria-label="Предыдущий чат">‹</button>
+      <span class="seg-note" id="llmChat">Чат 1</span>
+      <button class="btn sm ghost" id="btnChatNext" aria-label="Следующий чат">›</button>
+      <button class="btn sm ghost" id="btnChatNew">+ чат</button>
+      <button class="btn sm ghost" id="btnChatDel" aria-label="Удалить текущий чат" title="Удалить текущий чат">×</button>
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <label class="llm-field" style="flex:1"><span>Длина ответа</span>
+        <select id="llmLength">
+          <option value="260">Кратко</option>
+          <option value="700">Обычно</option>
+          <option value="1400">Подробно</option>
+          <option value="2000">Полный (до 2000)</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="llm-grid">
+      <label class="llm-field"><span>Провайдер</span>
+        <select id="llmProviderSelect" aria-label="Провайдер"></select>
+      </label>
+      <label class="llm-field"><span>Название профиля</span>
+        <input type="text" id="llmName" placeholder="Например, ChatGPT" autocomplete="off">
+      </label>
+      <label class="llm-field"><span>Модель</span>
+        <select id="llmModel"></select>
+      </label>
+      <label class="llm-field" id="llmModelCustomWrap" hidden><span>Своя модель</span>
+        <input type="text" id="llmModelCustom" placeholder="например, my-model" autocomplete="off">
+      </label>
+      <label class="llm-field"><span>Base URL</span>
+        <input type="text" id="llmBase" placeholder="https://api…/v1" autocomplete="off">
+      </label>
+      <label class="llm-field"><span>API-ключ</span>
+        <input type="password" id="llmKey" placeholder="хранится на колонке" autocomplete="off">
+      </label>
+      <label class="llm-toggle"><input type="checkbox" id="llmEnabled"><span>Включено</span></label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm" id="btnLlmSave">Сохранить</button>
+      <span class="seg-note" id="llmStatus"></span>
+    </div>
+    <div class="field" style="margin-top:12px">
+      <textarea id="llmPrompt" placeholder="Спросите что-нибудь…"></textarea>
+    </div>
+    <div class="row between" style="margin-top:10px">
+      <span class="counter" id="llmMeta"></span>
+      <div class="row">
+        <button class="btn ghost sm" id="btnLlmVoice" title="Сказать «Алиса, …» и получить ответ голосом">🎙 Голосом</button>
+        <button class="btn ghost sm" id="btnLlmSay" disabled>Озвучить</button>
+        <button class="btn primary" id="btnLlmAsk">Спросить</button>
+      </div>
+    </div>
+    <div class="transcript empty" id="llmAnswer" aria-live="polite">Ответ появится здесь.</div>
+  </section>
+
+  <!-- ───────── VPN ───────── -->
+  <section class="card c-vpn" data-group="network" aria-labelledby="h-vpn">
+    <h2 id="h-vpn"><span class="dot"></span>VPN</h2>
+    <div class="llm-grid">
+      <label class="llm-field" style="grid-column:1/-1"><span>Ссылка на подписку</span>
+        <input type="text" id="vpnUrl" placeholder="https://…" autocomplete="off">
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm" id="btnVpnSave">Сохранить подписку</button>
+      <button class="btn sm primary" id="btnVpnStart" disabled>Включить</button>
+      <button class="btn sm danger" id="btnVpnStop" disabled>Выключить</button>
+      <span class="seg-note" id="vpnStatus">не настроено</span>
+    </div>
+    <div class="llm-grid" style="margin-top:10px">
+      <label class="llm-field"><span>Сервер</span>
+        <select id="vpnServer" disabled></select>
+      </label>
+      <label class="llm-toggle"><input type="checkbox" id="vpnAutostart"><span>Включать при загрузке</span></label>
+    </div>
+    <pre class="log" id="vpnLog" hidden></pre>
+  </section>
+
+  <!-- ───────── ресурсы ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-sys">
+    <h2 id="h-sys"><span class="dot"></span>Ресурсы</h2>
+    <div class="sys-grid">
+      <div class="sys-tile">
+        <span class="sys-label">CPU</span>
+        <strong id="sysCpu">—</strong>
+        <div class="sys-bar"><i id="sysCpuBar"></i></div>
+        <small id="sysLoad"></small>
+      </div>
+      <div class="sys-tile">
+        <span class="sys-label">Память</span>
+        <strong id="sysRam">—</strong>
+        <div class="sys-bar"><i id="sysRamBar"></i></div>
+        <small id="sysRamSub"></small>
+      </div>
+      <div class="sys-tile">
+        <span class="sys-label">Температура</span>
+        <strong id="sysTemp">—</strong>
+        <small id="sysTempSub"></small>
+      </div>
+      <div class="sys-tile">
+        <span class="sys-label">Диск /data</span>
+        <strong id="sysDisk">—</strong>
+        <div class="sys-bar"><i id="sysDiskBar"></i></div>
+        <small id="sysDiskSub"></small>
+      </div>
+      <div class="sys-tile">
+        <span class="sys-label">Освещённость</span>
+        <strong id="sysLight">—</strong>
+        <small id="sysLightSub"></small>
+      </div>
+      <div class="sys-tile">
+        <span class="sys-label">Аптайм</span>
+        <strong id="sysUptime">—</strong>
+        <small id="sysBoard"></small>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────── bluetooth ───────── -->
+  <section class="card c-bt" data-group="network" aria-labelledby="h-bt">
+    <h2 id="h-bt"><span class="dot"></span>Bluetooth</h2>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm" id="btnBtPower">Bluetooth: —</button>
+      <button class="btn sm ghost" id="btnBtPairMode">Сопряжение: —</button>
+      <button class="btn sm ghost" id="btnBtScan">Сканировать</button>
+    </div>
+    <div class="seg-note" id="btStatus" style="margin-top:10px">—</div>
+    <div class="bt-list" id="btDevices"></div>
+  </section>
+
+  <!-- ───────── сеть ───────── -->
+  <section class="card c-net" data-group="network" aria-labelledby="h-net">
+    <h2 id="h-net"><span class="dot"></span>Сеть</h2>
+    <div class="seg-note" id="netStatus" style="margin-top:12px">—</div>
+    <div class="seg-note" id="netDetails" style="margin-top:6px"></div>
+    <div class="row" style="margin-top:10px">
+      <input id="netPsk" class="net-input" type="password" placeholder="пароль Wi-Fi" autocomplete="off">
+      <button class="btn sm ghost" id="btnNetScan">Сканировать</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="netDns" class="net-input" placeholder="DNS: 1.1.1.1,8.8.8.8" autocomplete="off">
+      <button class="btn sm ghost" id="btnNetDns">DNS</button>
+      <button class="btn sm ghost" id="btnNetDnsReset">Сброс</button>
+    </div>
+    <div class="bt-list" id="netList"></div>
+  </section>
+
+  <!-- ───────── zigbee ───────── -->
+  <section class="card c-zigbee" data-group="network" aria-labelledby="h-zigbee">
+    <h2 id="h-zigbee"><span class="dot"></span>Zigbee</h2>
+    <div class="seg-note" id="zbStatus" style="margin-top:12px">—</div>
+    <div class="row" style="margin-top:10px">
+      <input id="zbCommand" class="net-input" placeholder="Команда Алисе: включи лампу" autocomplete="off">
+      <button class="btn sm ghost" id="btnZbSend">Отправить</button>
+    </div>
+    <div class="seg-note" style="margin-top:8px">
+      Радио и сеть живут внутри maind, публичного локального API прошивка не отдаёт.
+      Добавление и удаление — в приложении «Яндекс Дом» (режим хаба), а команды
+      привязанным устройствам уходят Алисе по имени.
+    </div>
+  </section>
+
+  <!-- ───────── сценарии ───────── -->
+  <section class="card c-scenarios" data-group="scenarios" aria-labelledby="h-sc-builtin">
+    <h2 id="h-sc-builtin"><span class="dot"></span>Готовые команды</h2>
+    <div class="seg-note" style="margin-top:10px">Работают голосом, когда включён «Голосовой пульт».</div>
+    <div class="bt-list" id="scBuiltin"></div>
+  </section>
+
+  <section class="card c-scenarios" data-group="scenarios" aria-labelledby="h-sc-mine">
+    <h2 id="h-sc-mine"><span class="dot"></span>Мои сценарии</h2>
+    <div class="seg-note" style="margin-top:10px">
+      Цепочка действий по фразе: «Алиса, доброе утро» → сказать, зажечь кольцо, включить радио.
+    </div>
+    <div class="bt-list" id="scList"></div>
+
+    <div class="field" style="margin-top:14px">
+      <input id="scName" class="net-input" placeholder="Название: Доброе утро" autocomplete="off">
+    </div>
+    <div class="field" style="margin-top:8px">
+      <input id="scPhrases" class="net-input" placeholder="Фразы через запятую: доброе утро, утро" autocomplete="off">
+    </div>
+    <div class="row" style="margin-top:8px">
+      <input id="scTime" class="net-input" type="time" aria-label="Время запуска">
+      <input id="scDays" class="net-input" placeholder="Дни: 1-5 (пн=1 … вс=7)" autocomplete="off">
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button class="btn sm ghost" id="btnDaysWork">Будни 1–5</button>
+      <button class="btn sm ghost" id="btnDaysAll">Все 1–7</button>
+      <button class="btn sm ghost" id="btnDaysWeekend">Выходные 6–7</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <select id="scCondVpn" class="net-input" aria-label="Условие VPN">
+        <option value="">VPN: любой</option>
+        <option value="on">VPN включён</option>
+        <option value="off">VPN выключен</option>
+      </select>
+      <select id="scCondMusic" class="net-input" aria-label="Условие музыки">
+        <option value="">Музыка: любая</option>
+        <option value="playing">играет</option>
+        <option value="paused">на паузе</option>
+      </select>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm ghost" id="btnTplMorning">Шаблон «Утро»</button>
+      <button class="btn sm ghost" id="btnTplNight">«Ночь»</button>
+      <button class="btn sm ghost" id="btnTplAway">«Уход»</button>
+    </div>
+    <div class="seg-note" style="margin-top:12px">Действия по порядку</div>
+    <div class="bt-list" id="scActions"></div>
+    <div class="row" style="margin-top:10px">
+      <select id="scType" class="net-input" aria-label="Тип действия"></select>
+      <button class="btn sm ghost" id="btnScAddAction">Добавить действие</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sm" id="btnScSave">Сохранить сценарий</button>
+      <button class="btn sm ghost" id="btnScClear">Очистить</button>
+    </div>
+  </section>
+
+  <!-- ───────── логи ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-logs">
+    <h2 id="h-logs"><span class="dot"></span>Логи</h2>
+    <div class="row" style="margin-top:12px">
+      <select id="logName" class="net-input" aria-label="Файл лога">
+        <option value="mypult">Пульт</option>
+        <option value="voice">Голосовой демон</option>
+        <option value="lighttpd">lighttpd</option>
+      </select>
+      <button class="btn sm ghost" id="btnLogs">Обновить</button>
+    </div>
+    <pre class="log" id="logsBox" style="margin-top:10px">—</pre>
+  </section>
+
+  <!-- ───────── обслуживание ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-maint">
+    <h2 id="h-maint"><span class="dot"></span>Обслуживание</h2>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm ghost" id="btnNetcheck">Проверить сеть</button>
+      <button class="btn sm ghost" id="btnSpeed">Скорость</button>
+      <button class="btn sm ghost" id="btnCleanup">Очистить логи</button>
+      <button class="btn sm danger" id="btnReboot">Перезагрузить</button>
+      <button class="btn sm danger" id="btnPoweroff">Выключить</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="llm-toggle"><input type="checkbox" id="autoBright"><span>Автояркость кольца по свету</span></label>
+      <span class="seg-note" id="autoBrightStatus"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <input id="voiceMax" class="net-input" type="number" min="1" max="100" step="1"
+             aria-label="Потолок громкости ответов" placeholder="Потолок ответов, %">
+      <button class="btn sm ghost" id="btnVoiceMax">Сохранить потолок</button>
+      <span class="seg-note" id="voiceMaxStatus"></span>
+    </div>
+    <pre class="log" id="maintBox" style="margin-top:10px">—</pre>
+  </section>
+
+  <!-- ───────── бэкап ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-backup">
+    <h2 id="h-backup"><span class="dot"></span>Резервная копия</h2>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm ghost" id="btnBackup">Скачать бэкап</button>
+      <label class="btn sm ghost" for="backupFile">Восстановить…</label>
+      <input type="file" id="backupFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="seg-note" style="margin-top:8px">В файле есть ключи и подписки — храните его отдельно.</div>
+  </section>
+
+  <!-- ───────── PIN ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-pin">
+    <h2 id="h-pin"><span class="dot"></span>PIN</h2>
+    <div class="row" style="margin-top:12px">
+      <input id="pinNew" class="net-input" type="password" inputmode="numeric"
+             maxlength="8" placeholder="PIN: 4–8 цифр" autocomplete="new-password">
+      <button class="btn sm" id="btnPinEnable">Включить PIN</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm ghost" id="btnPinDisable">Отключить PIN</button>
+      <button class="btn sm ghost" id="btnPinLock">Заблокировать</button>
+      <span class="seg-note" id="pinStatus">PIN не включён</span>
+    </div>
+    <div class="seg-note" style="margin-top:8px">По умолчанию выключен. После включения панель спросит PIN на этом устройстве.</div>
+  </section>
+
+</main>
+
+<footer>
+  <span>MidiPult <span id="verTag">v—</span> · vanilla JS · lighttpd + CGI</span>
+  <span class="ok" id="footStatus">—</span>
+</footer>
+
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<dialog id="debugDlg">
+  <div class="dlg-head">
+    <h3>Диагностика <small id="verLine"></small></h3>
+    <button class="btn sm ghost" id="btnCloseDebug">Закрыть</button>
+  </div>
+  <div class="svc" id="svcState"></div>
+  <pre class="log" id="logBox">Журнал пуст.</pre>
+  <pre class="log" id="diagBox" hidden></pre>
+  <div class="row">
+    <button class="btn sm" id="btnRefreshStatus">Проверить снова</button>
+    <button class="btn sm primary" id="btnDiag">Проверить API</button>
+  </div>
+</dialog>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M9 6.4v11.2L18.6 12z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7.5 5.5h3.2v13H7.5zM13.3 5.5h3.2v13h-3.2z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 5.5l9 6.5-9 6.5z" fill="currentColor" stroke="none"/><path d="M17 5.5v13" stroke-width="2.4"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 5.5L9 12l9 6.5z" fill="currentColor" stroke="none"/><path d="M7 5.5v13" stroke-width="2.4"/></symbol>
+  <symbol id="i-sync" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.5-5.8"/><path d="M20 4.5V10h-5.5"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8.5"/><path d="M7.2 6.6a7.5 7.5 0 1 0 9.6 0"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M18.5 11.5a6.5 6.5 0 0 1-13 0"/><path d="M12 18v3"/></symbol>
+  <symbol id="i-volume" viewBox="0 0 24 24"><path d="M11 5.5 6.5 9H3.5v6h3L11 18.5z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5.5 6.5 9H3.5v6h3L11 18.5z"/><path d="M16 9.5l4 5M20 9.5l-4 5"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17.5V6l10-2v11"/><circle cx="6.5" cy="17.5" r="2.6"/><circle cx="16.5" cy="15" r="2.6"/></symbol>
+</svg>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ─────────── утилиты ─────────── */
+  var $ = function (sel, root) { return (root || document).querySelector(sel); };
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var clamp = function (v, lo, hi) { return Math.min(hi, Math.max(lo, v)); };
+
+  var store = {
+    get: function (k, dflt) {
+      try { var v = localStorage.getItem('mypult.' + k); return v === null ? dflt : JSON.parse(v); }
+      catch (e) { return dflt; }
+    },
+    set: function (k, v) {
+      try { localStorage.setItem('mypult.' + k, JSON.stringify(v)); } catch (e) {}
+    }
+  };
+
+  function ApiError(message, status, data) {
+    var err = new Error(message);
+    err.name = 'ApiError';
+    err.status = status || 0;
+    err.data = data || null;
+    return err;
+  }
+
+  /* ─────────── сеть ─────────── */
+  function request(url, opts) {
+    opts = opts || {};
+    var method = opts.method || 'POST';
+    var body = opts.body === undefined ? null : opts.body;
+    var timeout = opts.timeout || 12000;
+    var outside = opts.signal || null;
+
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, timeout);
+    var onOutsideAbort = function () { ctrl.abort(); };
+    if (outside) {
+      if (outside.aborted) ctrl.abort();
+      else outside.addEventListener('abort', onOutsideAbort);
+    }
+
+    var init = {
+      method: method,
+      signal: ctrl.signal,
+      cache: 'no-store',
+      headers: { 'Accept': 'application/json' }
+    };
+    if (body !== null) {
+      init.headers['Content-Type'] = 'application/json; charset=utf-8';
+      init.body = JSON.stringify(body);
+    }
+
+    return fetch(url, init).then(function (res) {
+      return res.text().then(function (text) {
+        var data = null;
+        if (text) { try { data = JSON.parse(text); } catch (e) { data = { raw: text }; } }
+        if (!res.ok) {
+          var msg = (data && (data.error || data.message)) || ('HTTP ' + res.status);
+          throw ApiError(msg, res.status, data);
+        }
+        return data === null ? {} : data;
+      });
+    }).catch(function (err) {
+      if (err && err.name === 'ApiError') throw err;
+      if (err && err.name === 'AbortError') {
+        if (outside && outside.aborted) throw ApiError('Отменено', 0);
+        throw ApiError('Превышено время ожидания', 0);
+      }
+      throw ApiError('Нет связи с устройством', 0);
+    }).finally(function () {
+      clearTimeout(timer);
+      if (outside) outside.removeEventListener('abort', onOutsideAbort);
+    });
+  }
+
+  /* ─────────── состояние ─────────── */
+  var State = {
+    luna: null,
+    glagol: null,
+    services: null,
+    color: '#00E676',
+    ledMode: 'solid',
+    ledColors: null,
+    selected: null,
+    ledAnim: null,
+    brightness: 170,
+    volume: 40,
+    playing: false,
+    busy: 0,
+    version: null,
+    drawing: false,
+    pattern: null,
+    displayOverride: false,
+    displayOff: false,
+    ringBrightness: 255,
+    ringSpeed: 0,
+    blinkTimer: null,
+    muted: false,
+    llmAnswer: '',
+    tab: 'display',
+    llm: null,
+    vpn: null,
+    voice: null,
+    radio: null,
+    bt: null,
+    net: null,
+    scenarios: [],
+    mediaDuration: 0,
+    mediaProgress: 0,
+    seeking: false,
+    dragCard: null
+  };
+
+  var el = {};
+  var ringDots = [];
+
+  /* ─────────── журнал / тосты ─────────── */
+  var logs = [];
+
+  function log(kind, title, detail, isErr) {
+    logs.unshift({ t: new Date(), kind: kind, title: title, detail: detail, err: !!isErr });
+    if (logs.length > 100) logs.pop();
+    renderLog();
+  }
+
+  function renderLog() {
+    if (!el.logBox) return;
+    if (!logs.length) { el.logBox.textContent = 'Журнал пуст.'; return; }
+    el.logBox.textContent = logs.map(function (item) {
+      var t = pad(item.t.getHours()) + ':' + pad(item.t.getMinutes()) + ':' + pad(item.t.getSeconds());
+      var line = t + '  [' + item.kind + '] ' + item.title;
+      if (item.detail !== undefined && item.detail !== null) {
+        var d = typeof item.detail === 'string' ? item.detail : JSON.stringify(item.detail);
+        if (d && d.length > 400) d = d.slice(0, 400) + '…';
+        line += ' → ' + d;
+      }
+      return (item.err ? '✖ ' : '· ') + line;
+    }).join('\n');
+  }
+
+  function toast(message, kind) {
+    var node = document.createElement('div');
+    node.className = 'toast' + (kind ? ' ' + kind : '');
+    node.textContent = message;
+    el.toasts.appendChild(node);
+    setTimeout(function () {
+      node.style.transition = 'opacity .3s, transform .3s';
+      node.style.opacity = '0';
+      node.style.transform = 'translateY(8px)';
+      setTimeout(function () { node.remove(); }, 320);
+    }, 3200);
+  }
+
+  /* ─────────── статус ─────────── */
+  function setPill(kind, text) {
+    el.pill.className = 'pill' + (kind ? ' ' + kind : '');
+    el.pillText.textContent = text;
+  }
+
+  function renderStatus() {
+    if (State.busy > 0) { setPill('busy', 'Отправка…'); }
+    else if (State.luna === false) { setPill('bad', 'Luna недоступна'); }
+    else if (State.luna === true && State.glagol === false) { setPill('warn', 'Luna в сети · Glagol offline'); }
+    else if (State.luna === true) { setPill('ok', 'В сети'); }
+    else { setPill('', 'Проверка…'); }
+
+    el.offlineBanner.classList.toggle('show', State.luna === false);
+
+    var parts = [];
+    parts.push('Luna ' + (State.luna === null ? '?' : State.luna ? '✓' : '✕'));
+    parts.push('Glagol ' + (State.glagol === null ? '?' : State.glagol ? '✓' : '✕'));
+    var tts = State.services && typeof State.services.tts === 'boolean' ? State.services.tts : null;
+    if (tts !== null) parts.push('IPC ' + (tts ? '✓' : '✕'));
+    el.netLine.textContent = parts.join(' · ');
+    el.footStatus.textContent = State.luna === null ? '—' :
+      (State.luna ? 'шлюз 8099 доступен' : 'шлюз 8099 недоступен');
+  }
+
+  function renderServices() {
+    var s = State.services || {};
+    var rows = [
+      ['Luna :8099', s.luna],
+      ['Glagol :1961', s.glagol],
+      ['IPC :9875', s.tts],
+      ['amixer', s.amixer],
+      ['websocket-client', s.websocket]
+    ];
+    el.svcState.innerHTML = '';
+    rows.forEach(function (row) {
+      var node = document.createElement('span');
+      node.textContent = row[0] + ' ' + (row[1] === true ? '✓' : row[1] === false ? '✕' : '?');
+      if (row[1] === true) node.className = 'on';
+      if (row[1] === false) node.className = 'off';
+      el.svcState.appendChild(node);
+    });
+  }
+
+  function busyStart() { State.busy += 1; renderStatus(); }
+  function busyEnd() { State.busy = Math.max(0, State.busy - 1); renderStatus(); }
+
+  function withBusy(button, fn) {
+    if (button && button.dataset.busy === '1') return Promise.resolve();
+    if (button) { button.dataset.busy = '1'; button.disabled = true; }
+    busyStart();
+    return Promise.resolve().then(fn).finally(function () {
+      if (button) { delete button.dataset.busy; button.disabled = false; }
+      busyEnd();
+    });
+  }
+
+  /* ─────────── API-обёртки ─────────── */
+  function luna(path, body, opts) {
+    opts = opts || {};
+    return request('/luna' + path, {
+      body: body || {},
+      timeout: opts.timeout || 12000,
+      signal: opts.signal
+    }).then(function (data) {
+      State.luna = true;
+      renderStatus();
+      log('luna', path, data);
+      return data;
+    }).catch(function (err) {
+      if (err.status === 0) { State.luna = false; renderStatus(); }
+      log('luna', path, err.message, true);
+      throw err;
+    });
+  }
+
+  function cgi(script, params, opts) {
+    opts = opts || {};
+    return request('/cgi-bin/' + script, {
+      body: params || {},
+      timeout: opts.timeout || 12000,
+      signal: opts.signal
+    }).then(function (data) {
+      if (!opts.silent) log('cgi', script, data);
+      return data;
+    }).catch(function (err) {
+      if (!opts.silent) log('cgi', script, err.message, true);
+      throw err;
+    });
+  }
+
+  /* ─────────── цвет ─────────── */
+  function hexToRgb(hex) {
+    var h = String(hex).replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h, 16);
+    if (isNaN(n)) return { r: 0, g: 230, b: 118 };
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(function (v) {
+      return clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0');
+    }).join('').toUpperCase();
+  }
+
+  function rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0));
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return { h: h, s: s * 100, l: l * 100 };
+  }
+
+  function hslToHex(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    s = clamp(s, 0, 100) / 100;
+    l = clamp(l, 0, 100) / 100;
+    var k = function (n) { return (n + h / 30) % 12; };
+    var a = s * Math.min(l, 1 - l);
+    var f = function (n) {
+      return l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    };
+    return rgbToHex(f(0) * 255, f(8) * 255, f(4) * 255);
+  }
+
+  function waveColors(frame) {
+    var out = [];
+    for (var i = 0; i < 24; i++) {
+      out.push(hslToHex((i * 15 + frame * 7) % 360, 92, 58));
+    }
+    return out;
+  }
+
+  function candleColors(frame) {
+    var out = [];
+    for (var i = 0; i < 24; i++) {
+      var flicker = 8 * Math.sin(i * 0.7 + frame * 0.5) + (Math.random() * 8 - 4);
+      out.push(hslToHex(28 + (i % 4) * 2, 95, clamp(48 + flicker, 32, 68)));
+    }
+    return out;
+  }
+
+  function composeColors() {
+    var i;
+    if (State.ledMode === 'custom') {
+      return State.ledColors.slice();
+    }
+    if (State.ledMode === 'rainbow') {
+      var out = [];
+      for (i = 0; i < 24; i++) out.push(hslToHex(i * 15, 92, 60));
+      return out;
+    }
+    if (State.ledMode === 'gradient') {
+      var base = rgbToHsl.apply(null, (function (c) { return [c.r, c.g, c.b]; })(hexToRgb(State.color)));
+      var list = [];
+      for (i = 0; i < 24; i++) {
+        list.push(hslToHex(base.h + i * 6, Math.max(55, base.s), clamp(base.l - i * 0.9, 26, 78)));
+      }
+      return list;
+    }
+    if (State.ledMode === 'wave') return waveColors(0);
+    if (State.ledMode === 'candle') return candleColors(0);
+    return new Array(24).fill(State.color);
+  }
+
+  function paintRing(colors, label) {
+    if (!ringDots.length) return;
+    for (var i = 0; i < ringDots.length; i++) {
+      var c = colors[i % colors.length];
+      ringDots[i].style.background = c;
+      ringDots[i].style.color = c;
+      ringDots[i].style.boxShadow = '0 0 10px ' + c;
+    }
+    el.ringHex.textContent = label || colors[0].toUpperCase();
+  }
+
+  function paintOff() {
+    ringDots.forEach(function (dot) {
+      dot.style.background = '#171b26';
+      dot.style.color = 'transparent';
+      dot.style.boxShadow = 'none';
+    });
+    el.ringHex.textContent = 'OFF';
+  }
+
+  function markActiveChip() {
+    var chips = el.presets.querySelectorAll('.chip');
+    for (var i = 0; i < chips.length; i++) {
+      var chip = chips[i];
+      var match = chip.dataset.mode
+        ? chip.dataset.mode === State.ledMode
+        : (State.ledMode === 'solid' && chip.dataset.hex.toLowerCase() === State.color.toLowerCase());
+      chip.setAttribute('aria-pressed', match ? 'true' : 'false');
+    }
+  }
+
+  function selectLed(index) {
+    if (State.ledMode === 'wave' || State.ledMode === 'candle') {
+      State.ledColors = composeColors().slice();
+      stopLedAnimation();
+      State.ledMode = 'custom';
+    }
+
+    if (State.selected === index) {
+      State.selected = null;
+    } else {
+      if (State.ledMode !== 'custom') {
+        State.ledColors = composeColors().slice();
+      }
+      State.selected = index;
+      State.ledMode = 'custom';
+    }
+
+    ringDots.forEach(function (dot, i) {
+      dot.classList.toggle('sel', i === State.selected);
+    });
+    el.ledHint.textContent = State.selected === null
+      ? 'Нажмите на диод, чтобы задать ему свой цвет'
+      : 'Диод ' + (State.selected + 1) + ' — выберите цвет';
+    store.set('ledColors', State.ledColors);
+    store.set('ledMode', State.ledMode);
+    markActiveChip();
+    paintRing(State.ledMode === 'custom' ? State.ledColors : composeColors());
+  }
+
+  function applySelected(hex) {
+    if (State.selected === null) return false;
+    State.color = hex.toUpperCase();
+    State.ledColors[State.selected] = State.color;
+    State.ledMode = 'custom';
+    el.colorPicker.value = State.color.toLowerCase();
+    el.colorCode.textContent = State.color;
+    store.set('color', State.color);
+    store.set('ledColors', State.ledColors);
+    store.set('ledMode', 'custom');
+    paintRing(State.ledColors);
+    markActiveChip();
+    ensureRingBacklight();
+    pushRing();
+    return true;
+  }
+
+  function stopLedAnimation() {
+    if (State.ledAnim && State.ledAnim.timer) clearInterval(State.ledAnim.timer);
+    State.ledAnim = null;
+    stopRingBlink();
+  }
+
+  function stopRingBlink() {
+    if (State.blinkTimer) {
+      clearInterval(State.blinkTimer);
+      State.blinkTimer = null;
+    }
+  }
+
+  function scaleHex(hex, factor) {
+    var rgb = hexToRgb(hex);
+    function channel(value) {
+      var text = Math.max(0, Math.min(255, Math.round(value * factor))).toString(16);
+      return text.length < 2 ? '0' + text : text;
+    }
+    return '#' + channel(rgb.r) + channel(rgb.g) + channel(rgb.b);
+  }
+
+  function startRingBlink() {
+    stopRingBlink();
+    if (State.ledMode !== 'solid' || !State.ringSpeed) return;
+    var phase = 0;
+    State.blinkTimer = setInterval(function () {
+      if (State.ledMode !== 'solid' || !State.ringSpeed) {
+        stopRingBlink();
+        return;
+      }
+      if (document.hidden) return;
+      // Плавное «дыхание»: 15% → 100% → 15%, без резкого вкл/выкл.
+      phase += 0.17 * State.ringSpeed;
+      var factor = 0.15 + 0.85 * (0.5 - 0.5 * Math.cos(phase));
+      var color = scaleHex(State.color, factor);
+      var colors = new Array(24).fill(color);
+      request('/luna/api/led/ring', { body: { colors: colors }, timeout: 5000 })
+        .catch(function () { stopRingBlink(); });
+    }, 100);
+  }
+
+  function startLedAnimation(kind) {
+    stopLedAnimation();
+    State.selected = null;
+    ringDots.forEach(function (dot) { dot.classList.remove('sel'); });
+    el.ledHint.textContent = kind === 'wave'
+      ? 'Волна: цвет бежит по кольцу'
+      : 'Свеча: тёплое мерцание';
+    State.ledMode = kind;
+    store.set('ledMode', kind);
+    markActiveChip();
+    ensureRingBacklight();
+
+    var anim = { kind: kind, frame: 0, busy: false, timer: null };
+    State.ledAnim = anim;
+
+    var tick = function () {
+      if (State.ledAnim !== anim) return;
+      if (document.hidden) return;
+      var colors = kind === 'wave' ? waveColors(anim.frame) : candleColors(anim.frame);
+      anim.frame += 1;
+      paintRing(colors, kind === 'wave' ? 'WAVE' : 'FIRE');
+      if (anim.busy) return;
+      anim.busy = true;
+      request('/luna/api/led/ring', { body: { colors: colors }, timeout: 5000 })
+        .catch(function (err) {
+          stopLedAnimation();
+          toast('Кольцо: ' + err.message, 'bad');
+        })
+        .finally(function () { anim.busy = false; });
+    };
+
+    anim.timer = setInterval(tick, Math.max(50, 170 / (State.ringSpeed || 1)));
+    tick();
+  }
+
+  function applyColor(hex, mode) {
+    stopLedAnimation();
+    State.color = hex.toUpperCase();
+    State.ledMode = mode || 'solid';
+    if (State.ledMode === 'solid') {
+      State.ledColors = new Array(24).fill(State.color);
+      store.set('ledColors', State.ledColors);
+    }
+    el.colorPicker.value = State.color.toLowerCase();
+    el.colorCode.textContent = State.color;
+    store.set('color', State.color);
+    store.set('ledMode', State.ledMode);
+    paintRing(composeColors());
+    markActiveChip();
+    ensureRingBacklight();
+    pushRing();
+    if (State.ledMode === 'solid') startRingBlink();
+  }
+
+  var ledTimer = null;
+  var ledSeq = 0;
+  var ledPending = false;
+  var lastBacklight = 0;
+
+  function ensureRingBacklight() {
+    // Подсветка fb0 кольца могла остаться в 0 (например, старым «погасить экран»),
+    // тогда диоды меняют цвет, но физически не горят.
+    var now = Date.now();
+    if (now - lastBacklight < 4000) return;
+    lastBacklight = now;
+    cgi('display.py', {
+      ring_brightness: State.ringBrightness == null ? 255 : State.ringBrightness
+    }, { timeout: 5000, silent: true }).catch(function () { /* тихо */ });
+  }
+
+  var ringBrightTimer = null;
+
+  function setRingSpeed(value) {
+    var speed = Math.max(0, Math.min(3, (parseInt(value, 10) || 0) / 100));
+    State.ringSpeed = speed;
+    el.ringSpeed.value = String(Math.round(speed * 100));
+    el.ringSpeedVal.textContent = speed ? speed.toFixed(1) + '×' : 'фикс';
+    store.set('animSpeed', speed);
+    if (State.ledAnim) {
+      startLedAnimation(State.ledAnim.kind);
+    } else if (State.ledMode === 'solid') {
+      startRingBlink();
+    }
+  }
+
+  function loadRingSpeed() {
+    var saved = Number(store.get('animSpeed'));
+    setRingSpeed(Math.round((saved > 0 ? saved : 0) * 100));
+  }
+
+  function setRingBrightness(value, save) {
+    var level = clamp(parseInt(value, 10) || 0, 0, 255);
+    State.ringBrightness = level;
+    el.ringBrightness.value = level;
+    el.ringBrightVal.textContent = level;
+    if (save === false) return;
+    clearTimeout(ringBrightTimer);
+    ringBrightTimer = setTimeout(function () {
+      cgi('display.py', { ring_brightness: level }, { timeout: 6000, silent: true })
+        .catch(function (err) { toast('Кольцо: ' + err.message, 'bad'); });
+    }, 120);
+  }
+
+  function loadRingBrightness() {
+    return cgi('display.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      var level = typeof data.ring_brightness === 'number' ? data.ring_brightness : data.backlight;
+      if (typeof level === 'number') setRingBrightness(level, false);
+    }).catch(function () { /* тихо */ });
+  }
+
+  function pushRing() {
+    if (ledTimer) clearTimeout(ledTimer);
+    ledPending = true;
+    ledTimer = setTimeout(function () {
+      ledTimer = null;
+      if (!ledPending) return;
+      ledPending = false;
+      var seq = ++ledSeq;
+      var colors = composeColors();
+      var animated = State.ledMode === 'wave' || State.ledMode === 'candle';
+      var send = function (list) {
+        return luna('/api/led/ring', { colors: list });
+      };
+      // Luna не обнуляет каналы прошлого цвета: перед установкой нового
+      // отправляем чёрный кадр, иначе красный остаётся с зелёно-синим хвостом.
+      var chain = animated
+        ? send(colors)
+        : send(new Array(24).fill('#000000')).then(function () { return send(colors); });
+      chain.then(function () {
+        if (seq !== ledSeq) return;
+        el.ring.classList.remove('flash');
+        void el.ring.offsetWidth;
+        el.ring.classList.add('flash');
+      }).catch(function (err) {
+        toast('Кольцо: ' + err.message, 'bad');
+      });
+    }, 190);
+  }
+
+  /* ─────────── дисплей: семисегментное табло ─────────── */
+  var SEG_GEOM = {
+    a: [18, 6, 64, 12],
+    b: [82, 16, 12, 64],
+    c: [82, 100, 12, 64],
+    d: [18, 162, 64, 12],
+    e: [6, 100, 12, 64],
+    f: [6, 16, 12, 64],
+    g: [18, 84, 64, 12]
+  };
+  var DIGIT_POS = [0, 120, 260, 380];
+  var DIGIT_SEGMENTS = {
+    '0': 'abcdef', '1': 'bc', '2': 'abged', '3': 'abgcd', '4': 'fgbc',
+    '5': 'afgcd', '6': 'afgecd', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg'
+  };
+  var SEG_TO_DIGIT = {};
+  Object.keys(DIGIT_SEGMENTS).forEach(function (key) {
+    SEG_TO_DIGIT[DIGIT_SEGMENTS[key].split('').sort().join('')] = key;
+  });
+
+  function sortSegments(segments) {
+    return segments.split('').sort().join('');
+  }
+
+  function segmentsForChar(ch) {
+    return DIGIT_SEGMENTS[ch] || '';
+  }
+
+  function buildSevenSeg() {
+    var ns = 'http://www.w3.org/2000/svg';
+    DIGIT_POS.forEach(function (offset, digit) {
+      var group = document.createElementNS(ns, 'g');
+      group.setAttribute('transform', 'translate(' + offset + ',0)');
+      Object.keys(SEG_GEOM).forEach(function (seg) {
+        var geo = SEG_GEOM[seg];
+        var rect = document.createElementNS(ns, 'rect');
+        rect.setAttribute('x', geo[0]);
+        rect.setAttribute('y', geo[1]);
+        rect.setAttribute('width', geo[2]);
+        rect.setAttribute('height', geo[3]);
+        rect.setAttribute('rx', 4);
+        rect.setAttribute('data-digit', digit);
+        rect.setAttribute('data-seg', seg);
+        rect.addEventListener('click', onSegmentClick);
+        group.appendChild(rect);
+      });
+      el.seg7Digits.appendChild(group);
+    });
+  }
+
+  function renderPattern(pattern) {
+    var rects = el.seg7Digits.querySelectorAll('rect');
+    for (var i = 0; i < rects.length; i++) {
+      var digit = parseInt(rects[i].getAttribute('data-digit'), 10);
+      var seg = rects[i].getAttribute('data-seg');
+      rects[i].classList.toggle('on', (pattern[digit] || '').indexOf(seg) >= 0);
+    }
+  }
+
+  function renderTime(text) {
+    var parts = String(text).split(':');
+    if (parts.length !== 2 || parts[0].length !== 2 || parts[1].length !== 2) return;
+    renderPattern([
+      segmentsForChar(parts[0][0]),
+      segmentsForChar(parts[0][1]),
+      segmentsForChar(parts[1][0]),
+      segmentsForChar(parts[1][1])
+    ]);
+  }
+
+  function tickClock() {
+    var d = new Date();
+    var text = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    el.clockTime.textContent = text;
+    if (!State.drawing) {
+      renderTime(text);
+    }
+    el.clockSub.textContent = d.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long'
+    });
+  }
+
+  /* ─────────── дисплей: рисование палочками ─────────── */
+  function enterDrawMode() {
+    State.drawing = true;
+    State.pattern = (el.clockTime.textContent.split(':').length === 2
+      ? el.clockTime.textContent
+      : pad(new Date().getHours()) + ':' + pad(new Date().getMinutes())
+    ).split('').filter(function (ch) { return ch !== ':'; })
+      .map(segmentsForChar)
+      .slice(0, 4);
+    while (State.pattern.length < 4) State.pattern.push('');
+
+    el.displayPreview.classList.add('editing');
+    el.segToolbar.hidden = false;
+    el.btnDraw.setAttribute('aria-pressed', 'true');
+    renderPattern(State.pattern);
+    validatePattern();
+  }
+
+  function exitDrawMode() {
+    State.drawing = false;
+    State.pattern = null;
+    el.displayPreview.classList.remove('editing');
+    el.segToolbar.hidden = true;
+    el.btnDraw.setAttribute('aria-pressed', 'false');
+    renderTime(el.clockTime.textContent);
+  }
+
+  function onSegmentClick(ev) {
+    if (!State.drawing) return;
+    var digit = parseInt(ev.currentTarget.getAttribute('data-digit'), 10);
+    var seg = ev.currentTarget.getAttribute('data-seg');
+    var current = State.pattern[digit] || '';
+    State.pattern[digit] = current.indexOf(seg) >= 0
+      ? current.replace(seg, '')
+      : current + seg;
+    renderPattern(State.pattern);
+    validatePattern();
+  }
+
+  function patternTime() {
+    var chars = State.pattern.map(function (segs) {
+      return SEG_TO_DIGIT[sortSegments(segs)] || '?';
+    }).join('');
+    if (!/^\d{4}$/.test(chars)) return null;
+    var hh = parseInt(chars.slice(0, 2), 10);
+    var mm = parseInt(chars.slice(2), 10);
+    if (hh > 23 || mm > 59) return null;
+    return chars.slice(0, 2) + ':' + chars.slice(2);
+  }
+
+  function validatePattern() {
+    var time = patternTime();
+    // Luna принимает карту сегментов, поэтому рисунок можно отправлять всегда.
+    el.btnSegSend.disabled = false;
+    el.segNote.textContent = time
+      ? 'На дисплее ' + time + ' — или отправьте рисунок как есть'
+      : 'Рисунок уйдёт на дисплей как есть';
+    return time;
+  }
+
+  function markOverride(on) {
+    State.displayOverride = !!on;
+    el.btnClockBack.hidden = !on;
+  }
+
+  var offTimer = null;
+
+  function sendBacklight(off) {
+    return cgi('display.py', off ? { off: 1 } : { on: 1 }, { timeout: 6000, silent: true });
+  }
+
+  function sendDisplayOff() {
+    // Luna убирает свой слой, backlight гасит сам экран — прошивка его
+    // больше не «включает», потому что подсветка уже нулевая.
+    return Promise.all([
+      request('/luna/api/clock/off', { body: {}, timeout: 5000 }).catch(function () { return null; }),
+      sendBacklight(true).catch(function () { return null; })
+    ]);
+  }
+
+  // Пока режим «выключен», повторяем: прошивка умеет вернуть и часы, и яркость.
+  function startDisplayOff() {
+    State.displayOff = true;
+    markOverride(true);
+    sendDisplayOff().catch(function () { /* тихо */ });
+    if (offTimer) clearInterval(offTimer);
+    offTimer = setInterval(function () {
+      if (!document.hidden && State.displayOff) {
+        sendDisplayOff().catch(function () { /* тихо */ });
+      }
+    }, 2000);
+  }
+
+  function cancelDisplayOff() {
+    // Синхронизация не должна «включать экран»: on восстанавливает старый
+    // рисунок (а без сохранения — все 45 сегментов).
+    State.displayOff = false;
+    if (offTimer) {
+      clearInterval(offTimer);
+      offTimer = null;
+    }
+  }
+
+  function stopDisplayOff() {
+    State.displayOff = false;
+    if (offTimer) {
+      clearInterval(offTimer);
+      offTimer = null;
+    }
+    sendBacklight(false).catch(function () { /* тихо */ });
+  }
+
+  function patternSegments() {
+    // API: {"segments": {"A1": 255, ...}} — яркость каждого сегмента 0…255.
+    var segments = {};
+    for (var digit = 0; digit < 4; digit++) {
+      var lit = State.pattern[digit] || '';
+      for (var i = 0; i < 'abcdefg'.length; i++) {
+        var seg = 'abcdefg'[i];
+        segments[seg.toUpperCase() + (digit + 1)] = lit.indexOf(seg) >= 0 ? 255 : 0;
+      }
+    }
+    return segments;
+  }
+
+  function sendDrawing() {
+    withBusy(el.btnSegSend, function () {
+      return luna('/api/clock', { segments: patternSegments() }).then(function () {
+        toast('Рисунок на дисплее', 'ok');
+        markOverride(true);
+      }).catch(function (err) {
+        toast('Дисплей: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  var TICKER_ALLOWED = '0123456789ABCDEFGHIJLNOPQRSTUY_abcdefghijlnopqrstuy-';
+
+  function sendDisplayText() {
+    var raw = (el.displayText.value || '').trim();
+    if (!raw) { toast('Введите текст для дисплея', 'warn'); return; }
+    var text = raw.replace(/ /g, '_');
+    var bad = {};
+    for (var i = 0; i < text.length; i++) {
+      if (TICKER_ALLOWED.indexOf(text[i]) < 0) bad[text[i]] = true;
+    }
+    if (Object.keys(bad).length) {
+      toast('Дисплей не умеет: ' + Object.keys(bad).join(' ') +
+        '. Можно 0-9, A-Y (без K M V W X Z), _, -', 'bad');
+      return;
+    }
+    if (text.length > 32) { toast('Максимум 32 символа', 'warn'); return; }
+    withBusy(el.btnDisplayText, function () {
+      return luna('/api/clock/text', { text: text }, { timeout: 25000 }).then(function () {
+        toast('Бегущая строка запущена', 'ok');
+        markOverride(true);
+      }).catch(function (err) {
+        toast('Дисплей: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function returnClock() {
+    withBusy(el.btnClockBack, function () {
+      stopDisplayOff();
+      return luna('/api/clock', clockPayload()).then(function () {
+        markOverride(false);
+        toast('Часы вернулись', 'ok');
+      }).catch(function (err) {
+        toast('Часы: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function clearPattern() {
+    State.pattern = ['', '', '', ''];
+    renderPattern(State.pattern);
+    validatePattern();
+  }
+
+  function applyBrightness(value, send) {
+    var v = clamp(parseInt(value, 10) || 170, 10, 255);
+    State.brightness = v;
+    el.brightness.value = v;
+    el.brightnessVal.textContent = v;
+    el.displayPreview.style.opacity = (0.38 + ((v - 10) / 245) * 0.62).toFixed(2);
+    store.set('brightness', v);
+
+    var chips = el.brightChips.querySelectorAll('.chip');
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].setAttribute('aria-pressed',
+        parseInt(chips[i].dataset.bright, 10) === v ? 'true' : 'false');
+    }
+    if (send) pushBrightness();
+  }
+
+  function clockPayload() {
+    var d = new Date();
+    return {
+      time: pad(d.getHours()) + ':' + pad(d.getMinutes()),
+      brightness: clamp(parseInt(el.brightness.value, 10) || 170, 10, 255)
+    };
+  }
+
+  function syncClock() {
+    return withBusy(el.btnSync, function () {
+      cancelDisplayOff();
+      var payload = clockPayload();
+      return luna('/api/clock', payload).then(function () {
+        return cgi('display.py', { save: 1 }, { timeout: 6000, silent: true })
+          .catch(function () { /* не критично */ });
+      }).then(function () {
+        markOverride(false);
+        toast('На дисплее ' + payload.time, 'ok');
+      }).catch(function (err) {
+        toast('Часы: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  // Дисплей показывает время, которое ему прислали, и сам не тикает.
+  // Поэтому раз в 30 секунд молча подталкиваем актуальное время.
+  function autoSyncClock() {
+    if (document.hidden || State.drawing || State.displayOverride) return;
+    request('/luna/api/clock', { body: clockPayload(), timeout: 6000 })
+      .catch(function () { /* тихо: индикатор и так покажет обрыв */ });
+  }
+
+  var brightTimer = null;
+  var brightPending = false;
+
+  function pushBrightness() {
+    if (brightTimer) clearTimeout(brightTimer);
+    brightPending = true;
+    brightTimer = setTimeout(function () {
+      brightTimer = null;
+      if (!brightPending) return;
+      brightPending = false;
+      var payload = clockPayload();
+      luna('/api/clock', payload).catch(function (err) {
+        toast('Яркость: ' + err.message, 'bad');
+      });
+    }, 240);
+  }
+
+  /* ─────────── плеер ─────────── */
+  function fmtTime(seconds) {
+    var total = Math.max(0, Math.round(seconds || 0));
+    var mins = Math.floor(total / 60);
+    var secs = total % 60;
+    return mins + ':' + (secs < 10 ? '0' : '') + secs;
+  }
+
+  function updateMediaProgress() {
+    if (!el.mediaSeek) return;
+    var duration = State.mediaDuration || 0;
+    var progress = State.mediaProgress || 0;
+    var ratio = duration > 0 ? Math.max(0, Math.min(1, progress / duration)) : 0;
+    el.mediaSeek.value = String(Math.round(ratio * 1000));
+    el.mediaPos.textContent = fmtTime(progress);
+    el.mediaDur.textContent = duration > 0 ? fmtTime(duration) : '0:00';
+  }
+
+  function seekMedia(value) {
+    var duration = State.mediaDuration || 0;
+    if (!duration) return;
+    var position = Math.round((value / 1000) * duration);
+    State.seeking = false;
+    return cgi('media.py', { action: 'seek', position: position }, { timeout: 12000 })
+      .then(function () { return refreshPlayer(); })
+      .catch(function (err) { toast('Перемотка: ' + err.message, 'bad'); });
+  }
+
+  function setPlaying(value) {    State.playing = !!value;
+    var use = el.btnPlay.querySelector('use');
+    use.setAttribute('href', State.playing ? '#i-pause' : '#i-play');
+    el.btnPlay.setAttribute('aria-label', State.playing ? 'Пауза' : 'Воспроизвести');
+  }
+
+  function applyPlayerData(data) {
+    setPlaying(!!data.playing);
+    State.playerKind = data.kind || null;
+    State.mediaDuration = Number(data.duration) || 0;
+    State.mediaProgress = Number(data.progress) || 0;
+    var seekable = State.playerKind === 'Track' && State.mediaDuration > 0;
+    if (el.mediaProgress) el.mediaProgress.hidden = !seekable;
+    if (!State.seeking) updateMediaProgress();
+    if (el.mediaKind) {
+      el.mediaKind.textContent = data.kind === 'FmRadio' ? 'сейчас радио' :
+        (data.kind === 'Track' ? 'сейчас музыка' : '');
+    }
+    if (data.title) {
+      el.mediaTitle.textContent = data.title;
+      el.mediaSub.textContent = data.artist || '';
+    } else {
+      el.mediaTitle.textContent = 'Glagol';
+      el.mediaSub.textContent = 'ws://127.0.0.1:1961';
+    }
+    if (data.cover) {
+      el.mediaCover.src = data.cover;
+      el.mediaCover.hidden = false;
+      el.mediaArtIcon.style.display = 'none';
+    } else {
+      el.mediaCover.hidden = true;
+      el.mediaCover.removeAttribute('src');
+      el.mediaArtIcon.style.display = '';
+    }
+  }
+
+  function applyState(data) {
+    if (data.status) applyStatusData(data.status);
+    if (data.player && !data.player.error) applyPlayerData(data.player);
+  }
+
+  function refreshState() {
+    if (document.hidden) return Promise.resolve();
+    return fetch('/state', { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('state ' + res.status);
+        return res.json();
+      })
+      .then(applyState)
+      .catch(function () {
+        // Постоянный процесс недоступен — возвращаемся к CGI.
+        return cgi('state.py', {}, { timeout: 9000, silent: true })
+          .then(applyState)
+          .catch(function () {
+            State.luna = false;
+            renderStatus();
+          });
+      });
+  }
+
+  function refreshPlayer() {
+    return refreshState();
+  }
+
+  function mediaAction(action) {
+    return withBusy(null, function () {
+      return cgi('media.py', { action: action }, { timeout: 9000 }).then(function (data) {
+        if (action === 'play') setPlaying(true);
+        if (action === 'pause') setPlaying(false);
+        if (data && data.confirmed === false) toast('Команда отправлена, ответа нет', 'warn');
+        else toast('Команда «' + action + '» выполнена', 'ok');
+        setTimeout(refreshPlayer, 500);
+      }).catch(function (err) {
+        toast('Плеер: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function setVolumeUI(level, silent) {
+    var v = clamp(Math.round(level), 0, 100);
+    State.volume = v;
+    if (!silent) { el.volume.value = v; el.volumeVal.textContent = v + '%'; }
+    store.set('volume', v);
+  }
+
+  var volTimer = null;
+  var volPending = false;
+
+  function pushVolume() {
+    if (volTimer) clearTimeout(volTimer);
+    volPending = true;
+    volTimer = setTimeout(function () {
+      volTimer = null;
+      if (!volPending) return;
+      volPending = false;
+      var level = State.volume;
+      cgi('volume.py', { level: level }, { timeout: 9000 }).then(function (data) {
+        if (data && typeof data.level === 'number') setVolumeUI(data.level);
+        if (data && data.method) log('volume', 'method', data.method);
+      }).catch(function (err) {
+        toast('Громкость: ' + err.message, 'bad');
+      });
+    }, 200);
+  }
+
+  /* ─────────── микрофон ─────────── */
+  var listening = false;
+  var listenCtrl = null;
+
+  function extractTranscript(data) {
+    if (!data || typeof data !== 'object') return '';
+    var candidates = [
+      data.transcript, data.text,
+      data.result && data.result.transcript, data.result && data.result.text,
+      data.response && data.response.transcript
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      if (typeof candidates[i] === 'string' && candidates[i].trim()) return candidates[i].trim();
+    }
+    return '';
+  }
+
+  function setTranscript(text, isEmpty) {
+    el.transcript.textContent = text;
+    el.transcript.classList.toggle('empty', !!isEmpty);
+  }
+
+  function listen() {
+    if (listening) {
+      if (listenCtrl) listenCtrl.abort();
+      return;
+    }
+    listening = true;
+    listenCtrl = new AbortController();
+
+    el.btnMic.classList.add('listening');
+    el.btnCancelListen.hidden = false;
+    el.micHint.textContent = 'Слушаю… говорите';
+    setTranscript('…', false);
+    el.btnRepeat.disabled = true;
+
+    var started = Date.now();
+    var timer = setInterval(function () {
+      el.micTimer.textContent = ((Date.now() - started) / 1000).toFixed(1) + ' с';
+    }, 100);
+
+    busyStart();
+
+    luna('/api/alice/recognize', {}, { timeout: 120000, signal: listenCtrl.signal }).then(function (data) {
+      var text = extractTranscript(data);
+      if (text) {
+        setTranscript(text, false);
+        el.btnRepeat.disabled = false;
+        toast('Распознано: ' + text, 'ok');
+      } else {
+        setTranscript('Пусто. Скажите фразу с обращением «Алиса, …».', true);
+        toast('Пустой ответ микрофона', 'warn');
+      }
+    }).catch(function (err) {
+      setTranscript('Не удалось распознать: ' + err.message, true);
+      if (err.message !== 'Отменено') toast('Микрофон: ' + err.message, 'bad');
+    }).finally(function () {
+      clearInterval(timer);
+      listening = false;
+      listenCtrl = null;
+      el.btnMic.classList.remove('listening');
+      el.btnCancelListen.hidden = true;
+      el.micHint.textContent = 'Нажмите и скажите «Алиса, …»';
+      el.micTimer.textContent = '';
+      busyEnd();
+    });
+  }
+
+  function sendCommand(text) {
+    var value = (text || '').trim();
+    if (!value) { toast('Введите текст команды', 'warn'); return Promise.resolve(); }
+    return withBusy(null, function () {
+      return cgi('command.py', { text: value }, { timeout: 30000 }).then(function (data) {
+        toast(data && data.confirmed ? 'Алиса приняла команду' : 'Команда отправлена', 'ok');
+      }).catch(function (err) {
+        toast('Команда: ' + err.message, 'bad');
+        if (err.data && err.data.hint) log('command', 'hint', err.data.hint, true);
+      });
+    });
+  }
+
+  /* ─────────── озвучка ─────────── */
+  function say() {
+    var text = el.ttsText.value.trim();
+    if (!text) { toast('Введите текст для озвучки', 'warn'); return; }
+    return withBusy(el.btnSay, function () {
+      return cgi('speak.py', { text: text }, { timeout: 30000 }).then(function (data) {
+        if (data && data.started) toast('Алиса говорит', 'ok');
+        else toast('Запрос ушёл, подтверждения нет', 'warn');
+      }).catch(function (err) {
+        toast('Озвучка: ' + err.message, 'bad');
+        if (err.data && err.data.hint) log('speak', 'hint', err.data.hint, true);
+      });
+    });
+  }
+
+  /* ─────────── нейросеть ─────────── */
+  function syncVolumeFromDevice() {
+    return cgi('volume.py', {}, { timeout: 6000, silent: true }).then(function (data) {
+      if (data && typeof data.level === 'number') setVolumeUI(data.level);
+    }).catch(function () { /* тихо */ });
+  }
+
+  function fillProviderSelect() {
+    var list = (State.llm && State.llm.providers) || [];
+    var current = (State.llm && State.llm.provider) || 'openai';
+    el.llmProviderSelect.innerHTML = '';
+    list.forEach(function (provider) {
+      var option = document.createElement('option');
+      option.value = provider.id;
+      option.textContent = provider.title;
+      if (provider.id === current) option.selected = true;
+      el.llmProviderSelect.appendChild(option);
+    });
+  }
+
+  function currentProvider() {
+    var list = (State.llm && State.llm.providers) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === State.llm.provider) return list[i];
+    }
+    return null;
+  }
+
+  function toggleCustomModel() {
+    el.llmModelCustomWrap.hidden = el.llmModel.value !== '__custom';
+  }
+
+  function fillModels(selected) {
+    var provider = currentProvider();
+    el.llmModel.innerHTML = '';
+    (provider ? provider.models : []).forEach(function (name) {
+      var option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      el.llmModel.appendChild(option);
+    });
+    var custom = document.createElement('option');
+    custom.value = '__custom';
+    custom.textContent = 'Другая модель…';
+    el.llmModel.appendChild(custom);
+
+    if (selected) {
+      var found = false;
+      for (var i = 0; i < el.llmModel.options.length; i++) {
+        if (el.llmModel.options[i].value === selected) found = true;
+      }
+      if (found) {
+        el.llmModel.value = selected;
+      } else if (selected) {
+        el.llmModel.value = '__custom';
+        el.llmModelCustom.value = selected;
+      }
+    }
+    toggleCustomModel();
+    if (provider && provider.base_url) el.llmBase.value = provider.base_url;
+  }
+
+  function selectProvider(id) {
+    State.llm.provider = id;
+    fillProviderSelect();
+    fillModels('');
+  }
+
+  function renderProfileChips() {
+    var list = (State.llm && State.llm.profiles) || [];
+    el.llmProfiles.innerHTML = '';
+    list.forEach(function (profile) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = profile.name;
+      chip.dataset.id = profile.id;
+      chip.setAttribute('aria-pressed', profile.id === State.llm.active ? 'true' : 'false');
+      el.llmProfiles.appendChild(chip);
+    });
+    if (!list.length) {
+      el.llmProfiles.innerHTML = '<span class="seg-note">профилей пока нет — добавьте первый</span>';
+    }
+  }
+
+  function findProfile(id) {
+    var list = (State.llm && State.llm.profiles) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === id) return list[i];
+    }
+    return null;
+  }
+
+  function updateLlmStatus() {
+    if (!State.llm) return;
+    var active = findProfile(State.llm.active);
+    el.llmActive.textContent = active
+      ? ('активный: ' + active.name + (active.key_set ? ', ключ есть' : ', ключа нет'))
+      : 'профиль не выбран';
+    el.llmStatus.textContent = State.llm.enabled ? 'LLM включена' : 'LLM выключена';
+  }
+
+  function applyProfile(profile) {
+    if (!State.llm) return;
+    State.llm.active = profile ? profile.id : null;
+    if (profile) {
+      State.llm.provider = profile.provider || 'openai';
+      el.llmName.value = profile.name || '';
+      fillModels(profile.model || '');
+      el.llmBase.value = profile.base_url || '';
+      el.llmKey.value = '';
+      el.llmKey.placeholder = profile.key_set ? 'ключ сохранён, можно заменить' : 'ключ не задан';
+    } else {
+      State.llm.provider = 'openai';
+      el.llmName.value = '';
+      fillModels('');
+      el.llmKey.value = '';
+      el.llmKey.placeholder = 'хранится на колонке';
+    }
+    fillProviderSelect();
+    renderProfileChips();
+    updateLlmStatus();
+  }
+
+  function selectProfile(id) {
+    applyProfile(findProfile(id));
+  }
+
+  function newProfile() {
+    if (!State.llm) return;
+    applyProfile(null);
+    el.llmName.focus();
+    toast('Новый профиль: заполните название, провайдера и ключ', 'ok');
+  }
+
+  function applyLlmInfo(data) {
+    State.llm = {
+      providers: data.providers || [],
+      profiles: data.profiles || [],
+      active: data.active || null,
+      enabled: !!data.enabled,
+      provider: 'openai',
+      chats: data.chats || [],
+      activeChat: data.active_chat || null
+    };
+    el.llmEnabled.checked = !!data.enabled;
+    if (el.llmLength) {
+      var length = String(data.max_tokens || 260);
+      el.llmLength.value = length;
+      if (!el.llmLength.value) el.llmLength.value = '260';
+    }
+    if (el.llmChat) el.llmChat.textContent = data.active_chat_name || 'Чат 1';
+    applyProfile(findProfile(data.active));
+    updateLlmStatus();
+  }
+
+  function switchChat(payload) {
+    return cgi('llm.py', payload, { timeout: 15000 }).then(function (data) {
+      applyLlmInfo(data);
+      toast('Чат: ' + (data.active_chat_name || '—'), 'ok');
+    }).catch(function (err) {
+      toast('Чат: ' + err.message, 'bad');
+    });
+  }
+
+  function loadLlm() {
+    return cgi('llm.py', { info: 1 }, { timeout: 8000, silent: true }).then(function (data) {
+      applyLlmInfo(data);
+    }).catch(function (err) {
+      el.llmStatus.textContent = 'LLM недоступна: ' + err.message;
+    });
+  }
+
+  function toggleLlmEnabled() {
+    var on = el.llmEnabled.checked ? 1 : 0;
+    return cgi('llm.py', { enabled: on }, { timeout: 15000 }).then(function (data) {
+      applyLlmInfo(data);
+      toast(on ? 'Нейросеть включена' : 'Нейросеть выключена', 'ok');
+    }).catch(function (err) {
+      el.llmEnabled.checked = !el.llmEnabled.checked;
+      toast('LLM: ' + err.message, 'bad');
+    });
+  }
+
+  function saveLlm() {
+    var model = el.llmModel.value === '__custom'
+      ? el.llmModelCustom.value.trim()
+      : el.llmModel.value;
+    var name = el.llmName.value.trim();
+    if (name.length < 2) {
+      toast('Название профиля: минимум 2 символа', 'warn');
+      return;
+    }
+    var payload = {
+      name: name,
+      provider: (State.llm && State.llm.provider) || 'openai',
+      model: model,
+      base_url: el.llmBase.value.trim(),
+      enabled: el.llmEnabled.checked ? 1 : 0
+    };
+    if (State.llm && State.llm.active) payload.profile_id = State.llm.active;
+    var key = el.llmKey.value.trim();
+    if (key) payload.key = key;
+
+    return withBusy(el.btnLlmSave, function () {
+      return cgi('llm.py', payload, { timeout: 15000 }).then(function (data) {
+        el.llmKey.value = '';
+        applyLlmInfo(data);
+        toast('Профиль сохранён: ' + name, 'ok');
+      }).catch(function (err) {
+        toast('LLM: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function askLlm() {
+    var prompt = el.llmPrompt.value.trim();
+    if (!prompt) { toast('Введите запрос', 'warn'); return; }
+    return withBusy(el.btnLlmAsk, function () {
+      el.llmAnswer.textContent = 'Думаю…';
+      el.llmAnswer.classList.add('empty');
+      return cgi('llm.py', { prompt: prompt }, { timeout: 95000 }).then(function (data) {
+        State.llmAnswer = data.answer || '';
+        el.llmAnswer.textContent = State.llmAnswer || '(пустой ответ)';
+        el.llmAnswer.classList.toggle('empty', !State.llmAnswer);
+        el.btnLlmSay.disabled = !State.llmAnswer;
+        var tokens = data.usage && data.usage.total_tokens
+          ? ' · ' + data.usage.total_tokens + ' токенов' : '';
+        el.llmMeta.textContent = [data.provider, data.model].filter(Boolean).join(' · ') + tokens;
+      }).catch(function (err) {
+        el.llmAnswer.textContent = 'Ошибка: ' + err.message;
+        el.llmAnswer.classList.remove('empty');
+        toast('Нейросеть: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function sayLlmAnswer() {
+    if (!State.llmAnswer) return;
+    return withBusy(el.btnLlmSay, function () {
+      return cgi('speak.py', { text: State.llmAnswer.slice(0, 1900) }, { timeout: 30000 }).then(function (data) {
+        toast(data && data.started ? 'Алиса читает ответ' : 'Отправлено', 'ok');
+      }).catch(function (err) {
+        toast('Озвучка: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function askLlmVoice() {
+    return withBusy(el.btnLlmVoice, function () {
+      return luna('/api/alice/recognize', {}, { timeout: 120000 }).then(function (data) {
+        var heard = extractTranscript(data);
+        if (!heard) {
+          toast('Не расслышал — скажите «Алиса, …»', 'warn');
+          return null;
+        }
+        var text = heard.replace(/^\s*алиса[\s,!.]*/i, '').trim() || heard;
+        el.llmPrompt.value = text;
+        return askLlm().then(function () {
+          if (State.llmAnswer) return sayLlmAnswer();
+          return null;
+        });
+      }).catch(function (err) {
+        toast('Голос: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  /* ─────────── VPN ─────────── */
+  function renderVpn(data) {
+    State.vpn = data;
+    var status = data.running
+      ? ('включён' + (data.tun ? ' · tun0' : ' · tun0 нет'))
+      : (data.url_set ? 'выключен' : 'не настроено');
+    el.vpnStatus.textContent = status;
+    el.btnVpnStart.disabled = !data.url_set || data.running;
+    el.btnVpnStop.disabled = !data.running;
+    el.vpnAutostart.checked = !!data.autostart;
+    if (data.url_hint) el.vpnUrl.placeholder = data.url_hint;
+
+    var servers = data.servers || [];
+    var previous = el.vpnServer.value;
+    el.vpnServer.innerHTML = '';
+    servers.forEach(function (server) {
+      var option = document.createElement('option');
+      option.value = String(server.index);
+      option.textContent = (server.name || ('сервер ' + (server.index + 1))) +
+        ' · ' + (server.type || '');
+      el.vpnServer.appendChild(option);
+    });
+    el.vpnServer.disabled = !servers.length;
+    if (servers.length) {
+      var exists = false;
+      for (var i = 0; i < el.vpnServer.options.length; i++) {
+        if (el.vpnServer.options[i].value === previous) exists = true;
+      }
+      el.vpnServer.value = exists ? previous : String(data.selected || 0);
+    }
+  }
+
+  function loadVpn() {
+    return cgi('vpn.py', { info: 1 }, { timeout: 10000, silent: true })
+      .then(renderVpn)
+      .catch(function (err) { el.vpnStatus.textContent = 'VPN: ' + err.message; });
+  }
+
+  function saveVpn() {
+    var url = el.vpnUrl.value.trim();
+    if (!url) { toast('Вставьте ссылку на подписку', 'warn'); return; }
+    return withBusy(el.btnVpnSave, function () {
+      el.vpnStatus.textContent = 'скачиваю подписку…';
+      return cgi('vpn.py', { url: url }, { timeout: 90000 }).then(function (data) {
+        toast('Подписка: ' + data.servers.length + ' серверов', 'ok');
+        el.vpnUrl.value = '';
+        return loadVpn();
+      }).catch(function (err) {
+        el.vpnStatus.textContent = 'ошибка подписки';
+        toast('VPN: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function startVpn() {
+    var index = parseInt(el.vpnServer.value, 10) || 0;
+    return withBusy(el.btnVpnStart, function () {
+      el.vpnStatus.textContent = 'поднимаю туннель…';
+      return cgi('vpn.py', { start: 1, index: index }, { timeout: 240000 }).then(function () {
+        el.vpnLog.hidden = true;
+        toast('VPN включён', 'ok');
+        return loadVpn();
+      }).catch(function (err) {
+        var details = err.data && err.data.log;
+        if (details) {
+          el.vpnLog.hidden = false;
+          el.vpnLog.textContent = details;
+        }
+        el.vpnStatus.textContent = 'ошибка запуска';
+        toast('VPN: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function stopVpn() {
+    return withBusy(el.btnVpnStop, function () {
+      return cgi('vpn.py', { stop: 1 }, { timeout: 30000 }).then(function () {
+        toast('VPN выключен', 'ok');
+        return loadVpn();
+      }).catch(function (err) {
+        toast('VPN: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  /* ─────────── радио ─────────── */
+  function markRadioChip() {
+    var current = State.radio ? State.radio.index : null;
+    Array.prototype.forEach.call(el.radioChips.children, function (chip) {
+      chip.setAttribute('aria-pressed', String(parseInt(chip.dataset.index, 10) === current));
+    });
+  }
+
+  function renderRadio(stations) {
+    if (!State.radio) State.radio = { stations: [], index: null };
+    State.radio.stations = stations || [];
+    el.radioChips.innerHTML = '';
+    State.radio.stations.forEach(function (station) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.dataset.index = station.index;
+      chip.appendChild(document.createTextNode(station.name));
+      if (station.custom) {
+        var del = document.createElement('span');
+        del.className = 'chip-x';
+        del.textContent = '×';
+        del.title = 'Удалить канал';
+        del.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          removeRadio(station.name);
+        });
+        chip.appendChild(del);
+      }
+      el.radioChips.appendChild(chip);
+    });
+    markRadioChip();
+  }
+
+  function loadRadio() {
+    return cgi('radio.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      renderRadio(data.stations || []);
+    }).catch(function (err) {
+      el.radioStatus.textContent = 'радио: ' + err.message;
+    });
+  }
+
+  function addRadio() {
+    var name = el.radioName.value.trim();
+    if (name.length < 2) {
+      toast('Название канала — минимум 2 символа', 'warn');
+      return;
+    }
+    return withBusy(el.btnRadioAdd, function () {
+      return cgi('radio.py', { add: name }, { timeout: 15000 }).then(function (data) {
+        renderRadio(data.stations || []);
+        el.radioName.value = '';
+        toast('Канал добавлен: ' + name, 'ok');
+      }).catch(function (err) {
+        toast('Радио: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function removeRadio(name) {
+    return cgi('radio.py', { remove: name }, { timeout: 15000 }).then(function (data) {
+      renderRadio(data.stations || []);
+      toast('Канал удалён: ' + name, 'ok');
+    }).catch(function (err) {
+      toast('Радио: ' + err.message, 'bad');
+    });
+  }
+
+  function playRadio(index) {
+    return withBusy(null, function () {
+      el.radioStatus.textContent = 'включаю…';
+      return cgi('radio.py', { index: index }, { timeout: 45000 }).then(function (data) {
+        if (State.radio) State.radio.index = index;
+        markRadioChip();
+        el.radioStatus.textContent = (data.playing ? 'играет: ' : 'загружено: ') +
+          (data.title || 'радио');
+        refreshPlayer();
+      }).catch(function (err) {
+        el.radioStatus.textContent = 'не включилось';
+        toast('Радио: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function stopRadio() {
+    return withBusy(null, function () {
+      return cgi('radio.py', { stop: 1 }, { timeout: 15000 }).then(function () {
+        if (State.radio) State.radio.index = null;
+        markRadioChip();
+        el.radioStatus.textContent = 'остановлено';
+        refreshPlayer();
+      }).catch(function (err) {
+        toast('Радио: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function stepRadio(delta) {
+    if (!State.radio || !State.radio.stations.length) return;
+    var count = State.radio.stations.length;
+    var current = State.radio.index === null ? 0 : State.radio.index;
+    var next = ((current + delta) % count + count) % count;
+    playRadio(next);
+  }
+
+  /* ─────────── голосовой демон ─────────── */
+  function loadVoice() {
+    return cgi('voicectl.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      State.voice = data;
+      el.btnVoiceDaemon.textContent = data.running ? 'Голосовой пульт: вкл' : 'Голосовой пульт: выкл';
+      el.btnVoiceDaemon.setAttribute('aria-pressed', data.running ? 'true' : 'false');
+      el.voiceDaemonStatus.textContent = data.running
+        ? 'слушает «Алиса, …» · alice_light на паузе'
+        : (data.alice_light ? 'alice_light работает' : 'alice_light выключен');
+    }).catch(function (err) {
+      el.voiceDaemonStatus.textContent = err.message;
+    });
+  }
+
+  function toggleVoiceDaemon() {
+    var start = !(State.voice && State.voice.running);
+    return withBusy(el.btnVoiceDaemon, function () {
+      return cgi('voicectl.py', start ? { start: 1 } : { stop: 1 }, { timeout: 30000 }).then(function () {
+        toast(start ? 'Голосовой пульт включён' : 'Голосовой пульт выключен', 'ok');
+        return loadVoice();
+      }).catch(function (err) {
+        toast('Голос: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  /* ─────────── ресурсы ─────────── */
+  function loadLevel(percent) {
+    if (percent == null) return '';
+    if (percent >= 85) return 'bad';
+    if (percent >= 65) return 'warn';
+    return '';
+  }
+
+  function fmtMb(kb) {
+    return Math.round(kb / 1024) + ' МБ';
+  }
+
+  function fmtUptime(seconds) {
+    if (seconds == null) return '—';
+    var days = Math.floor(seconds / 86400);
+    var hours = Math.floor((seconds % 86400) / 3600);
+    var mins = Math.floor((seconds % 3600) / 60);
+    if (days) return days + ' д ' + hours + ' ч';
+    if (hours) return hours + ' ч ' + mins + ' м';
+    return mins + ' мин';
+  }
+
+  function refreshSystem() {
+    if (document.hidden) return Promise.resolve();
+    return cgi('system.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      var cpu = data.cpu || {};
+      el.sysCpu.textContent = (cpu.percent == null) ? '—' : cpu.percent + '%';
+      el.sysCpuBar.style.width = (cpu.percent || 0) + '%';
+      el.sysCpuBar.className = loadLevel(cpu.percent);
+      el.sysLoad.textContent = cpu.load ? ('load ' + cpu.load.join(' · ')) : '';
+
+      var mem = data.memory || {};
+      el.sysRam.textContent = (mem.percent == null) ? '—' : mem.percent + '%';
+      el.sysRamBar.style.width = (mem.percent || 0) + '%';
+      el.sysRamBar.className = loadLevel(mem.percent);
+      el.sysRamSub.textContent = mem.total_kb
+        ? (fmtMb(mem.used_kb) + ' из ' + fmtMb(mem.total_kb))
+        : '';
+
+      var temp = data.temperature || {};
+      var hot = temp.hottest;
+      el.sysTemp.textContent = hot ? (hot.c + '°C') : '—';
+      el.sysTempSub.textContent = hot ? hot.name : 'датчик не найден';
+
+      var disk = (data.disk || [])[0];
+      if (disk) {
+        el.sysDisk.textContent = disk.percent + '%';
+        el.sysDiskBar.style.width = disk.percent + '%';
+        el.sysDiskBar.className = loadLevel(disk.percent);
+        el.sysDiskSub.textContent = 'свободно ' +
+          (Math.round(disk.free_mb / 102.4) / 10) + ' ГБ из ' +
+          (Math.round(disk.total_mb / 102.4) / 10) + ' ГБ';
+      }
+
+      var light = data.light;
+      if (light) {
+        var unit = light.unit === 'lux' ? 'lx' : (light.unit || '');
+        el.sysLight.textContent = Math.round(light.value) + (unit ? ' ' + unit : '');
+        el.sysLightSub.textContent = light.name || 'датчик света';
+      } else {
+        el.sysLight.textContent = '—';
+        el.sysLightSub.textContent = 'нет датчика';
+      }
+      el.sysUptime.textContent = fmtUptime(data.uptime_s);
+      el.sysBoard.textContent = data.board || '';
+    }).catch(function () { /* тихо */ });
+  }
+
+  /* ─────────── разделы ─────────── */
+  var TABS = ['display', 'sound', 'ai', 'network', 'system', 'scenarios'];
+  var TAB_KEY = 'mypult.tab';
+
+  function showTab(name, save) {
+    if (TABS.indexOf(name) < 0) name = 'display';
+    Array.prototype.forEach.call(document.querySelectorAll('.card[data-group]'), function (card) {
+      card.classList.toggle('is-hidden', card.dataset.group !== name);
+    });
+    Array.prototype.forEach.call(el.tabs.children, function (btn) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.tab === name));
+    });
+    State.tab = name;
+    if (save !== false) {
+      store.set(TAB_KEY, name);
+      if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    if (history.replaceState) history.replaceState(null, '', '#' + name);
+  }
+
+  /* ─────────── bluetooth ─────────── */
+  function btRow(item, onAction) {
+    var row = document.createElement('div');
+    row.className = 'bt-item';
+    var name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = item.name || item.mac;
+    var state = document.createElement('small');
+    state.textContent = item.connected ? 'подключено' : (item.paired ? 'сопряжено' : '');
+    var btn = document.createElement('button');
+    btn.className = 'btn sm ghost';
+    btn.textContent = item.connected ? 'Отключить' : 'Подключить';
+    btn.addEventListener('click', function () { onAction(item); });
+    row.appendChild(name);
+    row.appendChild(state);
+    row.appendChild(btn);
+    return row;
+  }
+
+  function renderBt(data) {
+    State.bt = data;
+    el.btnBtPower.textContent = data.powered ? 'Bluetooth: вкл' : 'Bluetooth: выкл';
+    el.btnBtPairMode.textContent = data.discoverable ? 'Сопряжение: вкл' : 'Сопряжение: выкл';
+    el.btStatus.textContent = (data.powered ? 'адаптер включён' : 'адаптер выключен') +
+      ' · ' + (data.discoverable ? 'видим для сопряжения' : 'скрыт') +
+      (data.audio ? ' · A2DP-приёмник активен' : ' · bluealsa не запущен');
+    el.btDevices.innerHTML = '';
+    (data.devices || []).forEach(function (item) {
+      el.btDevices.appendChild(btRow(item, function (device) {
+        btAction({ action: device.connected ? 'disconnect' : 'connect', mac: device.mac });
+      }));
+    });
+    if (!data.devices || !data.devices.length) {
+      el.btDevices.innerHTML = '<div class="seg-note">устройств пока нет — включите «Режим сопряжения» и ищите колонку с телефона</div>';
+    }
+  }
+
+  function loadBt() {
+    return cgi('bluetooth.py', {}, { timeout: 12000, silent: true }).then(renderBt).catch(function (err) {
+      el.btStatus.textContent = 'Bluetooth: ' + err.message;
+    });
+  }
+
+  function btAction(payload) {
+    return withBusy(null, function () {
+      return cgi('bluetooth.py', payload, { timeout: 45000 }).then(function (data) {
+        renderBt(data);
+        toast('Bluetooth обновлён', 'ok');
+      }).catch(function (err) {
+        toast('Bluetooth: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  /* ─────────── сеть ─────────── */
+  function renderNet(data) {
+    State.net = data;
+    var parts = [];
+    parts.push(data.connected ? ('подключено к ' + (data.ssid || '?')) : ('не подключено (' + (data.state || '?') + ')'));
+    if (data.ip) parts.push(data.ip);
+    if (data.signal != null) parts.push(data.signal + ' dBm');
+    el.netStatus.textContent = parts.join(' · ');
+
+    if (el.netDetails) {
+      var details = [];
+      if (data.gateway) details.push('шлюз ' + data.gateway);
+      if (data.mac) details.push('MAC ' + data.mac);
+      if (data.dns && data.dns.length) details.push('DNS ' + data.dns.join(', '));
+      el.netDetails.textContent = details.join(' · ');
+      if (el.netDns && !el.netDns.value && data.dns && data.dns.length) {
+        el.netDns.value = data.dns.join(', ');
+      }
+    }
+  }
+
+  function renderNetSaved(saved) {
+    el.netList.innerHTML = '';
+    saved.forEach(function (net) {
+      var row = document.createElement('div');
+      row.className = 'bt-item';
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = net.ssid;
+      var mark = document.createElement('small');
+      var current = State.net && net.ssid === State.net.ssid;
+      mark.textContent = current ? 'текущая' : 'сохранена';
+      row.appendChild(name);
+      row.appendChild(mark);
+      if (!current) {
+        var connect = document.createElement('button');
+        connect.className = 'btn sm ghost';
+        connect.textContent = 'Подключить';
+        connect.addEventListener('click', function () { netConnectSaved(net.id); });
+        row.appendChild(connect);
+      }
+      var forget = document.createElement('button');
+      forget.className = 'btn sm ghost';
+      forget.textContent = 'Забыть';
+      forget.addEventListener('click', function () { netForget(net.ssid); });
+      row.appendChild(forget);
+      el.netList.appendChild(row);
+    });
+  }
+
+  function netConnectSaved(id) {
+    return withBusy(null, function () {
+      el.netStatus.textContent = 'подключаюсь к сохранённой сети…';
+      return cgi('network.py', { action: 'connect_saved', id: id }, { timeout: 60000 })
+        .then(function (data) {
+          renderNet(data);
+          renderNetSaved(data.saved || []);
+          toast(data.connected ? ('Подключено: ' + data.ssid) : 'Не удалось, вернул прежнюю сеть',
+            data.connected ? 'ok' : 'warn');
+        }).catch(function (err) {
+          toast('Сеть: ' + err.message, 'bad');
+        });
+    });
+  }
+
+  function netForget(ssid) {
+    return withBusy(null, function () {
+      return cgi('network.py', { action: 'forget', ssid: ssid }, { timeout: 20000 })
+        .then(function (data) {
+          renderNet(data);
+          renderNetSaved(data.saved || []);
+          toast('Сеть забыта: ' + ssid, 'ok');
+        }).catch(function (err) {
+          toast('Сеть: ' + err.message, 'bad');
+        });
+    });
+  }
+
+  function netDnsApply() {
+    var servers = el.netDns.value.trim();
+    if (!servers) {
+      toast('Введите DNS через запятую', 'warn');
+      return;
+    }
+    return withBusy(el.btnNetDns, function () {
+      return cgi('network.py', { action: 'dns', servers: servers }, { timeout: 45000 })
+        .then(function (data) {
+          renderNet(data);
+          toast('DNS: ' + (data.dns || []).join(', '), 'ok');
+        }).catch(function (err) {
+          toast('DNS: ' + err.message, 'bad');
+        });
+    });
+  }
+
+  function netDnsReset() {
+    return withBusy(el.btnNetDnsReset, function () {
+      return cgi('network.py', { action: 'dns_reset' }, { timeout: 45000 })
+        .then(function (data) {
+          renderNet(data);
+          toast('DNS возвращён к штатному', 'ok');
+        }).catch(function (err) {
+          toast('DNS: ' + err.message, 'bad');
+        });
+    });
+  }
+
+  function loadNet() {
+    return cgi('network.py', {}, { timeout: 15000, silent: true }).then(function (data) {
+      renderNet(data);
+      renderNetSaved(data.saved || []);
+    }).catch(function (err) {
+      el.netStatus.textContent = 'Сеть: ' + err.message;
+    });
+  }
+
+  function netScan() {
+    return withBusy(el.btnNetScan, function () {
+      el.netStatus.textContent = 'сканирую сети…';
+      return cgi('network.py', { action: 'scan' }, { timeout: 30000 }).then(function (data) {
+        renderNet(data.state || {});
+        el.netList.innerHTML = '';
+        (data.networks || []).forEach(function (net) {
+          var row = document.createElement('div');
+          row.className = 'bt-item';
+          var name = document.createElement('span');
+          name.className = 'name';
+          name.textContent = (net.secure ? '🔒 ' : '') + net.ssid;
+          var sig = document.createElement('small');
+          sig.textContent = net.signal + ' dBm';
+          var btn = document.createElement('button');
+          btn.className = 'btn sm ghost';
+          btn.textContent = 'Подключить';
+          btn.addEventListener('click', function () { netConnect(net); });
+          row.appendChild(name);
+          row.appendChild(sig);
+          row.appendChild(btn);
+          el.netList.appendChild(row);
+        });
+        if (!data.networks || !data.networks.length) {
+          el.netList.innerHTML = '<div class="seg-note">сети не найдены</div>';
+        }
+      }).catch(function (err) {
+        el.netStatus.textContent = 'Сеть: ' + err.message;
+        toast('Сеть: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  function netConnect(net) {
+    var psk = el.netPsk.value;
+    if (net.secure && !psk) {
+      toast('Введите пароль Wi-Fi в поле выше', 'warn');
+      el.netPsk.focus();
+      return;
+    }
+    return withBusy(null, function () {
+      el.netStatus.textContent = 'подключаюсь к ' + net.ssid + '…';
+      return cgi('network.py', { action: 'connect', ssid: net.ssid, psk: psk }, { timeout: 70000 })
+        .then(function (data) {
+          renderNet(data);
+          el.netPsk.value = '';
+          toast(data.connected ? ('Подключено: ' + data.ssid) : 'Не удалось, вернул прежнюю сеть',
+            data.connected ? 'ok' : 'warn');
+        }).catch(function (err) {
+          toast('Сеть: ' + err.message, 'bad');
+          loadNet();
+        });
+    });
+  }
+
+  /* ─────────── zigbee ─────────── */
+  function loadZb() {
+    return cgi('zigbee.py', {}, { timeout: 12000, silent: true }).then(function (data) {
+      State.zb = data;
+      var shorts = (data.devices || []).map(function (item) { return item.short; });
+      el.zbStatus.textContent = 'радио ' + (data.radio ? 'активно' : 'выключено') +
+        ' · сеть ' + (data.network ? 'сформирована' : 'не сформирована') +
+        ' · записей устройств: ' + (data.count || 0) +
+        (shorts.length ? ' · ' + shorts.join(', ') : '');
+    }).catch(function (err) {
+      el.zbStatus.textContent = 'Zigbee: ' + err.message;
+    });
+  }
+
+  function sendZb() {
+    var text = el.zbCommand.value.trim();
+    if (!text) {
+      toast('Введите команду, например «включи лампу»', 'warn');
+      return;
+    }
+    return withBusy(el.btnZbSend, function () {
+      return cgi('zigbee.py', { text: text }, { timeout: 30000 }).then(function () {
+        el.zbCommand.value = '';
+        toast('Передано Алисе', 'ok');
+        refreshPlayer();
+      }).catch(function (err) {
+        toast('Zigbee: ' + err.message, 'bad');
+      });
+    });
+  }
+
+  /* ─────────── сценарии ─────────── */
+  var SC_TYPES = [
+    { id: 'speak', label: 'Сказать', hint: 'текст', key: 'text' },
+    { id: 'led', label: 'Кольцо: цвет', hint: '#00E676', key: 'color' },
+    { id: 'led_off', label: 'Кольцо: погасить', hint: '' },
+    { id: 'radio', label: 'Радио', hint: 'Европа Плюс', key: 'name' },
+    { id: 'volume', label: 'Громкость', hint: '0–100', key: 'value' },
+    { id: 'clock_text', label: 'Текст на дисплей', hint: 'Доброе утро', key: 'text' },
+    { id: 'vpn', label: 'VPN', hint: 'on / off', key: 'on' },
+    { id: 'llm', label: 'Нейросеть', hint: 'on / off', key: 'on' },
+    { id: 'pause', label: 'Пауза плеера', hint: '' },
+    { id: 'sleep', label: 'Пауза, секунд', hint: '1', key: 'seconds' },
+    { id: 'http', label: 'HTTP-запрос', hint: 'https://…', key: 'url' }
+  ];
+
+  function scTypeById(id) {
+    for (var i = 0; i < SC_TYPES.length; i++) if (SC_TYPES[i].id === id) return SC_TYPES[i];
+    return SC_TYPES[0];
+  }
+
+  function fillScTypes() {
+    SC_TYPES.forEach(function (type) {
+      var option = document.createElement('option');
+      option.value = type.id;
+      option.textContent = type.label;
+      el.scType.appendChild(option);
+    });
+  }
+
+  function addScRow(typeId, value) {
+    var type = scTypeById(typeId || el.scType.value);
+    var row = document.createElement('div');
+    row.className = 'bt-item';
+    row.dataset.type = type.id;
+
+    var select = document.createElement('select');
+    select.className = 'net-input';
+    select.style.maxWidth = '190px';
+    SC_TYPES.forEach(function (item) {
+      var option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = item.label;
+      if (item.id === type.id) option.selected = true;
+      select.appendChild(option);
+    });
+
+    var input = document.createElement('input');
+    input.className = 'net-input';
+    input.placeholder = type.hint || '';
+    input.value = value == null ? '' : value;
+
+    var remove = document.createElement('button');
+    remove.className = 'btn sm ghost';
+    remove.textContent = '×';
+    remove.title = 'Убрать действие';
+    remove.addEventListener('click', function () { row.remove(); });
+
+    select.addEventListener('change', function () {
+      var next = scTypeById(select.value);
+      row.dataset.type = next.id;
+      input.placeholder = next.hint || '';
+      input.value = '';
+      input.hidden = !next.hint;
+    });
+    input.hidden = !type.hint;
+
+    row.appendChild(select);
+    row.appendChild(input);
+    row.appendChild(remove);
+    el.scActions.appendChild(row);
+  }
+
+  function collectScActions() {
+    var actions = [];
+    Array.prototype.forEach.call(el.scActions.children, function (row) {
+      var type = scTypeById(row.dataset.type);
+      var input = row.querySelector('input');
+      var value = input ? input.value.trim() : '';
+      var action = { type: type.id };
+      if (type.key === 'text') action.text = value;
+      else if (type.key === 'color') action.color = value || '#00E676';
+      else if (type.key === 'name') action.name = value;
+      else if (type.key === 'value') action.value = parseInt(value, 10) || 30;
+      else if (type.key === 'seconds') action.seconds = parseFloat(value) || 1;
+      else if (type.key === 'on') action.on = /^(on|вкл|1|true|да)$/i.test(value);
+      else if (type.key === 'url') action.url = value;
+      actions.push(action);
+    });
+    return actions;
+  }
+
+  function renderScBuiltin(items) {
+    el.scBuiltin.innerHTML = '';
+    (items || []).forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'bt-item';
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = item.phrase;
+      var what = document.createElement('small');
+      what.textContent = item.what;
+      row.appendChild(name);
+      row.appendChild(what);
+      el.scBuiltin.appendChild(row);
+    });
+  }
+
+  function renderScList(items) {
+    el.scList.innerHTML = '';
+    if (!items || !items.length) {
+      el.scList.innerHTML = '<div class="seg-note">своих сценариев пока нет</div>';
+      return;
+    }
+    items.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'bt-item';
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = item.name;
+      var phrases = document.createElement('small');
+      var schedule = item.schedule || {};
+      var when = schedule.time ? ' ⏰ ' + schedule.time : '';
+      phrases.textContent = (item.phrases || []).join(', ') + when;
+      var run = document.createElement('button');
+      run.className = 'btn sm ghost';
+      run.textContent = 'Запустить';
+      run.addEventListener('click', function () { runScenario(item.name); });
+      var edit = document.createElement('button');
+      edit.className = 'btn sm ghost';
+      edit.textContent = 'Изменить';
+      edit.addEventListener('click', function () { loadScenarioToEditor(item); });
+      var del = document.createElement('button');
+      del.className = 'btn sm ghost';
+      del.textContent = 'Удалить';
+      del.addEventListener('click', function () { deleteScenario(item.name); });
+      row.appendChild(name);
+      row.appendChild(phrases);
+      row.appendChild(run);
+      row.appendChild(edit);
+      row.appendChild(del);
+      el.scList.appendChild(row);
+    });
+  }
+
+  function loadScenarios() {
+    return cgi('scenarios.py', {}, { timeout: 10000, silent: true }).then(function (data) {
+      State.scenarios = data.scenarios || [];
+      renderScBuiltin(data.builtin || []);
+      renderScList(State.scenarios);
+    }).catch(function (err) {
+      el.scList.innerHTML = '<div class="seg-note">сценарии: ' + err.message + '</div>';
+    });
+  }
+
+  function loadScenarioToEditor(item) {
+    el.scName.value = item.name || '';
+    el.scPhrases.value = (item.phrases || []).join(', ');
+    var schedule = item.schedule || {};
+    el.scTime.value = schedule.time || '';
+    el.scDays.value = (schedule.days || []).join(',');
+    var conditions = item.conditions || {};
+    el.scCondVpn.value = conditions.vpn || '';
+    el.scCondMusic.value = conditions.music || '';
+    el.scActions.innerHTML = '';
+    (item.actions || []).forEach(function (action) {
+      var type = scTypeById(action.type);
+      var value = action[type.key || 'text'] != null ? action[type.key] : '';
+      if (type.key === 'on') value = action.on ? 'on' : 'off';
+      addScRow(action.type, value);
+    });
+  }
+
+  function applyScenarioTemplate(kind) {
+    clearScenarioEditor();
+    if (kind === 'morning') {
+      el.scName.value = 'Доброе утро';
+      el.scPhrases.value = 'доброе утро, утро';
+      el.scTime.value = '07:00';
+      el.scDays.value = '1-5';
+      addScRow('speak', 'Доброе утро! Хорошего дня.');
+      addScRow('led', '#FFD7A8');
+      addScRow('radio', 'Европа Плюс');
+      addScRow('volume', '40');
+    } else if (kind === 'night') {
+      el.scName.value = 'Доброй ночи';
+      el.scPhrases.value = 'доброй ночи, спокойной ночи';
+      el.scTime.value = '23:00';
+      addScRow('speak', 'Доброй ночи. Выключаю свет и музыку.');
+      addScRow('pause', '');
+      addScRow('led_off', '');
+      addScRow('volume', '20');
+    } else {
+      el.scName.value = 'Я ухожу';
+      el.scPhrases.value = 'я ухожу, выключай всё';
+      addScRow('speak', 'Пока! Всё выключил.');
+      addScRow('pause', '');
+      addScRow('led_off', '');
+      addScRow('vpn', 'off');
+    }
+    toast('Шаблон подставлен — проверьте и сохраните', 'ok');
+  }
+
+  function saveScenario() {
+    var name = el.scName.value.trim();
+    var phrases = el.scPhrases.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+    var actions = collectScActions();
+    if (name.length < 2) { toast('Название: минимум 2 символа', 'warn'); return; }
+    if (!phrases.length) { toast('Добавьте хотя бы одну фразу', 'warn'); return; }
+    if (!actions.length) { toast('Добавьте хотя бы одно действие', 'warn'); return; }
+    return withBusy(el.btnScSave, function () {
+      var schedule = el.scTime.value ? { time: el.scTime.value, days: el.scDays.value } : {};
+      var conditions = { vpn: el.scCondVpn.value, music: el.scCondMusic.value };
+      return cgi('scenarios.py', { name: name, phrases: phrases, actions: actions,
+        tz_offset: -new Date().getTimezoneOffset() / 60,
+        schedule: schedule, conditions: conditions }, { timeout: 20000 })
+        .then(function (data) {
+          State.scenarios = data.scenarios || [];
+          renderScList(State.scenarios);
+          toast('Сценарий сохранён: ' + name, 'ok');
+        }).catch(function (err) {
+          toast('Сценарий: ' + err.message, 'bad');
+        });
+    });
+  }
+
+  function runScenario(name) {
+    return cgi('scenarios.py', { run: name }, { timeout: 90000 }).then(function (data) {
+      var result = data.result || {};
+      toast(result.ok ? ('Выполнено: ' + name) : ('Ошибки: ' + (result.errors || []).join('; ')),
+        result.ok ? 'ok' : 'bad');
+      refreshPlayer();
+    }).catch(function (err) {
+      toast('Сценарий: ' + err.message, 'bad');
+    });
+  }
+
+  function deleteScenario(name) {
+    return cgi('scenarios.py', { delete: name }, { timeout: 15000 }).then(function (data) {
+      State.scenarios = data.scenarios || [];
+      renderScList(State.scenarios);
+      toast('Удалён: ' + name, 'ok');
+    }).catch(function (err) {
+      toast('Сценарий: ' + err.message, 'bad');
+    });
+  }
+
+  function clearScenarioEditor() {
+    el.scName.value = '';
+    el.scPhrases.value = '';
+    el.scActions.innerHTML = '';
+  }
+
+  /* ─────────── логи ─────────── */
+  function loadLogs() {
+    return cgi('logs.py', { name: el.logName.value, lines: 200 }, { timeout: 10000, silent: true })
+      .then(function (data) {
+        el.logsBox.textContent = data.text || '(пусто)';
+        el.logsBox.scrollTop = el.logsBox.scrollHeight;
+      }).catch(function (err) {
+        el.logsBox.textContent = 'Логи: ' + err.message;
+      });
+  }
+
+  /* ─────────── обслуживание ─────────── */
+  function runNetcheck() {
+    el.maintBox.textContent = 'проверяю…';
+    return cgi('netcheck.py', {}, { timeout: 40000 }).then(function (data) {
+      var lines = [];
+      var gw = data.gateway || {};
+      lines.push('шлюз ' + (gw.host || '—') + ': ' + (gw.ok ? (gw.rtt ? gw.rtt + ' мс' : 'ok') : 'нет'));
+      var net = data.internet || {};
+      lines.push('интернет ' + (net.host || '—') + ': ' + (net.ok ? (net.rtt ? net.rtt + ' мс' : 'ok') : 'нет'));
+      var dns = data.dns || {};
+      lines.push('DNS: ' + (dns.ok ? dns.ms + ' мс' : 'ошибка'));
+      var http = data.http || {};
+      lines.push('HTTP ' + (http.url || '') + ': ' + (http.code || '—') +
+        (http.time ? ' за ' + Math.round(http.time * 1000) + ' мс' : ''));
+      el.maintBox.textContent = lines.join('\n');
+    }).catch(function (err) {
+      el.maintBox.textContent = 'Сеть: ' + err.message;
+    });
+  }
+
+  function runSpeed() {
+    el.maintBox.textContent = 'замеряю скорость…';
+    return cgi('netcheck.py', { speed: 1 }, { timeout: 45000 }).then(function (data) {
+      var speed = data.speed || {};
+      el.maintBox.textContent = speed.mbps != null
+        ? ('Скорость: ' + speed.mbps + ' Мбит/с (HTTP ' + (speed.code || '—') + ')')
+        : 'Скорость: не удалось измерить';
+    }).catch(function (err) {
+      el.maintBox.textContent = 'Скорость: ' + err.message;
+    });
+  }
+
+  function runCleanup() {
+    el.maintBox.textContent = 'чищу…';
+    return cgi('maintenance.py', { cleanup: 1 }, { timeout: 20000 }).then(function (data) {
+      el.maintBox.textContent = 'Освобождено: ' + Math.round((data.freed || 0) / 1024) + ' КБ';
+      toast('Логи и кэш очищены', 'ok');
+    }).catch(function (err) {
+      el.maintBox.textContent = 'Очистка: ' + err.message;
+    });
+  }
+
+  function doPoweroff() {
+    if (!window.confirm('Выключить колонку? Включить можно только кнопкой питания.')) return;
+    cgi('maintenance.py', { poweroff: 'yes' }, { timeout: 8000 }).then(function () {
+      toast('Выключение…', 'warn');
+    }).catch(function (err) {
+      toast('Выключение: ' + err.message, 'bad');
+    });
+  }
+
+  function doReboot() {
+    if (!window.confirm('Перезагрузить колонку? Панель пропадёт на ~40 секунд.')) return;
+    cgi('maintenance.py', { reboot: 'yes' }, { timeout: 8000 }).then(function () {
+      toast('Перезагрузка запущена', 'warn');
+    }).catch(function (err) {
+      toast('Ребут: ' + err.message, 'bad');
+    });
+  }
+
+  function loadAutoBright() {
+    return cgi('display.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      var auto = data.auto || {};
+      el.autoBright.checked = !!auto.enabled;
+      el.autoBrightStatus.textContent = auto.enabled
+        ? ('вкл · ' + (auto.min || 10) + '–' + (auto.max || 150)) : 'выкл';
+    }).catch(function () { /* тихо */ });
+  }
+
+  function toggleAutoBright() {
+    var on = el.autoBright.checked ? 1 : 0;
+    return cgi('display.py', { auto_brightness: on, min: 10, max: 150 }, { timeout: 10000 })
+      .then(function (data) {
+        var auto = data.auto || {};
+        el.autoBrightStatus.textContent = auto.enabled
+          ? ('вкл · ' + auto.min + '–' + auto.max) : 'выкл';
+        toast(auto.enabled ? 'Автояркость включена' : 'Автояркость выключена', 'ok');
+      }).catch(function (err) {
+        el.autoBright.checked = !el.autoBright.checked;
+        toast('Автояркость: ' + err.message, 'bad');
+      });
+  }
+
+  /* ─────────── бэкап ─────────── */
+  function downloadBackup() {
+    return cgi('backup.py', {}, { timeout: 20000 }).then(function (data) {
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var link = document.createElement('a');
+      var stamp = new Date().toISOString().slice(0, 10);
+      link.href = URL.createObjectURL(blob);
+      link.download = 'mypult-backup-' + stamp + '.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(link.href); }, 3000);
+      toast('Бэкап скачан', 'ok');
+    }).catch(function (err) { toast('Бэкап: ' + err.message, 'bad'); });
+  }
+
+  function restoreBackup(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var parsed;
+      try {
+        parsed = JSON.parse(String(reader.result));
+      } catch (err) {
+        toast('Файл не JSON', 'bad');
+        return;
+      }
+      var payload = parsed && parsed.data ? parsed.data : parsed;
+      if (!window.confirm('Восстановить настройки из файла? Текущие будут заменены.')) return;
+      cgi('backup.py', { data: payload }, { timeout: 30000 }).then(function (data) {
+        toast('Восстановлено: ' + (data.restored || []).join(', '), 'ok');
+        setTimeout(function () { location.reload(); }, 1200);
+      }).catch(function (err) { toast('Восстановление: ' + err.message, 'bad'); });
+    };
+    reader.readAsText(file);
+  }
+
+  function loadVoiceCfg() {
+    return cgi('voicecfg.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      if (el.voiceMax) el.voiceMax.value = data.max_volume || 45;
+      if (el.voiceMaxStatus) el.voiceMaxStatus.textContent = 'сейчас ' + (data.max_volume || 45) + '%';
+    }).catch(function () { /* тихо */ });
+  }
+
+  function saveVoiceCfg() {
+    var value = parseInt(el.voiceMax.value, 10) || 45;
+    return cgi('voicecfg.py', { max_volume: value }, { timeout: 10000 }).then(function (data) {
+      el.voiceMaxStatus.textContent = 'сейчас ' + data.max_volume + '%';
+      toast('Потолок ответов: ' + data.max_volume + '%', 'ok');
+    }).catch(function (err) { toast('Потолок: ' + err.message, 'bad'); });
+  }
+
+  /* ─────────── PIN ─────────── */
+  function showPinGate(show) {
+    el.pinGate.hidden = !show;
+    if (show && el.pinInput) setTimeout(function () { el.pinInput.focus(); }, 60);
+  }
+
+  function loadAuth() {
+    return cgi('auth.py', { status: 1 }, { timeout: 8000, silent: true }).then(function (data) {
+      el.pinStatus.textContent = data.enabled ? 'PIN включён' : 'PIN не включён';
+      showPinGate(!!data.enabled && !data.authed);
+      return data;
+    }).catch(function () { /* панель без PIN */ });
+  }
+
+  function enablePin() {
+    var pin = el.pinNew.value.trim();
+    if (!/^\d{4,8}$/.test(pin)) { toast('PIN: 4–8 цифр', 'warn'); return; }
+    return cgi('auth.py', { pin: pin, enabled: 1 }, { timeout: 10000 }).then(function () {
+      el.pinNew.value = '';
+      el.pinStatus.textContent = 'PIN включён';
+      showPinGate(true);
+      toast('PIN включён — введите его', 'ok');
+    }).catch(function (err) { toast('PIN: ' + err.message, 'bad'); });
+  }
+
+  function disablePin() {
+    if (!window.confirm('Отключить PIN? Панель снова будет открыта без пароля.')) return;
+    return cgi('auth.py', { disable: 1 }, { timeout: 10000 }).then(function () {
+      el.pinStatus.textContent = 'PIN не включён';
+      toast('PIN отключён', 'ok');
+    }).catch(function (err) { toast('PIN: ' + err.message, 'bad'); });
+  }
+
+  function lockPanel() {
+    return cgi('auth.py', { logout: 1 }, { timeout: 8000 }).then(function () {
+      el.pinInput.value = '';
+      el.pinError.textContent = '';
+      showPinGate(true);
+    }).catch(function (err) { toast('PIN: ' + err.message, 'bad'); });
+  }
+
+  function loginPin() {
+    var pin = el.pinInput.value.trim();
+    if (!pin) return;
+    el.pinError.textContent = 'проверяю…';
+    return cgi('auth.py', { login: 1, pin: pin }, { timeout: 10000 }).then(function () {
+      el.pinError.textContent = '';
+      showPinGate(false);
+      location.reload();
+    }).catch(function (err) {
+      el.pinError.textContent = err.message || 'Неверный PIN';
+      el.pinInput.select();
+    });
+  }
+
+  /* ─────────── порядок карточек ─────────── */
+  function initCardDrag() {
+    var cards = Array.prototype.slice.call(document.querySelectorAll('main .card'));
+    cards.forEach(function (card, index) {
+      var head = card.querySelector('h2');
+      if (!head) return;
+      card.dataset.cardId = (head.textContent.trim() || 'card') + '-' + index;
+      head.draggable = true;
+      head.addEventListener('dragstart', function (event) {
+        State.dragCard = card;
+        card.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        try { event.dataTransfer.setData('text/plain', card.dataset.cardId); } catch (e) {}
+      });
+      head.addEventListener('dragend', function () {
+        card.classList.remove('dragging');
+        State.dragCard = null;
+        saveCardOrder();
+      });
+    });
+
+    var saved = [];
+    try { saved = JSON.parse(localStorage.getItem('mypult-cards') || '[]'); } catch (e) {}
+    if (saved.length) {
+      var main = document.querySelector('main');
+      var map = {};
+      cards.forEach(function (card) { map[card.dataset.cardId] = card; });
+      saved.forEach(function (id) { if (map[id]) main.appendChild(map[id]); });
+    }
+
+    var main = document.querySelector('main');
+    main.addEventListener('dragover', function (event) {
+      if (!State.dragCard) return;
+      var card = event.target.closest ? event.target.closest('.card') : null;
+      if (!card || card === State.dragCard) return;
+      event.preventDefault();
+      var box = card.getBoundingClientRect();
+      var after = event.clientY > box.top + box.height / 2;
+      card.parentNode.insertBefore(State.dragCard, after ? card.nextSibling : card);
+    });
+    main.addEventListener('drop', function (event) { event.preventDefault(); });
+  }
+
+  function saveCardOrder() {
+    var ids = Array.prototype.map.call(document.querySelectorAll('main .card'),
+      function (card) { return card.dataset.cardId; }).filter(Boolean);
+    try { localStorage.setItem('mypult-cards', JSON.stringify(ids)); } catch (e) {}
+  }
+
+  /* ─────────── статус сервисов ─────────── */
+  function applyStatusData(data) {
+    State.services = data.services || data;
+    State.luna = !!data.luna;
+    State.glagol = !!data.glagol;
+    renderStatus();
+    renderServices();
+  }
+
+  function refreshStatus() {
+    return refreshState();
+  }
+
+  /* ─────────── версия ─────────── */
+  function loadVersion() {
+    return fetch('/version.json', { cache: 'no-store' }).then(function (res) {
+      if (!res.ok) throw new Error('нет version.json');
+      return res.json();
+    }).then(function (data) {
+      State.version = data.version || null;
+      el.verTag.textContent = 'v' + (data.version || '?');
+      el.verLine.textContent = [data.version && ('v' + data.version), data.date]
+        .filter(Boolean).join(' · ');
+      log('app', 'версия', data.version + ' / ' + data.date);
+    }).catch(function () {
+      el.verTag.textContent = 'v?';
+      log('app', 'version.json недоступен', null, true);
+    });
+  }
+
+  /* ─────────── привязка ─────────── */
+  function bind() {
+    el.btnDebug.addEventListener('click', function () {
+      renderServices();
+      if (typeof el.debugDlg.showModal === 'function') el.debugDlg.showModal();
+      else el.debugDlg.setAttribute('open', '');
+    });
+    el.btnCloseDebug.addEventListener('click', function () { el.debugDlg.close(); });
+    el.btnTheme.addEventListener('click', function () {
+      var light = !document.body.classList.contains('light');
+      document.body.classList.toggle('light', light);
+      try { localStorage.setItem('mypult-theme', light ? 'light' : 'dark'); } catch (e) {}
+      el.btnTheme.textContent = light ? '☾' : '☼';
+      el.btnTheme.setAttribute('aria-label', light ? 'Тёмная тема' : 'Светлая тема');
+    });
+    el.btnRefreshStatus.addEventListener('click', function () {
+      withBusy(el.btnRefreshStatus, refreshStatus);
+    });
+    el.btnDiag.addEventListener('click', function () {
+      withBusy(el.btnDiag, function () {
+        return cgi('diag.py', {}, { timeout: 30000, silent: true }).then(function (data) {
+          el.diagBox.hidden = false;
+          el.diagBox.textContent = JSON.stringify(data, null, 2);
+          log('diag', 'пробы выполнены', { ports: (data.ports || []).length });
+        }).catch(function (err) {
+          el.diagBox.hidden = false;
+          el.diagBox.textContent = 'Ошибка диагностики: ' + err.message;
+        });
+      });
+    });
+
+    /* дисплей */
+    el.btnSync.addEventListener('click', syncClock);
+    el.btnScreenOff.addEventListener('click', function () {
+      withBusy(el.btnScreenOff, function () {
+        return sendDisplayOff().then(function () {
+          startDisplayOff();
+          toast('Экран выключен', 'ok');
+        });
+      });
+    });
+    el.brightness.addEventListener('input', function () {
+      applyBrightness(el.brightness.value, true);
+    });
+    el.ringBrightness.addEventListener('input', function () {
+      setRingBrightness(el.ringBrightness.value, true);
+    });
+    el.ringSpeed.addEventListener('input', function () {
+      setRingSpeed(el.ringSpeed.value);
+    });
+    el.brightChips.addEventListener('click', function (ev) {
+      var chip = ev.target.closest('.chip');
+      if (!chip || !chip.dataset.bright) return;
+      applyBrightness(chip.dataset.bright, true);
+    });
+
+    /* рисование на дисплее */
+    el.btnDraw.addEventListener('click', function () {
+      if (State.drawing) exitDrawMode();
+      else enterDrawMode();
+    });
+    el.btnSegSend.addEventListener('click', sendDrawing);
+    el.btnSegClear.addEventListener('click', clearPattern);
+    el.btnSegDone.addEventListener('click', exitDrawMode);
+    el.btnDisplayText.addEventListener('click', sendDisplayText);
+    el.btnClockBack.addEventListener('click', returnClock);
+    el.displayText.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        el.btnDisplayText.click();
+      }
+    });
+
+    /* кольцо */
+    el.colorPicker.addEventListener('input', function () {
+      if (!applySelected(el.colorPicker.value)) {
+        applyColor(el.colorPicker.value, 'solid');
+      }
+    });
+    el.colorPicker.addEventListener('change', function () {
+      if (!applySelected(el.colorPicker.value)) {
+        applyColor(el.colorPicker.value, 'solid');
+      }
+    });
+    el.presets.addEventListener('click', function (ev) {
+      var chip = ev.target.closest('.chip');
+      if (!chip) return;
+      if (chip.dataset.mode === 'wave' || chip.dataset.mode === 'candle') {
+        startLedAnimation(chip.dataset.mode);
+        return;
+      }
+      State.selected = null;
+      ringDots.forEach(function (dot) { dot.classList.remove('sel'); });
+      el.ledHint.textContent = 'Нажмите на диод, чтобы задать ему свой цвет';
+      if (chip.dataset.mode) applyColor(State.color, chip.dataset.mode);
+      else if (chip.dataset.hex) applyColor(chip.dataset.hex, 'solid');
+    });
+    el.btnLedOff.addEventListener('click', function () {
+      withBusy(el.btnLedOff, function () {
+        return luna('/api/led/off/ring', {}).then(function () {
+          stopLedAnimation();
+          State.ledMode = 'off';
+          store.set('ledMode', 'off');
+          State.selected = null;
+          ringDots.forEach(function (dot) { dot.classList.remove('sel'); });
+          el.ledHint.textContent = 'Кольцо выключено';
+          paintOff();
+          markActiveChip();
+          toast('Кольцо погашено', 'ok');
+        }).catch(function (err) { toast('Кольцо: ' + err.message, 'bad'); });
+      });
+    });
+
+    /* плеер */
+    el.btnPrev.addEventListener('click', function () { mediaAction('prev'); });
+    el.btnNext.addEventListener('click', function () { mediaAction('next'); });
+    el.btnMusic.addEventListener('click', function () { mediaAction('music'); });
+    el.mediaSeek.addEventListener('input', function () {
+      State.seeking = true;
+      var duration = State.mediaDuration || 0;
+      var position = (el.mediaSeek.value / 1000) * duration;
+      el.mediaPos.textContent = fmtTime(position);
+    });
+    el.mediaSeek.addEventListener('change', function () {
+      seekMedia(parseInt(el.mediaSeek.value, 10) || 0);
+    });
+    el.btnPlay.addEventListener('click', function () {
+      mediaAction(State.playing ? 'pause' : 'play');
+    });
+    el.volume.addEventListener('input', function () {
+      setVolumeUI(parseInt(el.volume.value, 10), true);
+      el.volumeVal.textContent = State.volume + '%';
+      pushVolume();
+    });
+    el.btnVolUp.addEventListener('click', function () {
+      setVolumeUI(State.volume + 5);
+      pushVolume();
+    });
+    el.btnVolDown.addEventListener('click', function () {
+      setVolumeUI(State.volume - 5);
+      pushVolume();
+    });
+    el.btnMute.addEventListener('click', function () {
+      var payload = State.muted ? { unmute: 1 } : { mute: 1 };
+      withBusy(el.btnMute, function () {
+        return cgi('volume.py', payload, { timeout: 9000 }).then(function (data) {
+          State.muted = !!(data && data.muted);
+          el.btnMute.setAttribute('aria-pressed', State.muted ? 'true' : 'false');
+          if (data && typeof data.level === 'number') setVolumeUI(data.level);
+          toast(State.muted ? 'Звук выключен (0%)' : ('Звук включён' +
+            (data && data.level ? ' · ' + data.level + '%' : '')), 'ok');
+        }).catch(function (err) { toast('Mute: ' + err.message, 'bad'); });
+      });
+    });
+
+    /* голос */
+    el.btnMic.addEventListener('click', listen);
+    el.btnCancelListen.addEventListener('click', function () {
+      if (listenCtrl) listenCtrl.abort();
+    });
+    el.btnRepeat.addEventListener('click', function () {
+      sendCommand(el.transcript.textContent);
+    });
+    el.btnSendCmd.addEventListener('click', function () {
+      var value = el.command.value;
+      sendCommand(value).then(function () { el.command.value = ''; });
+    });
+    el.command.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        el.btnSendCmd.click();
+      }
+    });
+
+    /* озвучка */
+    el.ttsText.addEventListener('input', function () {
+      el.ttsCount.textContent = el.ttsText.value.length;
+    });
+    el.btnSay.addEventListener('click', say);
+    el.btnTtsClear.addEventListener('click', function () {
+      el.ttsText.value = '';
+      el.ttsCount.textContent = '0';
+      el.ttsText.focus();
+    });
+    el.ttsChips.addEventListener('click', function (ev) {
+      var chip = ev.target.closest('.chip');
+      if (!chip || !chip.dataset.text) return;
+      el.ttsText.value = chip.dataset.text;
+      el.ttsCount.textContent = el.ttsText.value.length;
+      el.ttsText.focus();
+    });
+
+    /* нейросеть */
+    el.llmProfiles.addEventListener('click', function (ev) {
+      var chip = ev.target.closest('.chip');
+      if (chip && chip.dataset.id) selectProfile(chip.dataset.id);
+    });
+    el.btnLlmNew.addEventListener('click', newProfile);
+    el.llmEnabled.addEventListener('change', toggleLlmEnabled);
+    el.btnChatPrev.addEventListener('click', function () { switchChat({ chat_prev: 1 }); });
+    el.btnChatNext.addEventListener('click', function () { switchChat({ chat_next: 1 }); });
+    el.btnChatNew.addEventListener('click', function () { switchChat({ chat_new: 1 }); });
+    el.btnChatDel.addEventListener('click', function () {
+      var active = State.llm && State.llm.activeChat;
+      if (!active) return;
+      if (!window.confirm('Удалить текущий чат вместе с историей?')) return;
+      switchChat({ chat_delete: active });
+    });
+    el.llmLength.addEventListener('change', function () {
+      var value = parseInt(el.llmLength.value, 10) || 260;
+      return cgi('llm.py', { max_tokens: value }, { timeout: 10000 }).then(function (data) {
+        applyLlmInfo(data);
+        toast('Длина ответа: ' + el.llmLength.options[el.llmLength.selectedIndex].text, 'ok');
+      }).catch(function (err) { toast('Длина ответа: ' + err.message, 'bad'); });
+    });
+    el.llmProviderSelect.addEventListener('change', function () {
+      selectProvider(el.llmProviderSelect.value);
+    });
+    el.llmModel.addEventListener('change', toggleCustomModel);
+    el.btnLlmVoice.addEventListener('click', askLlmVoice);
+    el.btnLlmSave.addEventListener('click', saveLlm);
+    el.btnLlmAsk.addEventListener('click', askLlm);
+    el.btnLlmSay.addEventListener('click', sayLlmAnswer);
+    el.llmPrompt.addEventListener('keydown', function (ev) {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+        ev.preventDefault();
+        el.btnLlmAsk.click();
+      }
+    });
+
+    /* VPN */
+    el.btnVpnSave.addEventListener('click', saveVpn);
+    el.btnVpnStart.addEventListener('click', startVpn);
+    el.btnVpnStop.addEventListener('click', stopVpn);
+    el.vpnUrl.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        el.btnVpnSave.click();
+      }
+    });
+    el.vpnAutostart.addEventListener('change', function () {
+      var on = el.vpnAutostart.checked ? 1 : 0;
+      cgi('vpn.py', { autostart: on }, { timeout: 15000 }).then(function (data) {
+        renderVpn(data);
+        toast(on ? 'VPN будет включаться при загрузке' : 'Автозапуск VPN выключен', 'ok');
+      }).catch(function (err) {
+        el.vpnAutostart.checked = !el.vpnAutostart.checked;
+        toast('VPN: ' + err.message, 'bad');
+      });
+    });
+
+    /* голосовой демон */
+    el.btnVoiceDaemon.addEventListener('click', toggleVoiceDaemon);
+
+    /* радио */
+    el.radioChips.addEventListener('click', function (ev) {
+      var chip = ev.target.closest('.chip');
+      if (!chip || chip.dataset.index === undefined) return;
+      playRadio(parseInt(chip.dataset.index, 10));
+    });
+    el.btnRadioPrev.addEventListener('click', function () { stepRadio(-1); });
+    el.btnRadioNext.addEventListener('click', function () { stepRadio(1); });
+    el.btnRadioStop.addEventListener('click', stopRadio);
+    el.btnRadioAdd.addEventListener('click', addRadio);
+    el.radioName.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        addRadio();
+      }
+    });
+
+    /* bluetooth и сеть */
+    el.btnBtPower.addEventListener('click', function () {
+      btAction({ action: 'power', on: (State.bt && State.bt.powered) ? 0 : 1 });
+    });
+    el.btnBtPairMode.addEventListener('click', function () {
+      btAction({ action: 'discoverable', on: (State.bt && State.bt.discoverable) ? 0 : 1 });
+    });
+    el.btnBtScan.addEventListener('click', function () {
+      btAction({ action: 'scan' });
+    });
+    el.btnNetScan.addEventListener('click', netScan);
+    el.btnNetDns.addEventListener('click', netDnsApply);
+    el.btnNetDnsReset.addEventListener('click', netDnsReset);
+
+    /* zigbee */
+    el.btnZbSend.addEventListener('click', sendZb);
+    el.zbCommand.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        sendZb();
+      }
+    });
+
+    /* сценарии */
+    el.btnScAddAction.addEventListener('click', function () { addScRow(el.scType.value); });
+    el.btnScSave.addEventListener('click', saveScenario);
+    el.btnScClear.addEventListener('click', clearScenarioEditor);
+    el.btnTplMorning.addEventListener('click', function () { applyScenarioTemplate('morning'); });
+    el.btnTplNight.addEventListener('click', function () { applyScenarioTemplate('night'); });
+    el.btnTplAway.addEventListener('click', function () { applyScenarioTemplate('away'); });
+    el.btnDaysWork.addEventListener('click', function () { el.scDays.value = '1-5'; });
+    el.btnDaysAll.addEventListener('click', function () { el.scDays.value = '1-7'; });
+    el.btnDaysWeekend.addEventListener('click', function () { el.scDays.value = '6-7'; });
+
+    /* логи */
+    el.btnLogs.addEventListener('click', loadLogs);
+    el.logName.addEventListener('change', loadLogs);
+
+    /* обслуживание */
+    el.btnNetcheck.addEventListener('click', runNetcheck);
+    el.btnSpeed.addEventListener('click', runSpeed);
+    el.btnCleanup.addEventListener('click', runCleanup);
+    el.btnReboot.addEventListener('click', doReboot);
+    el.btnPoweroff.addEventListener('click', doPoweroff);
+    el.autoBright.addEventListener('change', toggleAutoBright);
+    el.btnBackup.addEventListener('click', downloadBackup);
+    el.backupFile.addEventListener('change', function () {
+      if (el.backupFile.files && el.backupFile.files[0]) restoreBackup(el.backupFile.files[0]);
+      el.backupFile.value = '';
+    });
+    el.btnPinEnable.addEventListener('click', enablePin);
+    el.btnPinDisable.addEventListener('click', disablePin);
+    el.btnPinLock.addEventListener('click', lockPanel);
+    el.btnVoiceMax.addEventListener('click', saveVoiceCfg);
+    el.btnPinLogin.addEventListener('click', loginPin);
+    el.pinInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') loginPin();
+    });
+
+    /* разделы */
+    el.tabs.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.tab');
+      if (btn && btn.dataset.tab) showTab(btn.dataset.tab);
+    });
+    window.addEventListener('hashchange', function () {
+      var name = (location.hash || '').replace('#', '');
+      if (name) showTab(name, false);
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.target && ev.target.matches && ev.target.matches('input, textarea, select')) return;
+      var index = parseInt(ev.key, 10);
+      if (index >= 1 && index <= TABS.length) showTab(TABS[index - 1]);
+    });
+
+    /* мобильная клавиатура не должна закрывать поле раньше времени */
+    el.ttsText.addEventListener('keydown', function (ev) {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') {
+        ev.preventDefault();
+        el.btnSay.click();
+      }
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) refreshStatus();
+    });
+  }
+
+  /* ─────────── инициализация ─────────── */
+  function buildRing() {
+    for (var i = 0; i < 24; i++) {
+      var dot = document.createElement('b');
+      dot.style.setProperty('--i', i);
+      (function (index) {
+        dot.addEventListener('click', function () { selectLed(index); });
+      })(i);
+      el.ringDots.appendChild(dot);
+      ringDots.push(dot);
+    }
+  }
+
+  function restore() {
+    var color = store.get('color', '#00E676');
+    if (!/^#[0-9a-f]{6}$/i.test(color)) color = '#00E676';
+    State.color = color.toUpperCase();
+    State.brightness = clamp(parseInt(store.get('brightness', 170), 10) || 170, 10, 255);
+    State.volume = clamp(parseInt(store.get('volume', 40), 10) || 0, 0, 100);
+
+    var savedColors = store.get('ledColors', null);
+    if (Array.isArray(savedColors) && savedColors.length === 24 &&
+        savedColors.every(function (c) { return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c); })) {
+      State.ledColors = savedColors.map(function (c) { return c.toUpperCase(); });
+    } else {
+      State.ledColors = new Array(24).fill(State.color);
+    }
+
+    el.colorPicker.value = State.color.toLowerCase();
+    el.colorCode.textContent = State.color;
+    applyBrightness(State.brightness, false);
+    setVolumeUI(State.volume);
+
+    // Luna не умеет отдавать состояние кольца, поэтому восстанавливаем
+    // последний известный режим — и не врём, что кольцо горит, если его гасили.
+    var mode = store.get('ledMode', 'solid');
+    if (mode === 'off') {
+      State.ledMode = 'off';
+      paintOff();
+      el.ledHint.textContent = 'Кольцо выключено';
+    } else if (mode === 'custom') {
+      State.ledMode = 'custom';
+      paintRing(State.ledColors);
+    } else if (mode === 'wave' || mode === 'candle') {
+      State.ledMode = 'solid';
+      paintRing(composeColors());
+      el.ledHint.textContent = 'Анимация была остановлена — включите заново';
+    } else {
+      State.ledMode = mode;
+      paintRing(composeColors());
+    }
+    markActiveChip();
+  }
+
+  function init() {
+    try {
+      if (localStorage.getItem('mypult-theme') === 'light') {
+        document.body.classList.add('light');
+        el.btnTheme.textContent = '☾';
+        el.btnTheme.setAttribute('aria-label', 'Тёмная тема');
+      }
+    } catch (e) { /* приватный режим */ }
+    [
+      'pill', 'pillText', 'netLine', 'offlineBanner', 'footStatus', 'tabs',
+      'clockTime', 'clockSub', 'btnSync', 'btnScreenOff', 'brightness', 'brightnessVal',
+      'displayPreview', 'brightChips',
+      'seg7', 'seg7Digits', 'btnDraw', 'segToolbar', 'btnSegSend', 'btnSegClear', 'btnSegDone', 'segNote',
+      'displayText', 'btnDisplayText', 'btnClockBack',
+      'ring', 'ringDots', 'ringHex', 'colorPicker', 'colorCode', 'presets', 'btnLedOff', 'ledHint',
+      'ringBrightness', 'ringBrightVal', 'ringSpeed', 'ringSpeedVal',
+      'mediaTitle', 'mediaSub', 'btnPrev', 'btnPlay', 'btnNext', 'mediaCover', 'mediaArtIcon',
+      'btnMusic', 'mediaKind', 'mediaSeek', 'mediaPos', 'mediaDur', 'mediaProgress',
+      'volume', 'volumeVal', 'btnVolDown', 'btnVolUp', 'btnMute',
+      'btnMic', 'micHint', 'micTimer', 'transcript', 'btnRepeat', 'btnCancelListen',
+      'command', 'btnSendCmd', 'ttsText', 'ttsCount', 'btnTtsClear', 'btnSay', 'ttsChips',
+      'toasts', 'debugDlg', 'btnDebug', 'btnTheme', 'btnCloseDebug', 'svcState', 'logBox', 'btnRefreshStatus',
+      'btnDiag', 'diagBox',
+      'verTag', 'verLine',
+      'llmProviderSelect', 'llmModel', 'llmModelCustomWrap', 'llmModelCustom', 'llmBase', 'llmKey',
+      'llmProfiles', 'btnLlmNew', 'llmName', 'llmActive',
+      'llmChat', 'btnChatPrev', 'btnChatNext', 'btnChatNew', 'btnChatDel', 'llmLength',
+      'llmEnabled', 'llmStatus', 'btnLlmSave', 'llmPrompt', 'btnLlmAsk', 'btnLlmSay', 'btnLlmVoice',
+      'llmAnswer', 'llmMeta',
+      'vpnUrl', 'btnVpnSave', 'btnVpnStart', 'btnVpnStop', 'vpnStatus', 'vpnServer', 'vpnLog', 'vpnAutostart',
+      'btnVoiceDaemon', 'voiceDaemonStatus',
+      'radioChips', 'btnRadioPrev', 'btnRadioStop', 'btnRadioNext', 'radioStatus',
+      'radioName', 'btnRadioAdd',
+      'btnBtPairMode', 'btnBtScan', 'btStatus', 'btDevices', 'btnBtPower',
+      'netPsk', 'btnNetScan', 'netStatus', 'netList', 'netDetails',
+      'netDns', 'btnNetDns', 'btnNetDnsReset',
+      'zbStatus', 'zbCommand', 'btnZbSend',
+      'scBuiltin', 'scList', 'scName', 'scPhrases', 'scActions', 'scType',
+      'scTime', 'scDays', 'scCondVpn', 'scCondMusic',
+      'btnTplMorning', 'btnTplNight', 'btnTplAway',
+      'btnDaysWork', 'btnDaysAll', 'btnDaysWeekend',
+      'btnScAddAction', 'btnScSave', 'btnScClear',
+      'logName', 'btnLogs', 'logsBox',
+      'btnNetcheck', 'btnCleanup', 'btnReboot', 'btnPoweroff', 'maintBox', 'autoBright', 'autoBrightStatus',
+      'btnSpeed', 'btnBackup', 'backupFile',
+      'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
+      'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
+      'voiceMax', 'btnVoiceMax', 'voiceMaxStatus',
+      'sysCpu', 'sysCpuBar', 'sysLoad', 'sysRam', 'sysRamBar', 'sysRamSub', 'sysTemp', 'sysTempSub',
+      'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
+    ].forEach(function (id) { el[id] = document.getElementById(id); });
+
+    buildRing();
+    buildSevenSeg();
+    restore();
+    bind();
+    tickClock();
+    setInterval(tickClock, 1000);
+    autoSyncClock();
+    setInterval(autoSyncClock, 30000);
+    renderStatus();
+    loadVersion();
+    loadLlm();
+    loadVpn();
+    loadVoice();
+    loadRadio();
+    loadBt();
+    loadNet();
+    loadZb();
+    fillScTypes();
+    loadScenarios();
+    addScRow('speak');
+    loadLogs();
+    loadAutoBright();
+    loadAuth();
+    loadVoiceCfg();
+    initCardDrag();
+    refreshSystem();
+    setInterval(refreshSystem, 5000);
+    loadRingBrightness();
+    loadRingSpeed();
+    syncVolumeFromDevice();
+    refreshState();
+    setInterval(function () {
+      if (!document.hidden) refreshState();
+    }, 6000);
+    var startTab = (location.hash || '').replace('#', '') || store.get('mypult.tab', 'display');
+    showTab(startTab, false);
+    log('app', 'Пульт запущен', navigator.userAgent);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+<noscript><p style="text-align:center;color:#f88">Для работы пульта нужен JavaScript.</p></noscript>
+</body>
+</html>

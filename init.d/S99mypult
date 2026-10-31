@@ -1,0 +1,412 @@
+#!/bin/sh
+#
+# /etc/init.d/S99mypult — автозапуск веб-пульта «Станция Миди»
+#
+#   /etc/init.d/S99mypult start     запустить всё недостающее
+#   /etc/init.d/S99mypult stop      остановить только то, что запустили мы
+#   /etc/init.d/S99mypult restart   полный перезапуск
+#   /etc/init.d/S99mypult reload    перезапустить только lighttpd
+#   /etc/init.d/S99mypult status    что сейчас работает
+#
+# Скрипт идемпотентен: уже запущенные процессы он не дублирует и чужие
+# процессы не убивает (останавливает только по своим pid-файлам).
+
+### BEGIN INIT INFO
+# Provides:          mypult
+# Required-Start:    $local_fs $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+### END INIT INFO
+
+DAEMON_LUNA="/data/quazar/luna/bin/luna"
+LUNA_ARGS="--listen 0.0.0.0:8099 --data-dir /data/quazar/luna/data"
+LIGHTTPD="/opt/sbin/lighttpd"
+LIGHTTPD_CONF="/opt/etc/lighttpd/myweb.conf"
+WEBROOT="/data/myweb"
+ALICE_LIGHT="/data/quazar/luna/alice_light.sh"
+
+# Мост к IPC aliced для озвучки. Если на колонке порт 9875 уже слушает
+# socat/aliced — оставьте пустым. Иначе укажите unix-сокет aliced, например:
+# IPC_SOCK="/var/run/aliced.sock"
+IPC_SOCK=""
+
+RUNDIR="/tmp/mypult"
+LOG="/tmp/mypult.log"
+LIGHTTPD_PIDFILE="/tmp/mypult-lighttpd.pid"
+
+log() {
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"
+}
+
+# Проверка TCP-порта через /proc/net/tcp (без netstat и nc).
+is_listening() {
+    _hex=$(printf '%04X' "$1")
+    awk -v p=":$_hex" '$4 == "0A" && index($2, p) > 0 { found = 1 } END { exit !found }' \
+        /proc/net/tcp 2>/dev/null
+}
+
+wait_root() {
+    i=0
+    while [ ! -d "$WEBROOT" ] && [ "$i" -lt 30 ]; do
+        sleep 1
+        i=$((i + 1))
+    done
+    if [ ! -d "$WEBROOT" ]; then
+        log "НЕТ каталога $WEBROOT — пульт не запускаю"
+        return 1
+    fi
+    return 0
+}
+
+# ------------------------------------------------------------------ Luna ----
+start_luna() {
+    if is_listening 8099; then
+        log "luna: уже слушает 8099"
+        return 0
+    fi
+    if [ ! -x "$DAEMON_LUNA" ]; then
+        log "luna: НЕТ исполняемого $DAEMON_LUNA"
+        return 1
+    fi
+    nohup "$DAEMON_LUNA" $LUNA_ARGS >>"$LOG" 2>&1 &
+    echo $! >"$RUNDIR/luna.pid"
+    i=0
+    while [ "$i" -lt 20 ]; do
+        if is_listening 8099; then
+            log "luna: запущена, pid $(cat "$RUNDIR/luna.pid" 2>/dev/null)"
+            return 0
+        fi
+        sleep 1
+        i=$((i + 1))
+    done
+    log "luna: не поднялась за 20 с (см. $LOG)"
+    return 1
+}
+
+# -------------------------------------------------------------- lighttpd ----
+start_web() {    if is_listening 8055; then
+        log "lighttpd: порт 8055 уже занят, не трогаю"
+        return 0
+    fi
+    if [ ! -x "$LIGHTTPD" ]; then
+        log "lighttpd: НЕТ $LIGHTTPD"
+        return 1
+    fi
+    if ! "$LIGHTTPD" -t -f "$LIGHTTPD_CONF" >>"$LOG" 2>&1; then
+        log "lighttpd: КОНФИГ НЕВАЛИДЕН ($LIGHTTPD_CONF), запуск отменён"
+        return 1
+    fi
+    if ! "$LIGHTTPD" -f "$LIGHTTPD_CONF" >>"$LOG" 2>&1; then
+        log "lighttpd: не стартовал"
+        return 1
+    fi
+    sleep 1
+    if is_listening 8055; then
+        log "lighttpd: слушает 8055"
+        return 0
+    fi
+    log "lighttpd: запустился, но 8055 не слушается"
+    return 1
+}
+
+# ----------------------------------------------------------- alice_light ----
+start_voice() {
+    [ -f /data/mypult/voice_daemon.py ] || return 0
+    if [ -f /data/mypult/voice.pid ]; then
+        _pid=$(cat /data/mypult/voice.pid 2>/dev/null)
+        if [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null; then
+            log "голосовой пульт: уже работает (pid $_pid)"
+            return 0
+        fi
+    fi
+    if [ -x /opt/bin/curl ]; then
+        /opt/bin/curl -s -m 30 -X POST http://127.0.0.1:8055/cgi-bin/voicectl.py \
+            -H 'Content-Type: application/json' -d '{"start":1}' >/dev/null 2>&1
+    fi
+    sleep 2
+    if [ -f /data/mypult/voice.pid ]; then
+        _pid=$(cat /data/mypult/voice.pid 2>/dev/null)
+        if [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null; then
+            log "голосовой пульт: запущен (pid $_pid)"
+            return 0
+        fi
+    fi
+    log "голосовой пульт: НЕ стартовал"
+    return 1
+}
+
+stop_voice() {
+    if [ -x /opt/bin/curl ]; then
+        /opt/bin/curl -s -m 15 -X POST http://127.0.0.1:8055/cgi-bin/voicectl.py \
+            -H 'Content-Type: application/json' -d '{"stop":1}' >/dev/null 2>&1
+    fi
+    if [ -f /data/mypult/voice.pid ]; then
+        _pid=$(cat /data/mypult/voice.pid 2>/dev/null)
+        [ -n "$_pid" ] && kill "$_pid" 2>/dev/null
+        rm -f /data/mypult/voice.pid
+    fi
+}
+
+start_state() {
+    [ -f /data/mypult/state_daemon.py ] || return 0
+    if [ -f /tmp/mypult-state.pid ]; then
+        _pid=$(cat /tmp/mypult-state.pid 2>/dev/null)
+        if [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null; then
+            log "state: уже работает (pid $_pid)"
+            return 0
+        fi
+    fi
+    nohup /opt/bin/python3 /data/mypult/state_daemon.py >>/tmp/mypult.log 2>&1 &
+    echo $! > /tmp/mypult-state.pid
+    sleep 1
+    if kill -0 "$(cat /tmp/mypult-state.pid)" 2>/dev/null; then
+        log "state: запущен на 8057"
+    else
+        log "state: НЕ стартовал (панель использует CGI)"
+    fi
+}
+
+stop_state() {
+    if [ -f /tmp/mypult-state.pid ]; then
+        _pid=$(cat /tmp/mypult-state.pid 2>/dev/null)
+        [ -n "$_pid" ] && kill "$_pid" 2>/dev/null
+        rm -f /tmp/mypult-state.pid
+    fi
+}
+
+start_alice_light() {
+    # Голосовой пульт сам занимает recognize — не запускаем конкурента.
+    if [ -f /data/mypult/voice.pid ]; then
+        _voice_pid=$(cat /data/mypult/voice.pid 2>/dev/null)
+        if [ -n "$_voice_pid" ] && kill -0 "$_voice_pid" 2>/dev/null; then
+            log "alice_light: пропускаю, работает голосовой пульт (pid $_voice_pid)"
+            return 0
+        fi
+    fi
+    if ps 2>/dev/null | grep -q "[a]lice_light.sh"; then
+        log "alice_light: уже работает"
+        return 0
+    fi
+    if [ ! -f "$ALICE_LIGHT" ]; then
+        log "alice_light: НЕТ $ALICE_LIGHT (пропускаю)"
+        return 0
+    fi
+    nohup /bin/sh "$ALICE_LIGHT" >>"$LOG" 2>&1 &
+    echo $! >"$RUNDIR/alice_light.pid"
+    log "alice_light: запущен, pid $(cat "$RUNDIR/alice_light.pid" 2>/dev/null)"
+    return 0
+}
+
+# ------------------------------------------------ IPC-мост на 9875 (опция) --
+start_ipc() {
+    if [ -z "$IPC_SOCK" ]; then
+        return 0
+    fi
+    if is_listening 9875; then
+        log "ipc: 9875 уже слушает"
+        return 0
+    fi
+    SOCAT=$(command -v socat 2>/dev/null || echo /opt/bin/socat)
+    if [ ! -x "$SOCAT" ]; then
+        log "ipc: НЕТ socat — озвучка через speak.py будет недоступна"
+        return 0
+    fi
+    if [ ! -S "$IPC_SOCK" ]; then
+        log "ipc: НЕТ сокета $IPC_SOCK"
+        return 0
+    fi
+    nohup "$SOCAT" TCP-LISTEN:9875,fork,reuseaddr UNIX-CONNECT:"$IPC_SOCK" >>"$LOG" 2>&1 &
+    echo $! >"$RUNDIR/socat.pid"
+    log "ipc: socat слушает 9875 -> $IPC_SOCK"
+    return 0
+}
+
+# ------------------------------------------------------------------- stop ----
+stop_pidfile() {
+    _file="$1"
+    _name="$2"
+    [ -f "$_file" ] || return 0
+    _pid=$(cat "$_file" 2>/dev/null)
+    if [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null; then
+        kill "$_pid" 2>/dev/null
+        log "$_name: остановлен (pid $_pid)"
+    fi
+    rm -f "$_file"
+}
+
+stop_web() {
+    stop_pidfile "$LIGHTTPD_PIDFILE" "lighttpd"
+    i=0
+    while is_listening 8055 && [ "$i" -lt 10 ]; do
+        sleep 1
+        i=$((i + 1))
+    done
+    if is_listening 8055; then
+        log "lighttpd: 8055 всё ещё занят (чужой процесс?) — не трогаю"
+    fi
+}
+
+reload_web() {
+    # SIGHUP перечитывает конфиг без обрыва соединений — вкладки не отваливаются.
+    pid=$(cat "$LIGHTTPD_PIDFILE" 2>/dev/null)
+    if [ -n "$pid" ] && kill -HUP "$pid" 2>/dev/null; then
+        sleep 1
+        if is_listening 8055; then
+            log "lighttpd: мягко перезагружен"
+            return 0
+        fi
+    fi
+    log "lighttpd: мягкий reload не удался, перезапускаю"
+    stop_web
+    start_web
+}
+
+restore_volume() {
+    [ -f /data/mypult/volume.json ] || return 0
+    level=$(sed -n 's/.*"level"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' \
+        /data/mypult/volume.json | head -n 1)
+    [ -n "$level" ] || return 0
+    if /usr/bin/amixer sset Master "${level}%" >/dev/null 2>&1; then
+        log "громкость: ${level}%"
+    fi
+}
+
+stop_all() {
+    stop_voice
+    stop_state
+    stop_web
+    stop_pidfile "$RUNDIR/alice_light.pid" "alice_light"
+    stop_pidfile "$RUNDIR/socat.pid" "socat"
+    stop_pidfile "$RUNDIR/luna.pid" "luna"
+}
+
+# ----------------------------------------------------------------- status ----
+status_all() {
+    _ver=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+        "$WEBROOT/version.json" 2>/dev/null | head -n 1)
+    if [ -n "$_ver" ]; then
+        echo "mypult     : v$_ver"
+    else
+        echo "mypult     : версия не найдена ($WEBROOT/version.json)"
+    fi
+    if is_listening 8099; then echo "luna       : up   (8099)"; else echo "luna       : down"; fi
+    if is_listening 9875; then echo "ipc 9875   : up"; else echo "ipc 9875   : down"; fi
+    if is_listening 8055; then echo "lighttpd   : up   (8055)"; else echo "lighttpd   : down"; fi
+    if ps 2>/dev/null | grep -q "[a]lice_light.sh"; then
+        echo "alice_light: up"
+    else
+        echo "alice_light: down"
+    fi
+}
+
+# ------------------------------------------------ подсветка кольца -----------
+start_ring_backlight() {
+    B=/sys/class/backlight/fb0/brightness
+    if [ -f /data/mypult/ring.json ] && [ -x /opt/bin/curl ]; then
+        i=0
+        while [ "$i" -lt 15 ]; do
+            is_listening 8055 && break
+            sleep 1
+            i=$((i + 1))
+        done
+        /opt/bin/curl -s -m 10 -X POST "http://127.0.0.1:8055/cgi-bin/display.py" \
+            -H "Content-Type: application/json" -d '{"restore":1}' >>"$LOG" 2>&1
+        log "ring: яркость восстановлена из настроек"
+    elif [ -w "$B" ] && [ "$(cat "$B" 2>/dev/null)" = "0" ]; then
+        echo 255 >"$B" 2>/dev/null && log "ring: подсветка fb0 включена"
+    fi
+    for C in /sys/bus/i2c/devices/1-0034/current /sys/bus/i2c/devices/1-0035/current; do
+        [ -w "$C" ] || continue
+        if [ "$(cat "$C" 2>/dev/null)" = "0" ]; then
+            echo 5 >"$C" 2>/dev/null && log "ring: ток LED-контроллера включён"
+        fi
+    done
+}
+
+# ------------------------------------------------ DNS: автоприменение --------
+start_dns_auto() {
+    [ -f /data/mypult/dns.json ] || return 0
+    [ -x /opt/bin/curl ] || return 0
+    i=0
+    while [ "$i" -lt 15 ]; do
+        is_listening 8055 && break
+        sleep 1
+        i=$((i + 1))
+    done
+    /opt/bin/curl -s -m 60 -X POST "http://127.0.0.1:8055/cgi-bin/network.py" \
+        -H "Content-Type: application/json" -d '{"action":"dns_apply_saved"}' >>"$LOG" 2>&1
+    log "dns: пользовательские серверы применены"
+}
+
+# ------------------------------------------------ VPN: автозапуск (опция) ----
+start_vpn_auto() {
+    [ -f /data/mypult/vpn.autostart ] || return 0
+    [ -x /opt/bin/curl ] || return 0
+    i=0
+    while [ "$i" -lt 15 ]; do
+        is_listening 8055 && break
+        sleep 1
+        i=$((i + 1))
+    done
+    /opt/bin/curl -s -m 120 -X POST "http://127.0.0.1:8055/cgi-bin/vpn.py" \
+        -H "Content-Type: application/json" -d '{"start":1}' >>"$LOG" 2>&1
+    log "vpn: автозапуск выполнен"
+}
+
+# -------------------------------------------------------------------- main ---
+mkdir -p "$RUNDIR" 2>/dev/null
+
+case "$1" in
+    start)
+        wait_root || exit 1
+        start_ipc
+        start_luna
+        start_web
+        restore_volume
+        start_voice
+        start_state
+        start_alice_light
+        start_ring_backlight
+        start_dns_auto
+        start_vpn_auto
+        ;;
+    stop)
+        stop_all
+        ;;
+    restart)
+        stop_all
+        sleep 1
+        wait_root || exit 1
+        start_ipc
+        start_luna
+        start_web
+        restore_volume
+        start_voice
+        start_state
+        start_alice_light
+        start_ring_backlight
+        start_dns_auto
+        start_vpn_auto
+        ;;
+    reload)
+        # SIGHUP в этой сборке не перечитывает конфиг, поэтому применяем
+        # изменения полным перезапуском веба и зависимых процессов.
+        stop_voice
+        stop_state
+        stop_web
+        sleep 1
+        start_web
+        restore_volume
+        start_voice
+        start_state
+        ;;
+    status)
+        status_all
+        ;;
+    *)
+        echo "Использование: $0 {start|stop|restart|reload|status}"
+        exit 1
+        ;;
+esac
+
+exit 0

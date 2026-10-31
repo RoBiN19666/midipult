@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>overflow check</title>
+<style>body{margin:0;font:11px monospace;background:#111;color:#0f0}iframe{height:1100px;border:0}</style>
+</head>
+<body>
+<pre id="out">pending</pre>
+<iframe id="f" src="/index.html"></iframe>
+<script>
+(function () {
+  var widths = [320, 360, 390, 414, 500, 560, 760, 1024];
+  var f = document.getElementById('f');
+  var results = [];
+
+  function measure(width) {
+    return new Promise(function (resolve) {
+      f.style.width = width + 'px';
+      setTimeout(function () {
+        var d = f.contentDocument;
+        var scroll = d.documentElement.scrollWidth;
+        var line = width + ' -> scroll=' + scroll + ' body=' + d.body.scrollWidth + (scroll > width + 1 ? '  OVERFLOW' : '  ok');
+        results.push(line);
+        if (scroll > width + 1) {
+          var all = d.querySelectorAll('body *');
+          var count = 0;
+          for (var i = 0; i < all.length; i++) {
+            var r = all[i].getBoundingClientRect();
+            var tag = all[i].tagName.toLowerCase();
+            if (tag === 'span' && !all[i].className) { continue; }   // aurora
+            if (r.right > width + 1 && count < 6) {
+              results.push('    ' + tag + '.' + String(all[i].className || '').replace(/\s+/g, '.')
+                + ' w=' + Math.round(r.width) + ' right=' + Math.round(r.right));
+              count++;
+            }
+          }
+        }
+        resolve();
+      }, 450);
+    });
+  }
+
+  f.addEventListener('load', function () {
+    setTimeout(async function () {
+      for (var i = 0; i < widths.length; i++) {
+        await measure(widths[i]);
+      }
+      document.getElementById('out').textContent = results.join('\n');
+      document.title = 'DONE';
+    }, 600);
+  });
+})();
+</script>
+</body></html>
