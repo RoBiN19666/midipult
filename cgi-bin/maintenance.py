@@ -69,8 +69,24 @@ def cleanup():
     return freed
 
 
+def boot_info():
+    try:
+        uptime = float(open("/proc/uptime", encoding="ascii").read().split()[0])
+    except (OSError, ValueError):
+        uptime = None
+    try:
+        boot_id = open("/proc/sys/kernel/random/boot_id", encoding="ascii").read().strip()
+    except OSError:
+        boot_id = None
+    return {"uptime": uptime, "boot_id": boot_id}
+
+
 def main():
     data = common.params()
+
+    if common.truthy(data.get("boot")):
+        common.ok(**boot_info())
+        return
 
     if common.truthy(data.get("cleanup")):
         freed = cleanup()
