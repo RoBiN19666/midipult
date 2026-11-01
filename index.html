@@ -667,11 +667,11 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
 </div>
 
 <nav class="tabs" id="tabs" aria-label="Разделы">
-  <button class="tab" data-tab="display" aria-pressed="true">◐ Дисплей</button>
+  <button class="tab" data-tab="display" aria-pressed="false">◐ Дисплей</button>
   <button class="tab" data-tab="sound" aria-pressed="false">♪ Звук</button>
   <button class="tab" data-tab="ai" aria-pressed="false">✦ Нейросеть</button>
   <button class="tab" data-tab="network" aria-pressed="false">⇄ Сеть</button>
-  <button class="tab" data-tab="system" aria-pressed="false">▤ Система</button>
+  <button class="tab" data-tab="system" aria-pressed="true">▤ Система</button>
   <button class="tab" data-tab="scenarios" aria-pressed="false">▦ Сценарии</button>
 </nav>
 
@@ -3085,6 +3085,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
   /* ─────────── разделы ─────────── */
   var TABS = ['display', 'sound', 'ai', 'network', 'system', 'scenarios'];
   var TAB_KEY = 'mypult.tab';
+  var START_KEY = 'mypult.start-system';
 
   function showTab(name, save) {
     if (TABS.indexOf(name) < 0) name = 'display';
@@ -4658,8 +4659,16 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     setInterval(function () {
       if (!document.hidden) refreshState();
     }, 6000);
-    var startTab = (location.hash || '').replace('#', '') || store.get('mypult.tab', 'display');
+    var startTab = (location.hash || '').replace('#', '') ||
+      store.get(TAB_KEY, 'system');
+    if (!(location.hash || '') && !store.get(START_KEY)) {
+      // Однократно переводим существующие профили на стартовые «Ресурсы».
+      store.set(START_KEY, 1);
+      store.set(TAB_KEY, 'system');
+      startTab = 'system';
+    }
     showTab(startTab, false);
+    if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'auto' });
     log('app', 'Пульт запущен', navigator.userAgent);
   }
 
