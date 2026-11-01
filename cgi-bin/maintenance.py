@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import signal
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
@@ -71,46 +69,12 @@ def cleanup():
     return freed
 
 
-def platformd_pid():
-    try:
-        code, output, _err = common.run(["ps", "w"], timeout=3)
-        if code != 0:
-            return None
-        for line in output.splitlines():
-            if "maind" in line and "--platformd" in line:
-                fields = line.split()
-                if fields and fields[0].isdigit():
-                    return int(fields[0])
-    except Exception:
-        pass
-    return None
-
-
-def reload_sounds():
-    pid = platformd_pid()
-    if not pid:
-        raise RuntimeError("maind --platformd не найден")
-    os.kill(pid, signal.SIGTERM)
-    # launcher поднимает platformd примерно через 10–15 секунд
-    for _ in range(24):
-        time.sleep(1)
-        current = platformd_pid()
-        if current and current != pid:
-            return pid, current
-    return pid, None
-
-
 def main():
     data = common.params()
 
     if common.truthy(data.get("cleanup")):
         freed = cleanup()
         common.ok(freed=freed, items=sizes())
-        return
-
-    if data.get("reload_sounds") == "yes":
-        old_pid, new_pid = reload_sounds()
-        common.ok(reload=True, old_pid=old_pid, new_pid=new_pid)
         return
 
     if data.get("reboot") == "yes":
