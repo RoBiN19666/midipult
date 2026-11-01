@@ -43,7 +43,7 @@ git push -u origin main
 3. Перетащите папки `cgi-bin`, `deploy`, `docs`, `init.d`, `lighttpd`,
    `service`, `tests` и файлы:
    - `index.html`, `index.py`, `manifest.json`, `favicon.ico`,
-     `icon-192.png`, `icon-512.png`, `icon.png`;
+     `icon-192.png`, `icon-512.png`, `icon.png`, `icon-circle.png`;
    - `README.md`, `FAQ.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`;
    - `version.json`.
 4. Не загружайте `tests/*.png`, `.mypult-station`, `push.log`, `auth.json`,

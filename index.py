@@ -44,7 +44,7 @@ button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;curso
 }
 </style></head><body>
 <form class="card" id="f">
-  <img class="logo" src="/icon-192.png?v=2" alt="MidiPult" width="64" height="64">
+  <img class="logo" src="/icon-circle.png?v=3" alt="MidiPult" width="64" height="64">
   <h1>Пульт защищён PIN</h1>
   <p>Введите код, чтобы открыть панель</p>
   <input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" autofocus>
