@@ -989,6 +989,12 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
         <small id="sysDiskSub"></small>
       </div>
       <div class="sys-tile">
+        <span class="sys-label">Диск /</span>
+        <strong id="sysRoot">—</strong>
+        <div class="sys-bar"><i id="sysRootBar"></i></div>
+        <small id="sysRootSub"></small>
+      </div>
+      <div class="sys-tile">
         <span class="sys-label">Освещённость</span>
         <strong id="sysLight">—</strong>
         <small id="sysLightSub"></small>
@@ -2986,15 +2992,28 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       el.sysTemp.textContent = hot ? (hot.c + '°C') : '—';
       el.sysTempSub.textContent = hot ? hot.name : 'датчик не найден';
 
-      var disk = (data.disk || [])[0];
-      if (disk) {
-        el.sysDisk.textContent = disk.percent + '%';
-        el.sysDiskBar.style.width = disk.percent + '%';
-        el.sysDiskBar.className = loadLevel(disk.percent);
-        el.sysDiskSub.textContent = 'свободно ' +
-          (Math.round(disk.free_mb / 102.4) / 10) + ' ГБ из ' +
-          (Math.round(disk.total_mb / 102.4) / 10) + ' ГБ';
+      function paintDisk(disk, valueEl, barEl, subEl) {
+        if (!disk) {
+          valueEl.textContent = '—';
+          subEl.textContent = 'нет данных';
+          return;
+        }
+        valueEl.textContent = disk.percent + '%';
+        barEl.style.width = disk.percent + '%';
+        barEl.className = loadLevel(disk.percent);
+        var free = disk.free_mb >= 1024
+          ? (Math.round(disk.free_mb / 102.4) / 10) + ' ГБ'
+          : Math.round(disk.free_mb) + ' МБ';
+        var total = disk.total_mb >= 1024
+          ? (Math.round(disk.total_mb / 102.4) / 10) + ' ГБ'
+          : Math.round(disk.total_mb) + ' МБ';
+        subEl.textContent = 'свободно ' + free + ' из ' + total;
       }
+
+      var disks = {};
+      (data.disk || []).forEach(function (item) { disks[item.mount] = item; });
+      paintDisk(disks['/data'], el.sysDisk, el.sysDiskBar, el.sysDiskSub);
+      paintDisk(disks['/'], el.sysRoot, el.sysRootBar, el.sysRootSub);
 
       var light = data.light;
       if (light) {
@@ -3691,8 +3710,15 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
   function loadSounds() {
     return cgi('sounds.py', {}, { timeout: 20000, silent: true }).then(function (data) {
       State.sounds = data.sounds || [];
+      State.soundInfo = data;
       renderSounds();
-      setSoundStatus('Оригинал автоматически сохраняется на колонке. После замены нужна перезагрузка.');
+      var disk = (data.disks || []).filter(function (item) { return item.mount === '/data'; })[0];
+      var free = disk ? ' · свободно /data ' + fmtSoundSize(disk.free_mb * 1024 * 1024) : '';
+      var limit = fmtSoundSize(data.max_upload || 12 * 1024 * 1024);
+      el.soundDrop.textContent = 'Перетащите аудиофайл на строку нужного звука или нажмите «Заменить» · до ' + limit;
+      setSoundStatus('Бэкапы: ' + (data.backup_root || '/data/mypult/sounds-backup') +
+        ' · ' + fmtSoundSize(data.backup_bytes || 0) + free +
+        '. После замены нужна перезагрузка.');
     }).catch(function (err) {
       setSoundStatus('Список звуков: ' + err.message, true);
     });
@@ -3727,9 +3753,11 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       name.textContent = item.name;
       var meta = document.createElement('div');
       meta.className = 'sound-meta';
+      var maxTxt = item.max_upload && item.max_upload < 12 * 1024 * 1024
+        ? 'до ' + fmtSoundSize(item.max_upload) : '';
       meta.textContent = [item.group, item.format.toUpperCase(), fmtSoundSize(item.size),
-        item.source === 'data' ? 'свой' : 'системный', item.backup ? 'есть бэкап' : '']
-        .filter(Boolean).join(' · ');
+        item.source === 'data' ? 'свой' : 'системный', item.backup ? 'есть бэкап' : '',
+        maxTxt].filter(Boolean).join(' · ');
       main.appendChild(name);
       main.appendChild(meta);
 
@@ -3789,8 +3817,11 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
 
   function uploadSound(file, rel) {
     if (!file) return;
-    if (file.size > 12 * 1024 * 1024) {
-      toast('Файл больше 12 МБ', 'warn');
+    var item = (State.sounds || []).filter(function (entry) { return entry.path === rel; })[0];
+    var limit = item && item.max_upload ? item.max_upload : 12 * 1024 * 1024;
+    if (file.size > limit) {
+      toast('Файл ' + fmtSoundSize(file.size) + ', а с учётом свободного места можно до ' +
+        fmtSoundSize(limit), 'warn');
       return;
     }
     setSoundStatus('Заменяю «' + rel + '»: проверяю и конвертирую…');
@@ -4476,7 +4507,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
       'voiceMax', 'btnVoiceMax', 'voiceMaxStatus',
       'sysCpu', 'sysCpuBar', 'sysLoad', 'sysRam', 'sysRamBar', 'sysRamSub', 'sysTemp', 'sysTempSub',
-      'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
+      'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     buildRing();
