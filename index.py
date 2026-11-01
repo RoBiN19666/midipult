@@ -18,6 +18,7 @@ import common  # noqa: E402
 LOGIN = """<!doctype html>
 <html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/favicon.ico?v=2">
 <title>Пульт — вход</title>
 <style>
 :root{color-scheme:dark}
@@ -31,6 +32,7 @@ input{width:100%;box-sizing:border-box;padding:13px;border-radius:12px;border:1p
 button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;cursor:pointer;
  background:linear-gradient(120deg,#7c5cff,#22d3ee);color:#fff;font-weight:600}
 #err{min-height:18px;margin-top:10px;color:#fb7185;font-size:13px}
+.logo{width:64px;height:64px;border-radius:18px;display:block;margin:0 auto 12px;box-shadow:0 12px 28px #0007}
 @media (prefers-color-scheme: light){
  :root{color-scheme:light}
  body{background:#f4efe7;color:#20242c}
@@ -42,6 +44,7 @@ button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;curso
 }
 </style></head><body>
 <form class="card" id="f">
+  <img class="logo" src="/icon-192.png?v=2" alt="MidiPult" width="64" height="64">
   <h1>Пульт защищён PIN</h1>
   <p>Введите код, чтобы открыть панель</p>
   <input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" autofocus>

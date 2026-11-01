@@ -57,7 +57,10 @@ mkdir -p "$WEB/cgi-bin" || die "не могу создать $WEB/cgi-bin"
 cp -f "$SRC/index.html" "$WEB/index.html" || die "не скопировался index.html"
 [ -f "$SRC/index.py" ] && cp -f "$SRC/index.py" "$WEB/index.py"
 [ -f "$SRC/manifest.json" ] && cp -f "$SRC/manifest.json" "$WEB/manifest.json"
-[ -f "$SRC/icon.svg" ] && cp -f "$SRC/icon.svg" "$WEB/icon.svg"
+for asset in favicon.ico icon-192.png icon-512.png icon.png; do
+    [ -f "$SRC/$asset" ] && cp -f "$SRC/$asset" "$WEB/$asset"
+done
+rm -f "$WEB/icon.svg"
 [ -f "$SRC/version.json" ] && cp -f "$SRC/version.json" "$WEB/version.json"
 for f in "$SRC"/cgi-bin/*.py; do
     cp -f "$f" "$WEB/cgi-bin/" || die "не скопировался $f"

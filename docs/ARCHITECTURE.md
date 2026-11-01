@@ -58,7 +58,9 @@ lighttpd ── static /data/myweb/index.html
 ```
 index.html                 SPA целиком (HTML+CSS+JS)
 index.py                   серверный PIN-гейт и отдача index.html
-manifest.json, icon.svg    PWA-ярлык (без service worker)
+manifest.json, favicon.ico PWA-ярлык и иконки (без service worker)
+icon-192.png, icon-512.png, icon.png
+docs/img/logo.png         горизонтальный логотип для README
 version.json               версия и дата
 CHANGELOG.md               история
 FAQ.md, README.md          документация
@@ -268,8 +270,8 @@ CGI запускаются от root: иначе недоступны sysfs, `am
 1. запускает `deploy/preflight.sh`: root, Entware, `opkg`, пакеты
    (`python3`, `lighttpd`, `mod_cgi`, `mod_proxy`, `curl`,
    `python3-websocket-client`), Luna, IPC, место; недостающие пакеты ставит;
-2. копирует `index.html`, `index.py`, `manifest.json`, `icon.svg`, CGI, конфиг,
-   init и демоны;
+2. копирует `index.html`, `index.py`, `manifest.json`, `favicon.ico`,
+   `icon-192.png`, `icon-512.png`, `icon.png`, CGI, конфиг, init и демоны;
 3. проверяет `lighttpd -t`;
 4. делает бэкап конфигов в `/data/mypult/backup`;
 5. вызывает `reload`: web + voice + state (панель пропадает на 2–3 секунды,

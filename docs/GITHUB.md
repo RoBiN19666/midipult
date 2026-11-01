@@ -42,7 +42,8 @@ git push -u origin main
 2. На странице репозитория: **Add file → Upload files**.
 3. Перетащите папки `cgi-bin`, `deploy`, `docs`, `init.d`, `lighttpd`,
    `service`, `tests` и файлы:
-   - `index.html`, `index.py`, `manifest.json`, `icon.svg`;
+   - `index.html`, `index.py`, `manifest.json`, `favicon.ico`,
+     `icon-192.png`, `icon-512.png`, `icon.png`;
    - `README.md`, `FAQ.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`;
    - `version.json`.
 4. Не загружайте `tests/*.png`, `.mypult-station`, `push.log`, `auth.json`,
