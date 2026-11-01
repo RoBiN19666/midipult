@@ -432,15 +432,16 @@ Quasar читаются из `/proc`/`/sys`. Звук, LED, радио, пита
 
 ### Как включить или выключить звук отклика «Алиса»?
 
-В «Система → Звуки» переключите «Звук отклика «Алиса»». Панель меняет
-`account_config.jingle` в `/data/quasar/data/user_config.dat` и
-`aliced.jingle` в `/system/vendor/quasar/quasar.cfg`; оригиналы сохраняются
-в `/data/mypult`. Для применения нужна перезагрузка; приложение Алисы может
-перезаписать настройку при синхронизации.
+В «Система → Звуки» переключите «Звук отклика «Алиса» (spotter_start)».
+Панель меняет `account_config.jingle` в `/data/quasar/data/user_config.dat`,
+а также `aliced.jingle` и `aliced.playStartVoiceInputEarcon` в
+`/system/vendor/quasar/quasar.cfg`; оригиналы сохраняются в `/data/mypult`.
+Для применения нужна перезагрузка; приложение Алисы может перезаписать
+настройку при синхронизации.
 
-Сам отклик — это `ru-RU/seam_activation_feedback_1.mp3` … `_9.mp3`
-(проигрывается один случайный). `common/spotter_start.mp3` — отдельный сигнал
-начала прослушивания.
+Сам отклик — это `common/spotter_start.mp3`, который включает
+`aliced.playStartVoiceInputEarcon`. Дополнительно панель синхронизирует
+`aliced.jingle` и `account_config.jingle` (seam-feedback).
 
 ### Как добавить свой звук и включить его в сценарий?
 

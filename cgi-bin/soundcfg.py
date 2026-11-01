@@ -50,11 +50,12 @@ def _remount(rw):
 def _set_quasar(enabled):
     with open(QUASAR_CFG, "r", encoding="utf-8") as fh:
         text = fh.read()
-    pattern = r'("jingle"\s*:\s*)(true|false)'
-    if len(re.findall(pattern, text)) != 1:
-        raise ValueError("в quasar.cfg не найден однозначный aliced.jingle")
     value = "true" if enabled else "false"
-    text = re.sub(pattern, lambda match: match.group(1) + value, text, count=1)
+    for key in ("jingle", "playStartVoiceInputEarcon"):
+        pattern = r'("%s"\s*:\s*)(true|false)' % re.escape(key)
+        if len(re.findall(pattern, text)) != 1:
+            raise ValueError("в quasar.cfg не найден однозначный %s" % key)
+        text = re.sub(pattern, lambda match: match.group(1) + value, text, count=1)
     json.loads(text)  # проверка до записи
     _backup_quasar()
     _remount(True)
@@ -136,7 +137,8 @@ def main():
 
     common.ok(jingle=enabled, quasar_jingle=_quasar_state(), reboot=True,
               backup=BACKUP, quasar_backup=QUASAR_BACKUP,
-              source="account_config.jingle + aliced.jingle", config=CONFIG)
+              source="account_config.jingle + aliced.jingle/" \
+                     "playStartVoiceInputEarcon", config=CONFIG)
 
 
 if __name__ == "__main__":
