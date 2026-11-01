@@ -562,6 +562,7 @@ body.light .hw-item{background:rgba(76,62,48,.035)}
 .sound-meta{font-size:11px;color:var(--muted);margin-top:2px}
 .sound-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .sound-actions .btn{padding:5px 8px;font-size:11px}
+.sound-play{width:28px;height:28px;min-width:28px;padding:0!important;border-radius:50%!important;font-size:12px;line-height:1}
 .sound-unsupported{font-size:10.5px;color:var(--muted);align-self:center}
 body.light .sound-row{background:rgba(76,62,48,.035)}
 body.light .sound-drop.drag{background:rgba(124,92,255,.08)}
@@ -1411,6 +1412,9 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     version: null,
     sounds: [],
     soundTarget: null,
+    previewAudio: null,
+    previewPath: null,
+    previewBtn: null,
     drawing: false,
     pattern: null,
     displayOverride: false,
@@ -3773,7 +3777,57 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     });
   }
 
+  function stopSoundPreview() {
+    var audio = State.previewAudio;
+    if (audio) {
+      try { audio.pause(); audio.removeAttribute('src'); audio.load(); } catch (e) {}
+    }
+    if (State.previewBtn) {
+      State.previewBtn.textContent = '▶';
+      State.previewBtn.title = 'Прослушать';
+    }
+    State.previewAudio = null;
+    State.previewPath = null;
+    State.previewBtn = null;
+  }
+
+  function toggleSoundPreview(path, btn) {
+    if (State.previewPath === path && State.previewAudio) {
+      if (State.previewAudio.paused) {
+        State.previewAudio.play().then(function () {
+          btn.textContent = '■';
+          btn.title = 'Пауза';
+        }).catch(function (err) { toast('Звук: ' + err.message, 'bad'); });
+      } else {
+        State.previewAudio.pause();
+        btn.textContent = '▶';
+        btn.title = 'Прослушать';
+      }
+      return;
+    }
+    stopSoundPreview();
+    var audio = new Audio('/cgi-bin/sounds.py?audio=' + encodeURIComponent(path));
+    audio.preload = 'auto';
+    State.previewAudio = audio;
+    State.previewPath = path;
+    State.previewBtn = btn;
+    btn.textContent = '■';
+    btn.title = 'Пауза';
+    audio.onended = function () {
+      if (State.previewAudio === audio) stopSoundPreview();
+    };
+    audio.onerror = function () {
+      if (State.previewAudio === audio) stopSoundPreview();
+      toast('Не удалось проиграть звук', 'bad');
+    };
+    audio.play().catch(function (err) {
+      if (State.previewAudio === audio) stopSoundPreview();
+      toast('Звук: ' + err.message, 'bad');
+    });
+  }
+
   function renderSounds() {
+    stopSoundPreview();
     if (!el.soundList) return;
     var group = el.soundGroup.value;
     var query = (el.soundSearch.value || '').trim().toLowerCase();
@@ -3812,6 +3866,16 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
 
       var actions = document.createElement('div');
       actions.className = 'sound-actions';
+      var play = document.createElement('button');
+      play.className = 'btn sm ghost sound-play';
+      play.textContent = '▶';
+      play.title = 'Прослушать';
+      play.setAttribute('aria-label', 'Прослушать ' + item.name);
+      play.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        toggleSoundPreview(item.path, play);
+      });
+      actions.appendChild(play);
       var dl = document.createElement('a');
       dl.className = 'btn sm ghost';
       dl.textContent = 'Скачать';

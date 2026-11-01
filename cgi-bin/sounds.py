@@ -368,6 +368,14 @@ def main():
         _raw(data, _content_type(rel), os.path.basename(rel))
         return
 
+    if method == "GET" and "audio" in query:
+        rel = _safe_rel(query["audio"][-1])
+        path, _ = _source(rel)
+        with open(path, "rb") as fh:
+            data = fh.read()
+        _raw(data, _content_type(rel))
+        return
+
     if method == "GET" and "zip" in query:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
