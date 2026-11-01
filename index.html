@@ -536,6 +536,27 @@ input[type="color"]::-moz-color-swatch{border:2px solid rgba(255,255,255,.32);bo
 .counter{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 #ttsText{min-height:96px}
 
+/* ---------- звуки ---------- */
+.sound-drop{
+  margin-top:10px;padding:14px;border:1px dashed var(--stroke);border-radius:12px;
+  text-align:center;font-size:12.5px;color:var(--muted);line-height:1.45;
+}
+.sound-drop.drag{border-color:var(--accent);background:rgba(124,92,255,.10);color:var(--text)}
+.sound-list{display:grid;gap:6px;max-height:430px;overflow:auto;margin-top:10px;padding-right:3px}
+.sound-row{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--stroke);
+  border-radius:10px;background:rgba(255,255,255,.03);transition:border-color .15s,background .15s;
+}
+.sound-row.drag{border-color:var(--accent);background:rgba(124,92,255,.12)}
+.sound-main{flex:1;min-width:0}
+.sound-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sound-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.sound-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.sound-actions .btn{padding:5px 8px;font-size:11px}
+.sound-unsupported{font-size:10.5px;color:var(--muted);align-self:center}
+body.light .sound-row{background:rgba(76,62,48,.035)}
+body.light .sound-drop.drag{background:rgba(124,92,255,.08)}
+
 /* ---------- toast ---------- */
 .toasts{
   position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:60;
@@ -1130,6 +1151,27 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     <div class="seg-note" style="margin-top:8px">В файле есть ключи и подписки — храните его отдельно.</div>
   </section>
 
+  <!-- ───────── звуки ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-sounds">
+    <h2 id="h-sounds"><span class="dot"></span>Звуки</h2>
+    <div class="row" style="margin-top:12px">
+      <button class="btn sm ghost" id="btnSoundBackup">Скачать все</button>
+      <button class="btn sm ghost" id="btnSoundRefresh">Обновить</button>
+      <input type="file" id="soundFile" accept="audio/*,.opus,.wav" hidden>
+    </div>
+    <div class="sound-drop" id="soundDrop">Перетащите аудиофайл на строку нужного звука или нажмите «Заменить»</div>
+    <div class="row" style="margin-top:10px">
+      <select id="soundGroup" class="net-input" aria-label="Группа звуков">
+        <option value="all">Все группы</option>
+        <option value="common">common</option>
+        <option value="ru-RU">ru-RU</option>
+      </select>
+      <input id="soundSearch" class="net-input" type="search" placeholder="Поиск по имени" autocomplete="off">
+    </div>
+    <div class="sound-list" id="soundList"><div class="seg-note">Загружаю список…</div></div>
+    <div class="seg-note" style="margin-top:8px" id="soundStatus">Оригинал автоматически сохраняется на колонке. После замены нужна перезагрузка.</div>
+  </section>
+
   <!-- ───────── PIN ───────── -->
   <section class="card c-sys" data-group="system" aria-labelledby="h-pin">
     <h2 id="h-pin"><span class="dot"></span>PIN</h2>
@@ -1186,6 +1228,12 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       <p>Подключите телефон к той же Wi-Fi сети и откройте
       <code>http://&lt;IP-колонки&gt;:8055/</code>. Ярлык можно добавить на
       главный экран браузера.</p>
+    </details>
+    <details>
+      <summary>Как заменить системный звук?</summary>
+      <p>Откройте «Система → Звуки», найдите нужный файл и перетащите на него
+      <code>.opus</code> или <code>.wav</code>. Оригинал сохранится на колонке;
+      после замены перезагрузите её. MP3-файлы можно только скачать.</p>
     </details>
     <details>
       <summary>Как включить голосовые команды?</summary>
@@ -1339,6 +1387,8 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     playing: false,
     busy: 0,
     version: null,
+    sounds: [],
+    soundTarget: null,
     drawing: false,
     pattern: null,
     displayOverride: false,
@@ -3625,6 +3675,158 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     reader.readAsText(file);
   }
 
+  /* ─────────── звуки ─────────── */
+  function fmtSoundSize(bytes) {
+    if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
+    if (bytes >= 1024) return Math.round(bytes / 1024) + ' КБ';
+    return bytes + ' Б';
+  }
+
+  function setSoundStatus(text, bad) {
+    if (!el.soundStatus) return;
+    el.soundStatus.textContent = text;
+    el.soundStatus.style.color = bad ? 'var(--warn)' : '';
+  }
+
+  function loadSounds() {
+    return cgi('sounds.py', {}, { timeout: 20000, silent: true }).then(function (data) {
+      State.sounds = data.sounds || [];
+      renderSounds();
+      setSoundStatus('Оригинал автоматически сохраняется на колонке. После замены нужна перезагрузка.');
+    }).catch(function (err) {
+      setSoundStatus('Список звуков: ' + err.message, true);
+    });
+  }
+
+  function renderSounds() {
+    if (!el.soundList) return;
+    var group = el.soundGroup.value;
+    var query = (el.soundSearch.value || '').trim().toLowerCase();
+    var items = State.sounds.filter(function (item) {
+      if (group !== 'all' && item.group !== group) return false;
+      return !query || item.name.toLowerCase().indexOf(query) >= 0;
+    });
+    el.soundList.innerHTML = '';
+    if (!items.length) {
+      var empty = document.createElement('div');
+      empty.className = 'seg-note';
+      empty.textContent = 'Ничего не найдено.';
+      el.soundList.appendChild(empty);
+      return;
+    }
+    items.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'sound-row';
+      row.dataset.path = item.path;
+      row.title = 'Перетащите сюда .opus или .wav';
+
+      var main = document.createElement('div');
+      main.className = 'sound-main';
+      var name = document.createElement('div');
+      name.className = 'sound-name';
+      name.textContent = item.name;
+      var meta = document.createElement('div');
+      meta.className = 'sound-meta';
+      meta.textContent = [item.group, item.format.toUpperCase(), fmtSoundSize(item.size),
+        item.source === 'data' ? 'свой' : 'системный', item.backup ? 'есть бэкап' : '']
+        .filter(Boolean).join(' · ');
+      main.appendChild(name);
+      main.appendChild(meta);
+
+      var actions = document.createElement('div');
+      actions.className = 'sound-actions';
+      var dl = document.createElement('a');
+      dl.className = 'btn sm ghost';
+      dl.textContent = 'Скачать';
+      dl.href = '/cgi-bin/sounds.py?download=' + encodeURIComponent(item.path);
+      actions.appendChild(dl);
+
+      if (item.backup) {
+        var restore = document.createElement('button');
+        restore.className = 'btn sm ghost';
+        restore.textContent = 'Вернуть';
+        restore.addEventListener('click', function () { restoreSound(item.path); });
+        actions.appendChild(restore);
+      }
+
+      if (item.writable) {
+        var replace = document.createElement('button');
+        replace.className = 'btn sm';
+        replace.textContent = 'Заменить';
+        replace.addEventListener('click', function () { pickSound(item.path); });
+        actions.appendChild(replace);
+      } else {
+        var unsupported = document.createElement('span');
+        unsupported.className = 'sound-unsupported';
+        unsupported.textContent = 'MP3: только скачать';
+        actions.appendChild(unsupported);
+      }
+
+      row.addEventListener('dragover', function (ev) {
+        ev.preventDefault();
+        row.classList.add('drag');
+        State.soundTarget = item.path;
+      });
+      row.addEventListener('dragleave', function () { row.classList.remove('drag'); });
+      row.addEventListener('drop', function (ev) {
+        ev.preventDefault();
+        row.classList.remove('drag');
+        var file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+        if (file) uploadSound(file, item.path);
+      });
+
+      row.appendChild(main);
+      row.appendChild(actions);
+      el.soundList.appendChild(row);
+    });
+  }
+
+  function pickSound(rel) {
+    State.soundTarget = rel;
+    el.soundFile.value = '';
+    el.soundFile.click();
+  }
+
+  function uploadSound(file, rel) {
+    if (!file) return;
+    if (file.size > 12 * 1024 * 1024) {
+      toast('Файл больше 12 МБ', 'warn');
+      return;
+    }
+    setSoundStatus('Заменяю «' + rel + '»: проверяю и конвертирую…');
+    var url = '/cgi-bin/sounds.py?replace=' + encodeURIComponent(rel) +
+      '&filename=' + encodeURIComponent(file.name || 'sound');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file
+    }).then(function (res) {
+      return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+    }).then(function (result) {
+      if (!result.ok || result.data.ok === false) {
+        throw new Error(result.data.error || 'не удалось заменить');
+      }
+      toast('Звук заменён. Перезагрузите колонку.', 'ok');
+      setSoundStatus('Готово: ' + rel + '. Нужна перезагрузка колонки.');
+      return loadSounds();
+    }).catch(function (err) {
+      setSoundStatus('Ошибка: ' + err.message, true);
+      toast('Звук: ' + err.message, 'bad');
+    });
+  }
+
+  function restoreSound(rel) {
+    if (!window.confirm('Вернуть оригинальный звук «' + rel + '»?')) return;
+    setSoundStatus('Возвращаю оригинал…');
+    cgi('sounds.py', { restore: rel }, { timeout: 30000 }).then(function () {
+      toast('Оригинал возвращён. Перезагрузите колонку.', 'ok');
+      return loadSounds();
+    }).catch(function (err) {
+      setSoundStatus('Ошибка: ' + err.message, true);
+      toast('Возврат: ' + err.message, 'bad');
+    });
+  }
+
   function loadVoiceCfg() {
     return cgi('voicecfg.py', {}, { timeout: 8000, silent: true }).then(function (data) {
       if (el.voiceMax) el.voiceMax.value = data.max_volume || 45;
@@ -4103,6 +4305,36 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       if (el.backupFile.files && el.backupFile.files[0]) restoreBackup(el.backupFile.files[0]);
       el.backupFile.value = '';
     });
+    el.btnSoundRefresh.addEventListener('click', loadSounds);
+    el.btnSoundBackup.addEventListener('click', function () {
+      window.location.href = '/cgi-bin/sounds.py?zip=1';
+    });
+    el.soundFile.addEventListener('change', function () {
+      var file = el.soundFile.files && el.soundFile.files[0];
+      var target = State.soundTarget;
+      el.soundFile.value = '';
+      if (file && target) uploadSound(file, target);
+    });
+    el.soundGroup.addEventListener('change', renderSounds);
+    el.soundSearch.addEventListener('input', renderSounds);
+    el.soundDrop.addEventListener('dragover', function (ev) {
+      ev.preventDefault();
+      el.soundDrop.classList.add('drag');
+    });
+    el.soundDrop.addEventListener('dragleave', function () {
+      el.soundDrop.classList.remove('drag');
+    });
+    el.soundDrop.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      el.soundDrop.classList.remove('drag');
+      var file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
+      if (!file) return;
+      if (!State.soundTarget) {
+        toast('Перетащите файл на строку нужного звука', 'warn');
+        return;
+      }
+      uploadSound(file, State.soundTarget);
+    });
     el.btnPinEnable.addEventListener('click', enablePin);
     el.btnPinDisable.addEventListener('click', disablePin);
     el.btnPinLock.addEventListener('click', lockPanel);
@@ -4239,6 +4471,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       'logName', 'btnLogs', 'logsBox',
       'btnNetcheck', 'btnCleanup', 'btnReboot', 'btnPoweroff', 'maintBox', 'autoBright', 'autoBrightStatus',
       'btnSpeed', 'btnBackup', 'backupFile',
+      'btnSoundBackup', 'btnSoundRefresh', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
       'voiceMax', 'btnVoiceMax', 'voiceMaxStatus',
@@ -4270,6 +4503,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     loadAutoBright();
     loadAuth();
     loadVoiceCfg();
+    loadSounds();
     initCardDrag();
     refreshSystem();
     setInterval(refreshSystem, 5000);
