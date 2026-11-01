@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
@@ -81,6 +83,24 @@ def boot_info():
     return {"uptime": uptime, "boot_id": boot_id}
 
 
+def schedule_power(action):
+    """Запустить reboot/poweroff отдельно: common.ok() завершает CGI."""
+    try:
+        with open("/data/mypult/power.log", "a", encoding="utf-8") as fh:
+            fh.write("%s %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), action))
+    except OSError:
+        pass
+    command = "sleep 1; exec /sbin/%s -f" % action
+    subprocess.Popen(
+        ["/bin/sh", "-c", command],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        start_new_session=True,
+    )
+
+
 def main():
     data = common.params()
 
@@ -94,15 +114,13 @@ def main():
         return
 
     if data.get("reboot") == "yes":
+        schedule_power("reboot")
         common.ok(reboot=True)
-        common.run(["/sbin/sync"], timeout=3)
-        common.run(["/sbin/reboot", "-f"], timeout=5)
         return
 
     if data.get("poweroff") == "yes":
+        schedule_power("poweroff")
         common.ok(poweroff=True)
-        common.run(["/sbin/sync"], timeout=3)
-        common.run(["/sbin/poweroff", "-f"], timeout=5)
         return
 
     common.ok(items=sizes())
