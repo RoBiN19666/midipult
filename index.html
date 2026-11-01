@@ -622,6 +622,9 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
 .reboot-bar{width:100%;height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
 .reboot-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#7c5cff,#22d3ee);transition:width .5s}
 .reboot-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.confirm-dlg{width:min(92vw,430px)}
+.confirm-text{margin:4px 0 18px;line-height:1.55;color:var(--text);font-size:14px}
+.confirm-actions{display:flex;justify-content:flex-end;gap:8px}
 body.light .reboot-bar{background:rgba(76,62,48,.1)}
 .svc{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
 .svc span{
@@ -1355,6 +1358,17 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     <strong id="rebootStatus">Перезагружаю колонку…</strong>
     <div class="reboot-bar"><i id="rebootBar"></i></div>
     <div class="reboot-time" id="rebootTime">00:00</div>
+  </div>
+</dialog>
+
+<dialog id="confirmDlg" class="confirm-dlg">
+  <div class="dlg-head">
+    <h3>Подтверждение</h3>
+  </div>
+  <p class="confirm-text" id="confirmText"></p>
+  <div class="confirm-actions">
+    <button class="btn sm ghost" id="btnConfirmNo">Отмена</button>
+    <button class="btn sm danger" id="btnConfirmYes">Подтвердить</button>
   </div>
 </dialog>
 
@@ -3869,27 +3883,56 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     });
   }
 
+  function askConfirm(message, options) {
+    var opts = options || {};
+    return new Promise(function (resolve) {
+      var dlg = el.confirmDlg;
+      if (!dlg || typeof dlg.showModal !== 'function') { resolve(window.confirm(message)); return; }
+      var done = false;
+      function finish(value) {
+        if (done) return;
+        done = true;
+        try { dlg.close(); } catch (e) {}
+        resolve(value);
+      }
+      el.confirmText.textContent = message;
+      el.btnConfirmYes.textContent = opts.yes || 'Подтвердить';
+      el.btnConfirmYes.className = 'btn sm ' + (opts.danger === false ? '' : 'danger');
+      el.btnConfirmYes.onclick = function () { finish(true); };
+      el.btnConfirmNo.onclick = function () { finish(false); };
+      dlg.oncancel = function (ev) { ev.preventDefault(); finish(false); };
+      dlg.onclose = function () { if (!done) finish(false); };
+      if (dlg.open) { try { dlg.close(); } catch (e) {} }
+      try { dlg.showModal(); } catch (e) { resolve(false); return; }
+      setTimeout(function () { el.btnConfirmNo.focus(); }, 0);
+    });
+  }
+
   function doPoweroff() {
-    if (!window.confirm('Выключить колонку? Включить можно только кнопкой питания.')) return;
-    cgi('maintenance.py', { poweroff: 'yes' }, { timeout: 8000 }).then(function () {
-      toast('Выключение…', 'warn');
-    }).catch(function (err) {
-      toast('Выключение: ' + err.message, 'bad');
+    askConfirm('Выключить колонку? Включить можно только кнопкой питания.', { yes: 'Выключить' }).then(function (ok) {
+      if (!ok) return;
+      return cgi('maintenance.py', { poweroff: 'yes' }, { timeout: 8000 }).then(function () {
+        toast('Выключение…', 'warn');
+      }).catch(function (err) {
+        toast('Выключение: ' + err.message, 'bad');
+      });
     });
   }
 
   function doReboot() {
-    if (!window.confirm('Перезагрузить колонку? Панель пропадёт примерно на 1–3 минуты.')) return;
-    startRebootWatch();
-    cgi('maintenance.py', { reboot: 'yes' }, { timeout: 8000 }).then(function () {
-      toast('Команда перезагрузки отправлена', 'warn');
-    }).catch(function (err) {
-      if (/PIN|auth|401/i.test(err.message || '')) {
-        stopRebootWatch();
-        toast('Ребут: ' + err.message, 'bad');
-      } else {
-        toast('Команда отправлена, ждём колонку…', 'warn');
-      }
+    askConfirm('Перезагрузить колонку? Панель пропадёт примерно на 1–3 минуты.', { yes: 'Перезагрузить' }).then(function (ok) {
+      if (!ok) return;
+      startRebootWatch();
+      return cgi('maintenance.py', { reboot: 'yes' }, { timeout: 8000 }).then(function () {
+        toast('Команда перезагрузки отправлена', 'warn');
+      }).catch(function (err) {
+        if (/PIN|auth|401/i.test(err.message || '')) {
+          stopRebootWatch();
+          toast('Ребут: ' + err.message, 'bad');
+        } else {
+          toast('Команда отправлена, ждём колонку…', 'warn');
+        }
+      });
     });
   }
 
@@ -4065,11 +4108,13 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
         return;
       }
       var payload = parsed && parsed.data ? parsed.data : parsed;
-      if (!window.confirm('Восстановить настройки из файла? Текущие будут заменены.')) return;
-      cgi('backup.py', { data: payload }, { timeout: 30000 }).then(function (data) {
-        toast('Восстановлено: ' + (data.restored || []).join(', '), 'ok');
-        setTimeout(function () { location.reload(); }, 1200);
-      }).catch(function (err) { toast('Восстановление: ' + err.message, 'bad'); });
+      askConfirm('Восстановить настройки из файла? Текущие будут заменены.', { yes: 'Восстановить' }).then(function (ok) {
+        if (!ok) return;
+        return cgi('backup.py', { data: payload }, { timeout: 30000 }).then(function (data) {
+          toast('Восстановлено: ' + (data.restored || []).join(', '), 'ok');
+          setTimeout(function () { location.reload(); }, 1200);
+        }).catch(function (err) { toast('Восстановление: ' + err.message, 'bad'); });
+      });
     };
     reader.readAsText(file);
   }
@@ -4207,12 +4252,14 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
   }
 
   function deleteCustomSound(item) {
-    if (!window.confirm('Удалить звук «' + item.name + '»?')) return;
-    cgi('sounds.py', { delete_custom: item.id }, { timeout: 15000 }).then(function () {
-      toast('Звук удалён', 'ok');
-      return loadSounds(true);
-    }).catch(function (err) {
-      toast('Удаление: ' + err.message, 'bad');
+    askConfirm('Удалить звук «' + item.name + '»?', { yes: 'Удалить' }).then(function (ok) {
+      if (!ok) return;
+      return cgi('sounds.py', { delete_custom: item.id }, { timeout: 15000 }).then(function () {
+        toast('Звук удалён', 'ok');
+        return loadSounds(true);
+      }).catch(function (err) {
+        toast('Удаление: ' + err.message, 'bad');
+      });
     });
   }
 
@@ -4439,15 +4486,17 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
   }
 
   function restoreSound(rel) {
-    if (!window.confirm('Вернуть оригинальный звук «' + rel + '»?')) return;
-    setSoundStatus('Возвращаю оригинал…');
-    cgi('sounds.py', { restore: rel }, { timeout: 30000 }).then(function () {
-      toast('Оригинал возвращён. Перезагрузите колонку.', 'ok');
-      setSoundStatus('Оригинал возвращён: ' + rel + '. Перезагрузите колонку.');
-      return loadSounds(true);
-    }).catch(function (err) {
-      setSoundStatus('Ошибка: ' + err.message, true);
-      toast('Возврат: ' + err.message, 'bad');
+    askConfirm('Вернуть оригинальный звук «' + rel + '»?', { yes: 'Вернуть' }).then(function (ok) {
+      if (!ok) return;
+      setSoundStatus('Возвращаю оригинал…');
+      return cgi('sounds.py', { restore: rel }, { timeout: 30000 }).then(function () {
+        toast('Оригинал возвращён. Перезагрузите колонку.', 'ok');
+        setSoundStatus('Оригинал возвращён: ' + rel + '. Перезагрузите колонку.');
+        return loadSounds(true);
+      }).catch(function (err) {
+        setSoundStatus('Ошибка: ' + err.message, true);
+        toast('Возврат: ' + err.message, 'bad');
+      });
     });
   }
 
@@ -4492,11 +4541,13 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
   }
 
   function disablePin() {
-    if (!window.confirm('Отключить PIN? Панель снова будет открыта без пароля.')) return;
-    return cgi('auth.py', { disable: 1 }, { timeout: 10000 }).then(function () {
-      el.pinStatus.textContent = 'PIN не включён';
-      toast('PIN отключён', 'ok');
-    }).catch(function (err) { toast('PIN: ' + err.message, 'bad'); });
+    askConfirm('Отключить PIN? Панель снова будет открыта без пароля.', { yes: 'Отключить PIN' }).then(function (ok) {
+      if (!ok) return;
+      return cgi('auth.py', { disable: 1 }, { timeout: 10000 }).then(function () {
+        el.pinStatus.textContent = 'PIN не включён';
+        toast('PIN отключён', 'ok');
+      }).catch(function (err) { toast('PIN: ' + err.message, 'bad'); });
+    });
   }
 
   function lockPanel() {
@@ -4813,8 +4864,9 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.btnChatDel.addEventListener('click', function () {
       var active = State.llm && State.llm.activeChat;
       if (!active) return;
-      if (!window.confirm('Удалить текущий чат вместе с историей?')) return;
-      switchChat({ chat_delete: active });
+      askConfirm('Удалить текущий чат вместе с историей?', { yes: 'Удалить чат' }).then(function (ok) {
+        if (ok) switchChat({ chat_delete: active });
+      });
     });
     el.llmLength.addEventListener('change', function () {
       var value = parseInt(el.llmLength.value, 10) || 260;
@@ -5109,6 +5161,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       'btnNetcheck', 'btnCleanup', 'btnReboot', 'btnPoweroff', 'maintBox', 'autoBright', 'autoBrightStatus',
       'btnSpeed', 'btnBackup', 'backupFile',
       'rebootDlg', 'btnCloseReboot', 'rebootStatus', 'rebootBar', 'rebootTime',
+      'confirmDlg', 'confirmText', 'btnConfirmNo', 'btnConfirmYes',
       'btnSoundBackup', 'btnSoundRefresh', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
       'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
