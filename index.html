@@ -1193,13 +1193,15 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <button class="btn sm ghost" id="btnSoundRefresh">Обновить</button>
       <input type="file" id="soundFile" accept="audio/*,.opus,.wav" hidden>
     </div>
-    <div class="sound-drop" id="soundDrop">Перетащите аудиофайл на строку нужного звука или нажмите «Заменить»</div>
+    <div class="sound-drop" id="soundDrop">Перетащите сюда — добавится в «Мои звуки». На строку системного — заменить</div>
     <div class="row" style="margin-top:10px">
-      <input id="customSoundName" class="net-input" type="text" maxlength="60"
-             placeholder="Название своего звука" autocomplete="off">
+      <input id="customSoundName" class="net-input" type="text" maxlength="40"
+             pattern="[A-Za-z0-9_-]{1,40}"
+             placeholder="Имя: латиница, без пробелов" autocomplete="off">
       <button class="btn sm" id="btnCustomSound">Добавить звук</button>
       <input type="file" id="customSoundFile" accept="audio/*,.opus,.wav,.mp3" hidden>
     </div>
+    <div class="seg-note" style="margin-top:4px">Только латиница, цифры, <code>_</code> и <code>-</code>, до 40 символов, без пробелов.</div>
     <div class="sound-head">Мои звуки</div>
     <div class="sound-list" id="customSoundList"><div class="seg-note">Пока нет своих звуков.</div></div>
     <div class="sound-head" style="margin-top:12px">Системные звуки</div>
@@ -1275,8 +1277,9 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     <details>
       <summary>Как добавить свой звук?</summary>
       <p>В «Система → Звуки» введите название, нажмите «Добавить звук» и
-      выберите файл. Затем в сценарии добавьте действие «Свой звук» и выберите
-      его из списка.</p>
+      выберите файл или перетащите его в зону загрузки. Имя — только латиница,
+      цифры, <code>_</code> и <code>-</code>, без пробелов. Затем в сценарии
+      добавьте действие «Свой звук».</p>
     </details>
     <details>
       <summary>Почему в панели нет переключателя звука отклика?</summary>
@@ -3983,6 +3986,13 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.soundStatus.style.color = bad ? 'var(--warn)' : '';
   }
 
+  var CUSTOM_NAME_RE = /^[A-Za-z0-9_-]{1,40}$/;
+
+  function customNameFromFile(name) {
+    return String(name || '').replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '').slice(0, 40) || 'sound';
+  }
+
   function loadSounds() {
     return cgi('sounds.py', {}, { timeout: 20000, silent: true }).then(function (data) {
       State.sounds = data.sounds || [];
@@ -4050,10 +4060,34 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       del.addEventListener('click', function () { deleteCustomSound(item); });
       actions.appendChild(del);
 
+      var rename = document.createElement('button');
+      rename.className = 'btn sm ghost';
+      rename.textContent = 'Переименовать';
+      rename.addEventListener('click', function () { renameCustomSound(item); });
+      actions.appendChild(rename);
+
       row.appendChild(main);
       row.appendChild(actions);
       el.customSoundList.appendChild(row);
     });
+  }
+
+  function renameCustomSound(item) {
+    var value = window.prompt('Новое имя: только латиница, цифры, _ и -, без пробелов',
+      item.name);
+    if (value === null) return;
+    value = value.trim();
+    if (!CUSTOM_NAME_RE.test(value)) {
+      toast('Имя: только латиница, цифры, _ и -, до 40 символов, без пробелов', 'warn');
+      return;
+    }
+    cgi('sounds.py', { rename_custom: item.id, name: value }, { timeout: 15000 })
+      .then(function () {
+        toast('Звук переименован', 'ok');
+        return loadSounds();
+      }).catch(function (err) {
+        toast('Переименование: ' + err.message, 'bad');
+      });
   }
 
   function deleteCustomSound(item) {
@@ -4073,7 +4107,12 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       toast('Файл больше ' + fmtSoundSize(max) + ' для /data', 'warn');
       return;
     }
-    var name = (el.customSoundName.value || '').trim() || file.name.replace(/\.[^.]+$/, '');
+    var rawName = (el.customSoundName.value || '').trim();
+    var name = rawName || customNameFromFile(file.name);
+    if (!CUSTOM_NAME_RE.test(name)) {
+      toast('Имя: только латиница, цифры, _ и -, до 40 символов, без пробелов', 'warn');
+      return;
+    }
     fetch('/cgi-bin/sounds.py?custom=1&name=' + encodeURIComponent(name), {
       method: 'POST',
       headers: { 'Content-Type': file.type || 'application/octet-stream' },
@@ -4814,12 +4853,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       ev.preventDefault();
       el.soundDrop.classList.remove('drag');
       var file = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
-      if (!file) return;
-      if (!State.soundTarget) {
-        toast('Перетащите файл на строку нужного звука', 'warn');
-        return;
-      }
-      uploadSound(file, State.soundTarget);
+      if (file) uploadCustomSound(file);
     });
     el.btnPinEnable.addEventListener('click', enablePin);
     el.btnPinDisable.addEventListener('click', disablePin);

@@ -35,6 +35,23 @@ GROUPS = ("common", "ru-RU")
 SUPPORTED = (".opus", ".wav", ".mp3")
 ALL_EXT = (".opus", ".wav", ".mp3")
 MAX_UPLOAD = 12 * 1024 * 1024
+CUSTOM_NAME_RE = re.compile(r"[A-Za-z0-9_-]{1,40}")
+
+
+def _custom_name(value):
+    name = str(value or "").strip()
+    if not CUSTOM_NAME_RE.fullmatch(name):
+        raise ValueError("Имя: только латиница, цифры, _ и -, до 40 символов, без пробелов")
+    return name
+
+
+def _custom_name_free(name, current_id=None):
+    for item in _custom_index():
+        if str(item.get("id")) == current_id:
+            continue
+        if str(item.get("name") or "").lower() == name.lower():
+            raise ValueError("Звук с таким именем уже есть")
+
 
 DESCRIPTIONS = {
     "spotter_start": "Начало прослушивания",
@@ -138,9 +155,8 @@ def _upload_custom(name):
     if len(raw) > limit:
         raise ValueError("не хватает места: максимум %d МБ"
                          % max(1, int(limit / 1048576)))
-    name = re.sub(r"\s+", " ", str(name or "").strip())[:60]
-    if not name:
-        raise ValueError("укажите название звука")
+    name = _custom_name(name)
+    _custom_name_free(name)
     tmpdir = tempfile.mkdtemp(prefix="mypult-custom-")
     src = os.path.join(tmpdir, "input")
     dst = os.path.join(tmpdir, "output.opus")
@@ -602,6 +618,21 @@ def main():
         _custom_save([item for item in _custom_index()
                       if str(item.get("id")) != sound_id])
         common.ok(deleted=sound_id, custom=_custom_items())
+        return
+
+    if method == "POST" and data.get("rename_custom"):
+        sound_id = _custom_id(data.get("rename_custom"))
+        if not any(str(item.get("id")) == sound_id for item in _custom_index()):
+            raise ValueError("свой звук не найден")
+        name = _custom_name(data.get("name"))
+        _custom_name_free(name, sound_id)
+        items = _custom_index()
+        for item in items:
+            if str(item.get("id")) == sound_id:
+                item["name"] = name
+                break
+        _custom_save(items)
+        common.ok(renamed=sound_id, name=name, custom=_custom_items())
         return
 
     if method == "POST" and data.get("restore"):
