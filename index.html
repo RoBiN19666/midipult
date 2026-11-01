@@ -3938,6 +3938,38 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
 
   var REBOOT_KEY = 'mypult.reboot-start';
   var REBOOT_DOWN_KEY = 'mypult.reboot-down';
+  var REBOOT_BOOT_KEY = 'mypult.reboot-boot';
+  var REBOOT_UPTIME_KEY = 'mypult.reboot-uptime';
+
+  function fetchBootInfo() {
+    return fetch('/cgi-bin/maintenance.py?boot=1&ts=' + Date.now(), {
+      cache: 'no-store',
+      credentials: 'same-origin'
+    }).then(function (res) {
+      if (!res.ok) throw new Error('boot ' + res.status);
+      return res.json();
+    });
+  }
+
+  function bootChanged() {
+    return fetchBootInfo().then(function (info) {
+      if (State.rebootBootId && info.boot_id && info.boot_id !== State.rebootBootId) return true;
+      if (State.rebootBaseUptime != null && info.uptime != null &&
+          info.uptime < State.rebootBaseUptime - 30) return true;
+      return false;
+    });
+  }
+
+  function rebootNotSeen(elapsed) {
+    if (elapsed < 180) {
+      el.rebootStatus.textContent = 'Ждём отключение…';
+      State.rebootPoll = setTimeout(rebootPoll, 2000);
+      return;
+    }
+    stopRebootWatch();
+    el.rebootStatus.textContent = 'Перезагрузка не подтверждена';
+    toast('Колонка не отключалась. Проверьте вручную.', 'warn');
+  }
 
   function fmtRebootTime(seconds) {
     var m = Math.floor(seconds / 60);
@@ -3954,6 +3986,8 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     try {
       localStorage.removeItem(REBOOT_KEY);
       localStorage.removeItem(REBOOT_DOWN_KEY);
+      localStorage.removeItem(REBOOT_BOOT_KEY);
+      localStorage.removeItem(REBOOT_UPTIME_KEY);
     } catch (e) {}
   }
 
@@ -3995,18 +4029,14 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     }).then(function () {
       if (timer) clearTimeout(timer);
       if (!State.rebootActive) return;
-      if (!State.rebootSawDown) {
-        if (elapsed < 180) {
-          el.rebootStatus.textContent = 'Ждём отключение…';
-          State.rebootPoll = setTimeout(rebootPoll, 2000);
-          return;
-        }
-        stopRebootWatch();
-        el.rebootStatus.textContent = 'Перезагрузка не подтверждена';
-        toast('Колонка не отключалась. Проверьте вручную.', 'warn');
-        return;
-      }
-      finishReboot();
+      if (State.rebootSawDown) { finishReboot(); return; }
+      return bootChanged().then(function (changed) {
+        if (!State.rebootActive) return;
+        if (changed) { finishReboot(); return; }
+        rebootNotSeen(elapsed);
+      }).catch(function () {
+        rebootNotSeen(elapsed);
+      });
     }).catch(function () {
       if (timer) clearTimeout(timer);
       if (!State.rebootActive) return;
@@ -4024,7 +4054,29 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     State.rebootStart = started;
     State.rebootActive = true;
     State.rebootSawDown = !!sawDown;
+    State.rebootBootId = null;
+    State.rebootBaseUptime = null;
+    try {
+      State.rebootBootId = localStorage.getItem(REBOOT_BOOT_KEY) || null;
+      var savedUptime = Number(localStorage.getItem(REBOOT_UPTIME_KEY));
+      State.rebootBaseUptime = isFinite(savedUptime) && savedUptime > 0 ? savedUptime : null;
+    } catch (e) {}
     try { localStorage.setItem(REBOOT_KEY, String(started)); } catch (e) {}
+    if (State.rebootBootId) {
+      fetchBootInfo().then(function (info) {
+        if (State.rebootActive && info.boot_id && info.boot_id !== State.rebootBootId) finishReboot();
+      }).catch(function () {});
+    } else {
+      fetchBootInfo().then(function (info) {
+        if (!State.rebootActive || State.rebootBootId) return;
+        State.rebootBootId = info.boot_id || null;
+        State.rebootBaseUptime = info.uptime;
+        try {
+          if (info.boot_id) localStorage.setItem(REBOOT_BOOT_KEY, info.boot_id);
+          if (info.uptime != null) localStorage.setItem(REBOOT_UPTIME_KEY, String(info.uptime));
+        } catch (e) {}
+      }).catch(function () {});
+    }
     if (el.rebootDlg) {
       if (typeof el.rebootDlg.showModal === 'function') {
         if (!el.rebootDlg.open) el.rebootDlg.showModal();
