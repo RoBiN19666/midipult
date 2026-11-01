@@ -6,7 +6,9 @@
 <meta name="color-scheme" content="dark">
 <meta http-equiv="Cache-Control" content="no-store">
 <meta name="theme-color" content="#07090f">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%230f1220'/%3E%3Ccircle cx='32' cy='28' r='15' fill='none' stroke='url(%23g)' stroke-width='4'/%3E%3Ccircle cx='32' cy='28' r='6' fill='%2322d3ee'/%3E%3Cpath d='M14 50h36' stroke='url(%23g)' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M20 56h24' stroke='url(%23g)' stroke-width='2.5' stroke-linecap='round' opacity='.5'/%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.ico?v=2" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=2">
+<link rel="apple-touch-icon" href="/icon-192.png?v=2">
 <link rel="manifest" href="/manifest.json">
 <title>MidiPult — пульт станции Миди</title>
 <style>
@@ -102,11 +104,12 @@ button,input,textarea{font-family:inherit}
 .brand{display:flex;align-items:center;gap:12px;min-width:0}
 .logo{
   width:46px;height:46px;flex:0 0 auto;border-radius:15px;display:grid;place-items:center;
-  font-size:20px;color:#dcd6ff;
-  background:linear-gradient(140deg,rgba(124,92,255,.38),rgba(34,211,238,.22));
+  font-size:20px;color:#dcd6ff;overflow:hidden;padding:0;
+  background:#0f1220;
   border:1px solid rgba(255,255,255,.14);
   box-shadow:0 10px 30px rgba(124,92,255,.28);
 }
+.logo img{width:100%;height:100%;display:block;object-fit:cover}
 .brand h1{font-size:17px;margin:0;letter-spacing:.2px;line-height:1.25}
 .brand p{margin:3px 0 0;font-size:12px;color:var(--muted);line-height:1.3}
 .topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
@@ -658,7 +661,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
 
 <header class="topbar">
   <div class="brand">
-    <div class="logo" aria-hidden="true">◈</div>
+    <div class="logo"><img src="/icon-192.png?v=2" alt="MidiPult"></div>
     <div>
       <h1>MidiPult</h1>
       <p id="netLine">проверяю сервисы…</p>
