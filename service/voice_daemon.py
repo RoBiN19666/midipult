@@ -256,6 +256,15 @@ def wait_alice_finish(timeout=15):
         time.sleep(0.7)
 
 
+def native_alice_busy():
+    """Не запускать свой recognize, пока штатная Алиса слушает/говорит."""
+    try:
+        data = get(BASE + "/cgi-bin/player.py", timeout=5) or {}
+        return data.get("alice") in ("LISTENING", "SPEAKING")
+    except Exception:
+        return False
+
+
 def radio_names():
     try:
         data = get(BASE + "/cgi-bin/radio.py", timeout=10)
@@ -407,7 +416,7 @@ def perform(kind, action):
 
 def run_scenario(text):
     try:
-        return post(BASE + "/cgi-bin/scenarios.py", {"match": text}, timeout=90) or {}
+        return post(BASE + "/cgi-bin/scenarios.py", {"match": text}, timeout=20) or {}
     except Exception as exc:  # noqa: BLE001
         log("scenario error: %s" % exc)
         return {}
@@ -560,6 +569,10 @@ def main():
     last_text = ""
     last_ts = 0.0
     while True:
+        if native_alice_busy():
+            time.sleep(0.6)
+            continue
+        started = time.time()
         try:
             text = recognize()
         except KeyboardInterrupt:
@@ -573,6 +586,7 @@ def main():
             # без паузы получается busy-loop и 100% CPU.
             time.sleep(0.5)
             continue
+        log("распознано за %.1f с: %r" % (time.time() - started, text))
         # recognize иногда отдаёт одну и ту же фразу несколько раз подряд,
         # причём с паузой больше 4 секунд — держим окно 30 секунд.
         if text == last_text and (time.time() - last_ts) < 30:
@@ -587,7 +601,9 @@ def main():
             except Exception:
                 pass
         try:
+            handle_started = time.time()
             handle(text)
+            log("обработано за %.1f с" % (time.time() - handle_started))
         except Exception as exc:  # noqa: BLE001
             log("handle error: %s" % exc)
             time.sleep(1)
@@ -597,6 +613,9 @@ def main():
                     post(BASE + "/cgi-bin/volume.py", {"unmute": 1}, timeout=8)
                 except Exception:
                     pass
+            # Даём штатной Алисе начать/закончить ответ, не открывая микрофон
+            # своим recognize в тот же момент.
+            time.sleep(0.8)
 
 
 if __name__ == "__main__":
