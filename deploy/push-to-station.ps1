@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Заливка пульта на колонку по SSH и установка — одной командой.
 
@@ -433,7 +433,7 @@ function Invoke-RemoteStream {
     return $result
 }
 
-$remoteUnpack = "mkdir -p $Target && tar -xf - -C $Target"
+$remoteUnpack = "rm -rf $Target && mkdir -p $Target && tar -xf - -C $Target"
 Write-Host "отправляю на ${User}@${Station}:$Target ..."
 
 $code = Invoke-RemoteStream -RemoteCommand $remoteUnpack -InputFile $tar
