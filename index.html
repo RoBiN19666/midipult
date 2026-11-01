@@ -560,6 +560,8 @@ body.light .hw-item{background:rgba(76,62,48,.035)}
 .sound-row.drag{border-color:var(--accent);background:rgba(124,92,255,.12)}
 .sound-main{flex:1;min-width:0}
 .sound-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sound-desc{font-size:11px;color:var(--muted);margin-top:2px}
+body.light .sound-desc{color:#5f594f}
 .sound-meta{font-size:11px;color:var(--muted);margin-top:2px}
 .sound-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
 .sound-actions .btn{padding:5px 8px;font-size:11px}
@@ -4203,6 +4205,12 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       var name = document.createElement('div');
       name.className = 'sound-name';
       name.textContent = item.name;
+      var desc = null;
+      if (item.description) {
+        desc = document.createElement('div');
+        desc.className = 'sound-desc';
+        desc.textContent = item.description;
+      }
       var meta = document.createElement('div');
       meta.className = 'sound-meta';
       var maxTxt = item.max_upload && item.max_upload < 12 * 1024 * 1024
@@ -4211,6 +4219,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
         item.source === 'data' ? 'свой' : 'системный', item.backup ? 'есть бэкап' : '',
         maxTxt].filter(Boolean).join(' · ');
       main.appendChild(name);
+      if (desc) main.appendChild(desc);
       main.appendChild(meta);
 
       var actions = document.createElement('div');

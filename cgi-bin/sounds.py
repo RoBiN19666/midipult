@@ -36,6 +36,50 @@ SUPPORTED = (".opus", ".wav", ".mp3")
 ALL_EXT = (".opus", ".wav", ".mp3")
 MAX_UPLOAD = 12 * 1024 * 1024
 
+DESCRIPTIONS = {
+    "spotter_start": "Начало прослушивания",
+    "spotter_cancel": "Отмена прослушивания",
+    "volume_sound": "Изменение громкости",
+    "notification_sound": "Уведомление",
+    "timer": "Таймер",
+    "boot": "Звук загрузки",
+    "calls_busy": "Звонок: занято",
+    "calls_checking": "Звонок: проверка",
+    "calls_connected": "Звонок: соединён",
+    "calls_connecting": "Звонок: соединение",
+    "calls_ended": "Звонок: завершён",
+    "calls_fail": "Звонок: ошибка",
+    "calls_ringing_incoming": "Входящий звонок",
+    "calls_ringing_outgoing": "Исходящий звонок",
+    "auth_failed": "Ошибка авторизации",
+    "backend_unavailable": "Сервер недоступен",
+    "no_internet": "Нет интернета",
+    "no_internet_1": "Нет интернета",
+    "no_internet_reboot": "Нет интернета: перезагрузка",
+    "no_internet_reconfigure": "Нет интернета: перенастройка",
+    "cannot_connect_to_the_wifi": "Не удалось подключиться к Wi-Fi",
+    "wrong_wifi_password": "Неверный пароль Wi-Fi",
+    "radio_error": "Ошибка радио",
+    "playback_error": "Ошибка воспроизведения",
+    "vins_error": "Ошибка Алисы",
+    "outgoing_call_failed": "Исходящий звонок не удался",
+    "bluetooth_turning_on": "Bluetooth включается",
+    "bluetooth_turning_off": "Bluetooth выключается",
+    "bluetooth_turning_on_jingle": "Bluetooth включён",
+    "bluetooth_turning_off_jingle": "Bluetooth выключен",
+    "bluetooth_turning_blocked_by_subscription": "Bluetooth заблокирован подпиской",
+}
+
+
+def _description(name):
+    base = os.path.splitext(name)[0].lower()
+    if base.startswith("seam_activation_feedback_"):
+        return "Отклик на «Алису» (случайный из 9)"
+    if base.startswith("alice-iot-sounds-"):
+        return "Умный дом"
+    return DESCRIPTIONS.get(base, "")
+
+
 
 def _custom_index():
     try:
@@ -348,6 +392,7 @@ def _items():
                 "path": rel,
                 "group": group,
                 "name": name,
+                "description": _description(name),
                 "format": ext[1:],
                 "size": os.path.getsize(path),
                 "source": "system" if system else "data",
