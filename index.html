@@ -552,6 +552,7 @@ body.light .hw-item{background:rgba(76,62,48,.035)}
 }
 .sound-drop.drag{border-color:var(--accent);background:rgba(124,92,255,.10);color:var(--text)}
 .sound-list{display:grid;gap:6px;max-height:430px;overflow:auto;margin-top:10px;padding-right:3px}
+.sound-head{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:10px}
 .sound-row{
   display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--stroke);
   border-radius:10px;background:rgba(255,255,255,.03);transition:border-color .15s,background .15s;
@@ -1184,6 +1185,15 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     </div>
     <div class="sound-drop" id="soundDrop">Перетащите аудиофайл на строку нужного звука или нажмите «Заменить»</div>
     <div class="row" style="margin-top:10px">
+      <input id="customSoundName" class="net-input" type="text" maxlength="60"
+             placeholder="Название своего звука" autocomplete="off">
+      <button class="btn sm" id="btnCustomSound">Добавить звук</button>
+      <input type="file" id="customSoundFile" accept="audio/*,.opus,.wav,.mp3" hidden>
+    </div>
+    <div class="sound-head">Мои звуки</div>
+    <div class="sound-list" id="customSoundList"><div class="seg-note">Пока нет своих звуков.</div></div>
+    <div class="sound-head" style="margin-top:12px">Системные звуки</div>
+    <div class="row" style="margin-top:6px">
       <select id="soundGroup" class="net-input" aria-label="Группа звуков">
         <option value="all">Все группы</option>
         <option value="common">common</option>
@@ -1251,6 +1261,12 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       <p>Подключите телефон к той же Wi-Fi сети и откройте
       <code>http://&lt;IP-колонки&gt;:8055/</code>. Ярлык можно добавить на
       главный экран браузера.</p>
+    </details>
+    <details>
+      <summary>Как добавить свой звук?</summary>
+      <p>В «Система → Звуки» введите название, нажмите «Добавить звук» и
+      выберите файл. Затем в сценарии добавьте действие «Свой звук» и выберите
+      его из списка.</p>
     </details>
     <details>
       <summary>Как заменить системный звук?</summary>
@@ -1411,6 +1427,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     busy: 0,
     version: null,
     sounds: [],
+    customSounds: [],
     soundTarget: null,
     previewAudio: null,
     previewPath: null,
@@ -3365,6 +3382,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     { id: 'led', label: 'Кольцо: цвет', hint: '#00E676', key: 'color' },
     { id: 'led_off', label: 'Кольцо: погасить', hint: '' },
     { id: 'radio', label: 'Радио', hint: 'Европа Плюс', key: 'name' },
+    { id: 'play_sound', label: 'Свой звук', hint: '', key: 'name' },
     { id: 'volume', label: 'Громкость', hint: '0–100', key: 'value' },
     { id: 'clock_text', label: 'Текст на дисплей', hint: 'Доброе утро', key: 'text' },
     { id: 'vpn', label: 'VPN', hint: 'on / off', key: 'on' },
@@ -3386,6 +3404,37 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       option.textContent = type.label;
       el.scType.appendChild(option);
     });
+  }
+
+  function populateSoundPicker(picker, selected) {
+    while (picker.options.length) picker.remove(0);
+    (State.customSounds || []).forEach(function (item) {
+      var option = document.createElement('option');
+      option.value = item.id;
+      option.textContent = item.name;
+      picker.appendChild(option);
+    });
+    if (!(State.customSounds || []).length) {
+      var none = document.createElement('option');
+      none.value = '';
+      none.textContent = 'Сначала добавьте звук';
+      picker.appendChild(none);
+    }
+    if (selected && !Array.prototype.some.call(picker.options,
+        function (option) { return option.value === selected; })) {
+      var missing = document.createElement('option');
+      missing.value = selected;
+      missing.textContent = 'Не найден: ' + selected;
+      picker.appendChild(missing);
+    }
+    if (selected) picker.value = selected;
+  }
+
+  function refreshSoundPickers() {
+    Array.prototype.forEach.call(document.querySelectorAll('#scActions select[data-value]'),
+      function (picker) {
+        populateSoundPicker(picker, picker.value);
+      });
   }
 
   function addScRow(typeId, value) {
@@ -3417,6 +3466,12 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       });
     }
 
+    var picker = document.createElement('select');
+    picker.className = 'net-input';
+    picker.dataset.value = '1';
+    picker.hidden = type.id !== 'play_sound';
+    populateSoundPicker(picker, type.id === 'play_sound' ? String(value || '') : '');
+
     var remove = document.createElement('button');
     remove.className = 'btn sm ghost';
     remove.textContent = '×';
@@ -3428,12 +3483,15 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       row.dataset.type = next.id;
       input.placeholder = next.hint || '';
       input.value = '';
-      input.hidden = !next.hint;
+      input.hidden = next.id === 'play_sound' || !next.hint;
+      picker.hidden = next.id !== 'play_sound';
+      if (next.id === 'play_sound') populateSoundPicker(picker, '');
     });
-    input.hidden = !type.hint;
+    input.hidden = type.id === 'play_sound' || !type.hint;
 
     row.appendChild(select);
     row.appendChild(input);
+    row.appendChild(picker);
     row.appendChild(remove);
     el.scActions.appendChild(row);
   }
@@ -3443,7 +3501,10 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     Array.prototype.forEach.call(el.scActions.children, function (row) {
       var type = scTypeById(row.dataset.type);
       var input = row.querySelector('input');
-      var value = input ? input.value.trim() : '';
+      var picker = row.querySelector('select[data-value]');
+      var value = type.id === 'play_sound'
+        ? (picker ? picker.value : '')
+        : (input ? input.value.trim() : '');
       var action = { type: type.id };
       if (type.key === 'text') action.text = value;
       else if (type.key === 'color') action.color = value || '#00E676';
@@ -3764,8 +3825,11 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
   function loadSounds() {
     return cgi('sounds.py', {}, { timeout: 20000, silent: true }).then(function (data) {
       State.sounds = data.sounds || [];
+      State.customSounds = data.custom || [];
       State.soundInfo = data;
       renderSounds();
+      renderCustomSounds();
+      refreshSoundPickers();
       var disk = (data.disks || []).filter(function (item) { return item.mount === '/data'; })[0];
       var free = disk ? ' · свободно /data ' + fmtSoundSize(disk.free_mb * 1024 * 1024) : '';
       var limit = fmtSoundSize(data.max_upload || 12 * 1024 * 1024);
@@ -3775,6 +3839,95 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
         '. После замены нужна перезагрузка.');
     }).catch(function (err) {
       setSoundStatus('Список звуков: ' + err.message, true);
+    });
+  }
+
+  function renderCustomSounds() {
+    if (!el.customSoundList) return;
+    el.customSoundList.innerHTML = '';
+    if (!State.customSounds.length) {
+      var empty = document.createElement('div');
+      empty.className = 'seg-note';
+      empty.textContent = 'Пока нет своих звуков.';
+      el.customSoundList.appendChild(empty);
+      return;
+    }
+    State.customSounds.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'sound-row';
+      var main = document.createElement('div');
+      main.className = 'sound-main';
+      var name = document.createElement('div');
+      name.className = 'sound-name';
+      name.textContent = item.name;
+      var meta = document.createElement('div');
+      meta.className = 'sound-meta';
+      meta.textContent = 'свой · OPUS · ' + fmtSoundSize(item.size);
+      main.appendChild(name);
+      main.appendChild(meta);
+
+      var actions = document.createElement('div');
+      actions.className = 'sound-actions';
+      var play = document.createElement('button');
+      play.className = 'btn sm ghost sound-play';
+      play.textContent = '▶';
+      play.title = 'Прослушать';
+      play.addEventListener('click', function () {
+        toggleSoundPreview('custom:' + item.id, play, true);
+      });
+      actions.appendChild(play);
+
+      var dl = document.createElement('a');
+      dl.className = 'btn sm ghost';
+      dl.textContent = 'Скачать';
+      dl.href = '/cgi-bin/sounds.py?download_custom=' + encodeURIComponent(item.id);
+      actions.appendChild(dl);
+
+      var del = document.createElement('button');
+      del.className = 'btn sm ghost';
+      del.textContent = 'Удалить';
+      del.addEventListener('click', function () { deleteCustomSound(item); });
+      actions.appendChild(del);
+
+      row.appendChild(main);
+      row.appendChild(actions);
+      el.customSoundList.appendChild(row);
+    });
+  }
+
+  function deleteCustomSound(item) {
+    if (!window.confirm('Удалить звук «' + item.name + '»?')) return;
+    cgi('sounds.py', { delete_custom: item.id }, { timeout: 15000 }).then(function () {
+      toast('Звук удалён', 'ok');
+      return loadSounds();
+    }).catch(function (err) {
+      toast('Удаление: ' + err.message, 'bad');
+    });
+  }
+
+  function uploadCustomSound(file) {
+    if (!file) return;
+    var max = (State.soundInfo && State.soundInfo.custom_max_upload) || 12 * 1024 * 1024;
+    if (file.size > max) {
+      toast('Файл больше ' + fmtSoundSize(max) + ' для /data', 'warn');
+      return;
+    }
+    var name = (el.customSoundName.value || '').trim() || file.name.replace(/\.[^.]+$/, '');
+    fetch('/cgi-bin/sounds.py?custom=1&name=' + encodeURIComponent(name), {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file
+    }).then(function (res) {
+      return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+    }).then(function (result) {
+      if (!result.ok || result.data.ok === false) {
+        throw new Error(result.data.error || 'не удалось добавить');
+      }
+      el.customSoundName.value = '';
+      toast('Свой звук добавлен', 'ok');
+      return loadSounds();
+    }).catch(function (err) {
+      toast('Свой звук: ' + err.message, 'bad');
     });
   }
 
@@ -3792,7 +3945,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     State.previewBtn = null;
   }
 
-  function toggleSoundPreview(path, btn) {
+  function toggleSoundPreview(path, btn, custom) {
     if (State.previewPath === path && State.previewAudio) {
       if (State.previewAudio.paused) {
         State.previewAudio.play().then(function () {
@@ -3807,7 +3960,10 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       return;
     }
     stopSoundPreview();
-    var audio = new Audio('/cgi-bin/sounds.py?audio=' + encodeURIComponent(path));
+    var audioUrl = custom
+      ? '/cgi-bin/sounds.py?audio_custom=' + encodeURIComponent(path.replace(/^custom:/, ''))
+      : '/cgi-bin/sounds.py?audio=' + encodeURIComponent(path);
+    var audio = new Audio(audioUrl);
     audio.preload = 'auto';
     State.previewAudio = audio;
     State.previewPath = path;
@@ -3829,8 +3985,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
 
   function renderSounds() {
     stopSoundPreview();
-    if (!el.soundList) return;
-    var group = el.soundGroup.value;
+    if (!el.soundList) return;    var group = el.soundGroup.value;
     var query = (el.soundSearch.value || '').trim().toLowerCase();
     var items = State.sounds.filter(function (item) {
       if (group !== 'all' && item.group !== group) return false;
@@ -4460,6 +4615,20 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       el.soundFile.value = '';
       if (file && target) uploadSound(file, target);
     });
+    el.btnCustomSound.addEventListener('click', function () {
+      if (!(el.customSoundName.value || '').trim()) {
+        toast('Сначала введите название звука', 'warn');
+        el.customSoundName.focus();
+        return;
+      }
+      el.customSoundFile.value = '';
+      el.customSoundFile.click();
+    });
+    el.customSoundFile.addEventListener('change', function () {
+      var file = el.customSoundFile.files && el.customSoundFile.files[0];
+      el.customSoundFile.value = '';
+      if (file) uploadCustomSound(file);
+    });
     el.soundGroup.addEventListener('change', renderSounds);
     el.soundSearch.addEventListener('input', renderSounds);
     el.soundDrop.addEventListener('dragover', function (ev) {
@@ -4617,6 +4786,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       'btnNetcheck', 'btnCleanup', 'btnReboot', 'btnPoweroff', 'maintBox', 'autoBright', 'autoBrightStatus',
       'btnSpeed', 'btnBackup', 'backupFile',
       'btnSoundBackup', 'btnSoundRefresh', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
+      'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
       'voiceMax', 'btnVoiceMax', 'voiceMaxStatus',

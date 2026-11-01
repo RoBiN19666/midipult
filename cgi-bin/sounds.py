@@ -9,6 +9,7 @@ MP3-файлы можно скачать и сохранить в бэкап, н
 from __future__ import annotations
 
 import io
+import json
 import os
 import re
 import shutil
@@ -26,12 +27,112 @@ import common
 DATA_ROOT = "/data/quasar/data/sounds"
 SYSTEM_ROOT = "/system/vendor/quasar/sounds"
 BACKUP_ROOT = "/data/mypult/sounds-backup"
+CUSTOM_ROOT = "/data/mypult/sounds"
+CUSTOM_INDEX = os.path.join(CUSTOM_ROOT, "index.json")
 QUASAR = "/system/vendor/quasar"
 MAIND = os.path.join(QUASAR, "maind")
 GROUPS = ("common", "ru-RU")
 SUPPORTED = (".opus", ".wav")
 ALL_EXT = (".opus", ".wav", ".mp3")
 MAX_UPLOAD = 12 * 1024 * 1024
+
+
+def _custom_index():
+    try:
+        with open(CUSTOM_INDEX, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def _custom_save(items):
+    os.makedirs(CUSTOM_ROOT, exist_ok=True)
+    common.write_json(CUSTOM_INDEX, items, mode=0o600)
+
+
+def _custom_id(value):
+    value = str(value or "").strip()
+    if not re.fullmatch(r"snd-[A-Za-z0-9-]{1,80}", value):
+        raise ValueError("некорректный идентификатор звука")
+    return value
+
+
+def _custom_path(sound_id):
+    return os.path.join(CUSTOM_ROOT, _custom_id(sound_id) + ".opus")
+
+
+def _custom_items():
+    result = []
+    for item in _custom_index():
+        try:
+            sound_id = _custom_id(item.get("id"))
+            path = _custom_path(sound_id)
+            if not os.path.isfile(path):
+                continue
+            result.append({
+                "id": sound_id,
+                "name": str(item.get("name") or sound_id)[:80],
+                "path": "custom/" + sound_id,
+                "size": os.path.getsize(path),
+                "format": "opus",
+                "custom": True,
+            })
+        except ValueError:
+            continue
+    return result
+
+
+def _custom_limit():
+    os.makedirs(CUSTOM_ROOT, exist_ok=True)
+    return min(MAX_UPLOAD, max(0, _free(CUSTOM_ROOT) - 8 * 1024 * 1024))
+
+
+def _upload_custom(name):
+    raw = _read_upload()
+    limit = _custom_limit()
+    if len(raw) > limit:
+        raise ValueError("не хватает места: максимум %d МБ"
+                         % max(1, int(limit / 1048576)))
+    name = re.sub(r"\s+", " ", str(name or "").strip())[:60]
+    if not name:
+        raise ValueError("укажите название звука")
+    tmpdir = tempfile.mkdtemp(prefix="mypult-custom-")
+    src = os.path.join(tmpdir, "input")
+    dst = os.path.join(tmpdir, "output.opus")
+    try:
+        with open(src, "wb") as fh:
+            fh.write(raw)
+        _convert(src, ".opus", dst)
+        if os.path.getsize(dst) + 2 * 1024 * 1024 > _free(CUSTOM_ROOT):
+            raise ValueError("не хватает места в /data")
+        sound_id = "snd-%d-%s" % (int(time.time()), os.urandom(3).hex())
+        target = _custom_path(sound_id)
+        os.makedirs(CUSTOM_ROOT, exist_ok=True)
+        shutil.copyfile(dst, target)
+        os.chmod(target, 0o600)
+        items = _custom_index()
+        items.append({"id": sound_id, "name": name})
+        _custom_save(items)
+        return {"id": sound_id, "name": name}
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def _play_custom(sound_id):
+    path = _custom_path(sound_id)
+    if not os.path.isfile(path):
+        raise ValueError("свой звук не найден")
+    env = os.environ.copy()
+    env["LD_LIBRARY_PATH"] = QUASAR + ":libs"
+    try:
+        subprocess.run(
+            [MAIND, "--gst-launch",
+             "filesrc location=%s ! decodebin ! audioconvert ! audioresample ! alsasink" % path],
+            cwd=QUASAR, env=env, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, timeout=120)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("воспроизведение не уложилось в 120 секунд")
 
 
 def _safe_rel(value):
@@ -376,6 +477,26 @@ def main():
         _raw(data, _content_type(rel))
         return
 
+    if method == "GET" and "audio_custom" in query:
+        sound_id = _custom_id(query["audio_custom"][-1])
+        path = _custom_path(sound_id)
+        if not os.path.isfile(path):
+            raise ValueError("свой звук не найден")
+        with open(path, "rb") as fh:
+            data = fh.read()
+        _raw(data, "audio/ogg")
+        return
+
+    if method == "GET" and "download_custom" in query:
+        sound_id = _custom_id(query["download_custom"][-1])
+        path = _custom_path(sound_id)
+        if not os.path.isfile(path):
+            raise ValueError("свой звук не найден")
+        with open(path, "rb") as fh:
+            data = fh.read()
+        _raw(data, "audio/ogg", (sound_id + ".opus"))
+        return
+
     if method == "GET" and "zip" in query:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -393,7 +514,31 @@ def main():
         common.ok(**result)
         return
 
+    if method == "POST" and query.get("custom"):
+        name = str(query.get("name", [""])[-1])[:80]
+        result = _upload_custom(name)
+        common.ok(created=result, custom=_custom_items())
+        return
+
     data = common.params()
+    if method == "POST" and data.get("play_custom"):
+        sound_id = _custom_id(data.get("play_custom"))
+        _play_custom(sound_id)
+        common.ok(played=sound_id)
+        return
+
+    if method == "POST" and data.get("delete_custom"):
+        sound_id = _custom_id(data.get("delete_custom"))
+        path = _custom_path(sound_id)
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+        _custom_save([item for item in _custom_index()
+                      if str(item.get("id")) != sound_id])
+        common.ok(deleted=sound_id, custom=_custom_items())
+        return
+
     if method == "POST" and data.get("restore"):
         rel = _safe_rel(data.get("restore"))
         _restore(rel)
@@ -401,8 +546,10 @@ def main():
         return
 
     items = _items()
-    common.ok(sounds=items, groups=list(GROUPS),
+    custom = _custom_items()
+    common.ok(sounds=items, custom=custom, groups=list(GROUPS),
               max_upload=min([item["max_upload"] for item in items] + [MAX_UPLOAD]),
+              custom_max_upload=_custom_limit(), custom_root=CUSTOM_ROOT,
               backup_root=BACKUP_ROOT, backup_bytes=_backup_size(),
               disks=_disk_info())
 

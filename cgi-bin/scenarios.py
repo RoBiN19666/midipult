@@ -45,8 +45,8 @@ STORE = "/data/mypult/scenarios.json"
 TZ_PATH = "/data/mypult/tz.json"
 LUNA = "http://127.0.0.1:8099"
 BASE = "http://127.0.0.1:8055"
-ACTION_TYPES = ("speak", "led", "led_off", "radio", "volume", "clock_text",
-                "vpn", "llm", "pause", "sleep", "http")
+ACTION_TYPES = ("speak", "led", "led_off", "radio", "play_sound", "volume",
+                "clock_text", "vpn", "llm", "pause", "sleep", "http")
 
 BUILTIN = [
     {"phrase": "Алиса, включи впн", "what": "включает VPN"},
@@ -116,6 +116,9 @@ def run_action(action):
             post_cgi("radio.py", {"index": found["index"]}, timeout=40)
         elif name:
             post_cgi("command.py", {"text": "включи радио " + name}, timeout=25)
+    elif kind == "play_sound":
+        post_cgi("sounds.py", {"play_custom": str(action.get("name") or "")},
+                 timeout=130)
     elif kind == "volume":
         post_cgi("volume.py", {"level": common.to_int(action.get("value"), 30, 0, 100)}, timeout=15)
     elif kind == "clock_text":
