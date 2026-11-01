@@ -62,6 +62,8 @@ cp -f "$SRC/index.html" "$WEB/index.html" || die "не скопировался 
 for f in "$SRC"/cgi-bin/*.py; do
     cp -f "$f" "$WEB/cgi-bin/" || die "не скопировался $f"
 done
+# Устаревший CGI звука отклика: удаляем, чтобы не оставался после обновления.
+rm -f "$WEB/cgi-bin/soundcfg.py"
 [ -f "$SRC/cgi-bin/glagol.conf" ] && [ ! -f "$WEB/cgi-bin/glagol.conf" ] && \
     cp -f "$SRC/cgi-bin/glagol.conf" "$WEB/cgi-bin/glagol.conf"
 
