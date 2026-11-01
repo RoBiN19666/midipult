@@ -21,6 +21,7 @@ import urllib.parse
 import wave
 import zipfile
 from datetime import datetime
+from functools import lru_cache
 
 import common
 
@@ -186,11 +187,13 @@ def _play_custom(sound_id):
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = QUASAR + ":libs"
     try:
-        subprocess.run(
+        proc = subprocess.run(
             [MAIND, "--gst-launch",
              "filesrc location=%s ! decodebin ! audioconvert ! audioresample ! alsasink" % path],
             cwd=QUASAR, env=env, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL, timeout=120)
+        if proc.returncode != 0:
+            raise RuntimeError("GStreamer не смог воспроизвести звук")
     except subprocess.TimeoutExpired:
         raise RuntimeError("воспроизведение не уложилось в 120 секунд")
 
@@ -461,6 +464,7 @@ def _backup_size():
     return total
 
 
+@lru_cache(maxsize=8)
 def _free(path):
     stats = os.statvfs(path)
     return stats.f_bavail * stats.f_frsize
