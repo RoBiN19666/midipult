@@ -612,6 +612,14 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
 .faq-list code{font-size:12px;color:var(--text);background:rgba(255,255,255,.07);padding:1px 5px;border-radius:5px}
 body.light .faq-list details{background:rgba(76,62,48,.035)}
 body.light .faq-list code{background:rgba(76,62,48,.07)}
+.reboot-body{display:flex;flex-direction:column;align-items:center;gap:12px;padding:12px 4px 10px;text-align:center}
+.reboot-spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--stroke);border-top-color:var(--accent2);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.reboot-body strong{font-size:14px}
+.reboot-bar{width:100%;height:7px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
+.reboot-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#7c5cff,#22d3ee);transition:width .5s}
+.reboot-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+body.light .reboot-bar{background:rgba(76,62,48,.1)}
 .svc{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
 .svc span{
   font-size:11.5px;padding:5px 9px;border-radius:999px;border:1px solid var(--stroke);
@@ -1315,6 +1323,19 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
   </div>
 </dialog>
 
+<dialog id="rebootDlg">
+  <div class="dlg-head">
+    <h3>Перезагрузка</h3>
+    <button class="btn sm ghost" id="btnCloseReboot">Скрыть</button>
+  </div>
+  <div class="reboot-body">
+    <div class="reboot-spinner" aria-hidden="true"></div>
+    <strong id="rebootStatus">Перезагружаю колонку…</strong>
+    <div class="reboot-bar"><i id="rebootBar"></i></div>
+    <div class="reboot-time" id="rebootTime">00:00</div>
+  </div>
+</dialog>
+
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M9 6.4v11.2L18.6 12z" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7.5 5.5h3.2v13H7.5zM13.3 5.5h3.2v13h-3.2z" fill="currentColor" stroke="none"/></symbol>
@@ -1432,6 +1453,11 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     previewAudio: null,
     previewPath: null,
     previewBtn: null,
+    rebootActive: false,
+    rebootStart: 0,
+    rebootSawDown: false,
+    rebootTimer: null,
+    rebootPoll: null,
     drawing: false,
     pattern: null,
     displayOverride: false,
@@ -3742,12 +3768,140 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
   }
 
   function doReboot() {
-    if (!window.confirm('Перезагрузить колонку? Панель пропадёт на ~40 секунд.')) return;
+    if (!window.confirm('Перезагрузить колонку? Панель пропадёт примерно на минуту.')) return;
+    startRebootWatch();
     cgi('maintenance.py', { reboot: 'yes' }, { timeout: 8000 }).then(function () {
-      toast('Перезагрузка запущена', 'warn');
+      toast('Команда перезагрузки отправлена', 'warn');
     }).catch(function (err) {
-      toast('Ребут: ' + err.message, 'bad');
+      if (/PIN|auth|401/i.test(err.message || '')) {
+        stopRebootWatch();
+        toast('Ребут: ' + err.message, 'bad');
+      } else {
+        toast('Команда отправлена, ждём колонку…', 'warn');
+      }
     });
+  }
+
+  var REBOOT_KEY = 'mypult.reboot-start';
+  var REBOOT_DOWN_KEY = 'mypult.reboot-down';
+
+  function fmtRebootTime(seconds) {
+    var m = Math.floor(seconds / 60);
+    var s = seconds % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function stopRebootWatch() {
+    State.rebootActive = false;
+    if (State.rebootTimer) clearInterval(State.rebootTimer);
+    if (State.rebootPoll) clearTimeout(State.rebootPoll);
+    State.rebootTimer = null;
+    State.rebootPoll = null;
+    try {
+      localStorage.removeItem(REBOOT_KEY);
+      localStorage.removeItem(REBOOT_DOWN_KEY);
+    } catch (e) {}
+  }
+
+  function paintReboot(elapsed, done) {
+    el.rebootTime.textContent = fmtRebootTime(elapsed);
+    el.rebootBar.style.width = done ? '100%' : Math.min(90, 6 + elapsed * 0.8) + '%';
+  }
+
+  function finishReboot() {
+    if (!State.rebootActive) return;
+    var elapsed = Math.max(0, Math.floor((Date.now() - State.rebootStart) / 1000));
+    stopRebootWatch();
+    el.rebootStatus.textContent = 'Колонка перезагружена';
+    paintReboot(elapsed, true);
+    toast('Колонка перезагружена', 'ok');
+    setTimeout(function () {
+      if (el.rebootDlg && el.rebootDlg.open) el.rebootDlg.close();
+    }, 2500);
+  }
+
+  function rebootPoll() {
+    if (!State.rebootActive) return;
+    var elapsed = Math.max(0, Math.floor((Date.now() - State.rebootStart) / 1000));
+    paintReboot(elapsed, false);
+    if (elapsed > 240) {
+      stopRebootWatch();
+      el.rebootStatus.textContent = 'Связь не восстановилась';
+      toast('Колонка не ответила. Проверьте вручную.', 'warn');
+      return;
+    }
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, 4000) : null;
+    fetch('/version.json?ts=' + Date.now(), {
+      cache: 'no-store',
+      signal: controller ? controller.signal : undefined
+    }).then(function (res) {
+      if (!res.ok) throw new Error('нет ответа');
+      return res.json();
+    }).then(function () {
+      if (timer) clearTimeout(timer);
+      if (!State.rebootActive) return;
+      if (!State.rebootSawDown) {
+        if (elapsed < 60) {
+          el.rebootStatus.textContent = 'Ждём отключение…';
+          State.rebootPoll = setTimeout(rebootPoll, 2000);
+          return;
+        }
+        stopRebootWatch();
+        el.rebootStatus.textContent = 'Перезагрузка не подтверждена';
+        toast('Колонка не отключалась. Проверьте вручную.', 'warn');
+        return;
+      }
+      finishReboot();
+    }).catch(function () {
+      if (timer) clearTimeout(timer);
+      if (!State.rebootActive) return;
+      State.rebootSawDown = true;
+      try { localStorage.setItem(REBOOT_DOWN_KEY, '1'); } catch (e) {}
+      el.rebootStatus.textContent = 'Ждём подключение…';
+      State.rebootPoll = setTimeout(rebootPoll, 2000);
+    });
+  }
+
+  function startRebootWatch(startedAt, sawDown) {
+    var started = Number(startedAt) || Date.now();
+    if (State.rebootTimer) clearInterval(State.rebootTimer);
+    if (State.rebootPoll) clearTimeout(State.rebootPoll);
+    State.rebootStart = started;
+    State.rebootActive = true;
+    State.rebootSawDown = !!sawDown;
+    try { localStorage.setItem(REBOOT_KEY, String(started)); } catch (e) {}
+    if (el.rebootDlg) {
+      if (typeof el.rebootDlg.showModal === 'function') {
+        if (!el.rebootDlg.open) el.rebootDlg.showModal();
+      } else {
+        el.rebootDlg.setAttribute('open', '');
+      }
+    }
+    el.rebootStatus.textContent = 'Перезагружаю колонку…';
+    paintReboot(Math.max(0, Math.floor((Date.now() - started) / 1000)), false);
+    State.rebootTimer = setInterval(function () {
+      paintReboot(Math.max(0, Math.floor((Date.now() - State.rebootStart) / 1000)), false);
+    }, 1000);
+    State.rebootPoll = setTimeout(rebootPoll, 9000);
+  }
+
+  function resumeRebootWatch() {
+    var value = null;
+    var down = false;
+    try {
+      value = localStorage.getItem(REBOOT_KEY);
+      down = localStorage.getItem(REBOOT_DOWN_KEY) === '1';
+    } catch (e) {}
+    var started = Number(value) || 0;
+    var age = Date.now() - started;
+    if (started && age >= 0 && age < 300000) startRebootWatch(started, down);
+    else if (value) {
+      try {
+        localStorage.removeItem(REBOOT_KEY);
+        localStorage.removeItem(REBOOT_DOWN_KEY);
+      } catch (e) {}
+    }
   }
 
   function loadAutoBright() {
@@ -4599,6 +4753,9 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     el.btnSpeed.addEventListener('click', runSpeed);
     el.btnCleanup.addEventListener('click', runCleanup);
     el.btnReboot.addEventListener('click', doReboot);
+    el.btnCloseReboot.addEventListener('click', function () {
+      if (el.rebootDlg && el.rebootDlg.open) el.rebootDlg.close();
+    });
     el.btnPoweroff.addEventListener('click', doPoweroff);
     el.autoBright.addEventListener('change', toggleAutoBright);
     el.btnBackup.addEventListener('click', downloadBackup);
@@ -4786,6 +4943,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       'logName', 'btnLogs', 'logsBox',
       'btnNetcheck', 'btnCleanup', 'btnReboot', 'btnPoweroff', 'maintBox', 'autoBright', 'autoBrightStatus',
       'btnSpeed', 'btnBackup', 'backupFile',
+      'rebootDlg', 'btnCloseReboot', 'rebootStatus', 'rebootBar', 'rebootTime',
       'btnSoundBackup', 'btnSoundRefresh', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
       'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
@@ -4840,6 +4998,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     }
     showTab(startTab, false);
     if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'auto' });
+    resumeRebootWatch();
     log('app', 'Пульт запущен', navigator.userAgent);
   }
 
