@@ -430,18 +430,13 @@ MP3-цель можно заменить только готовым MP3-фай�
 Quasar читаются из `/proc`/`/sys`. Звук, LED, радио, питание и Zigbee Linux
 не отдаёт — они взяты из статьи hackalice.me и помечены «вики».
 
-### Как включить или выключить звук отклика «Алиса»?
+### Почему в панели нет переключателя звука отклика?
 
-В «Система → Звуки» переключите «Звук отклика «Алиса» (spotter_start)».
-Панель меняет `account_config.jingle` в `/data/quasar/data/user_config.dat`,
-а также `aliced.jingle` и `aliced.playStartVoiceInputEarcon` в
-`/system/vendor/quasar/quasar.cfg`; оригиналы сохраняются в `/data/mypult`.
-Для применения нужна перезагрузка; приложение Алисы может перезаписать
-настройку при синхронизации.
+Им управляет облачная настройка приложения «Дом с Алисой»; локальные флаги
+`user_config.dat`/`quasar.cfg` могут перезаписываться. Чтобы не плодить
+ненадёжный переключатель, настройка оставлена в приложении.
 
-Сам отклик — это `common/spotter_start.mp3`, который включает
-`aliced.playStartVoiceInputEarcon`. Дополнительно панель синхронизирует
-`aliced.jingle` и `account_config.jingle` (seam-feedback).
+Сам файл отклика — `common/spotter_start.mp3` (`playStartVoiceInputEarcon`).
 
 ### Как добавить свой звук и включить его в сценарий?
 
