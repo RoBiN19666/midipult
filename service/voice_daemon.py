@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import threading
@@ -256,11 +257,25 @@ def wait_alice_finish(timeout=15):
         time.sleep(0.7)
 
 
+_NATIVE_LAST_ACTIVE = 0.0
+
+
 def native_alice_busy():
-    """Не запускать свой recognize, пока штатная Алиса слушает/говорит."""
+    """Не запускать свой recognize, пока штатная Алиса слушает/говорит.
+
+    После окончания её речи держим паузу: Алиса часто задаёт встречный
+    вопрос и переходит в LISTENING; если сразу открыть свой микрофон,
+    продолжение диалога задерживается.
+    """
+    global _NATIVE_LAST_ACTIVE
     try:
         data = get(BASE + "/cgi-bin/player.py", timeout=5) or {}
-        return data.get("alice") in ("LISTENING", "SPEAKING")
+        if data.get("alice") in ("LISTENING", "SPEAKING"):
+            _NATIVE_LAST_ACTIVE = time.time()
+            return True
+        if time.time() - _NATIVE_LAST_ACTIVE < 5.0:
+            return True
+        return False
     except Exception:
         return False
 
@@ -414,6 +429,35 @@ def perform(kind, action):
     return False
 
 
+SCENARIO_PATH = "/data/mypult/scenarios.json"
+_SCENARIO_MTIME = None
+_SCENARIO_PHRASES = []
+
+
+def scenario_may_match(text):
+    """Быстрая локальная проверка: не дергать scenarios.py зря."""
+    global _SCENARIO_MTIME, _SCENARIO_PHRASES
+    try:
+        mtime = os.path.getmtime(SCENARIO_PATH)
+        if mtime != _SCENARIO_MTIME:
+            with open(SCENARIO_PATH, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            items = data.get("scenarios") if isinstance(data, dict) else data
+            phrases = []
+            for item in items or []:
+                if isinstance(item, dict):
+                    phrases.extend(str(p) for p in (item.get("phrases") or []) if p)
+            _SCENARIO_PHRASES = phrases
+            _SCENARIO_MTIME = mtime
+    except Exception:
+        # Если файл недоступен/сломан — пусть решает CGI.
+        return True
+    low = normalize(text)
+    return bool(low) and any(
+        normalize(phrase) and normalize(phrase) in low
+        for phrase in _SCENARIO_PHRASES)
+
+
 def run_scenario(text):
     try:
         return post(BASE + "/cgi-bin/scenarios.py", {"match": text}, timeout=20) or {}
@@ -430,7 +474,7 @@ def handle(text):
         log("команда: %s %s <- %r" % (intent[0], intent[1], text))
         return perform(*intent)
 
-    scenario = run_scenario(text)
+    scenario = run_scenario(text) if scenario_may_match(text) else {}
     if scenario.get("matched"):
         log("сценарий: %s <- %r" % (scenario.get("matched"), text))
         return True
@@ -586,11 +630,14 @@ def main():
             # без паузы получается busy-loop и 100% CPU.
             time.sleep(0.5)
             continue
-        log("распознано за %.1f с: %r" % (time.time() - started, text))
         # recognize иногда отдаёт одну и ту же фразу несколько раз подряд,
         # причём с паузой больше 4 секунд — держим окно 30 секунд.
         if text == last_text and (time.time() - last_ts) < 30:
+            # Luna иногда отдаёт тот же финальный текст повторно; не занимаем
+            # микрофон новым recognize каждые 10 секунд.
+            time.sleep(8)
             continue
+        log("распознано за %.1f с: %r" % (time.time() - started, text))
         last_text, last_ts = text, time.time()
         silenced = False
         if should_silence(text):

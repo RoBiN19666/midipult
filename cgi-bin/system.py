@@ -268,13 +268,11 @@ def hardware():
     return items
 
 
-def main():
+def snapshot():
     load = read("/proc/loadavg")
     temps = temperatures()
     hottest = max(temps, key=lambda item: item["c"]) if temps else None
-
-    common.respond(200, {
-        "ok": True,
+    return {
         "cpu": {
             "percent": cpu_usage(),
             "load": load.split()[:3] if load else None,
@@ -287,7 +285,11 @@ def main():
         "hardware": hardware(),
         "uptime_s": uptime(),
         "board": read("/proc/device-tree/model"),
-    })
+    }
+
+
+def main():
+    common.respond(200, {"ok": True, **snapshot()})
 
 
 if __name__ == "__main__":

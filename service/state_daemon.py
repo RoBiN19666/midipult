@@ -17,16 +17,23 @@ import os
 import sys
 import threading
 import time
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, "/data/myweb/cgi-bin")
 import common  # noqa: E402
 import player  # noqa: E402
+import sounds  # noqa: E402
 import status  # noqa: E402
+import system  # noqa: E402
 
 PORT = int(os.environ.get("MYPULT_STATE_PORT") or "8057")
 LOCK = threading.Lock()
 STATE = {"ok": True, "status": {}, "player": {}}
+SYSTEM_STATE = {}
+SOUNDS_STATE = {}
+PLAYER_STATE = {}
+PLAYER_INTERVAL = 10.0
 
 
 def cookie_ok(headers):
@@ -44,35 +51,72 @@ def cookie_ok(headers):
 
 
 def refresh_loop():
-    global STATE
+    global STATE, PLAYER_STATE
+    last_player = 0.0
     while True:
         payload = {"ok": True, "status": {}, "player": {}}
         try:
             payload["status"] = status.build()
         except Exception as exc:  # noqa: BLE001
             payload["status"] = {"ok": False, "error": str(exc)[:200]}
-        try:
-            payload["player"] = player.snapshot()
-        except Exception as exc:  # noqa: BLE001
-            payload["player"] = {"error": str(exc)[:200]}
+        if time.time() - last_player >= PLAYER_INTERVAL:
+            try:
+                PLAYER_STATE = player.snapshot()
+            except Exception as exc:  # noqa: BLE001
+                PLAYER_STATE = {"error": str(exc)[:200]}
+            last_player = time.time()
+        payload["player"] = PLAYER_STATE
         with LOCK:
+            payload["system"] = SYSTEM_STATE
+            payload["sounds"] = SOUNDS_STATE
             STATE = payload
         time.sleep(2)
+
+
+def system_loop():
+    global SYSTEM_STATE
+    while True:
+        try:
+            value = system.snapshot()
+        except Exception as exc:  # noqa: BLE001
+            value = {"error": str(exc)[:200]}
+        with LOCK:
+            SYSTEM_STATE = value
+        time.sleep(10)
+
+
+def sounds_loop():
+    global SOUNDS_STATE
+    while True:
+        try:
+            value = sounds.snapshot()
+        except Exception as exc:  # noqa: BLE001
+            value = {"error": str(exc)[:200]}
+        with LOCK:
+            SOUNDS_STATE = value
+        time.sleep(30)
 
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "mypult-state/1.0"
 
     def do_GET(self):  # noqa: N802
-        if self.path.split("?")[0] not in ("/state", "/state/"):
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path not in ("/state", "/state/"):
             self.send_error(404)
             return
         if not cookie_ok(self.headers):
             body = b'{"ok":false,"error":"\xd0\x9d\xd1\x83\xd0\xb6\xd0\xb5\xd0\xbd PIN","auth":true}'
             self.send_response(401)
         else:
+            full = "full" in urllib.parse.parse_qs(parsed.query)
             with LOCK:
-                body = json.dumps(STATE, ensure_ascii=False).encode("utf-8")
+                value = STATE if full else {
+                    "ok": STATE.get("ok", True),
+                    "status": STATE.get("status", {}),
+                    "player": STATE.get("player", {}),
+                }
+                body = json.dumps(value, ensure_ascii=False).encode("utf-8")
             self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store, max-age=0")
@@ -86,6 +130,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     threading.Thread(target=refresh_loop, daemon=True).start()
+    threading.Thread(target=system_loop, daemon=True).start()
+    threading.Thread(target=sounds_loop, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.serve_forever()
 
