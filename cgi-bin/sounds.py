@@ -247,8 +247,27 @@ def _items():
                 "system": system,
                 "writable": ext in SUPPORTED,
                 "backup": _has_backup(rel),
+                "max_upload": _limit_for(rel),
             })
     return items
+
+
+def _disk_info():
+    result = []
+    for mount in ("/", "/data", "/tmp"):
+        try:
+            stats = os.statvfs(mount)
+            total = stats.f_blocks * stats.f_frsize
+            free = stats.f_bavail * stats.f_frsize
+            result.append({
+                "mount": mount,
+                "total_mb": round(total / 1048576),
+                "free_mb": round(free / 1048576),
+                "percent": round((total - free) * 100 / total, 1) if total else 0,
+            })
+        except OSError:
+            pass
+    return result
 
 
 def _read_upload():
@@ -263,11 +282,63 @@ def _read_upload():
     return sys.stdin.buffer.read(length)
 
 
+def _backup_size():
+    total = 0
+    for root, _dirs, files in os.walk(BACKUP_ROOT):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(root, name))
+            except OSError:
+                pass
+    return total
+
+
+def _free(path):
+    stats = os.statvfs(path)
+    return stats.f_bavail * stats.f_frsize
+
+
+def _limit_for(rel):
+    """Сколько байт можно принять с учётом места на целевом разделе и в /data."""
+    target, system = _source(rel)
+    data_free = _free(DATA_ROOT)
+    root_free = _free("/")
+    target_free = root_free if system else data_free
+    reserve = 8 * 1024 * 1024
+    original = os.path.getsize(target)
+    backup_extra = 0 if _has_backup(rel) else original
+    by_target = max(0, target_free - reserve - 1024 * 1024)
+    by_data = max(0, data_free - reserve - backup_extra)
+    return min(MAX_UPLOAD, by_target, by_data)
+
+
+def _ensure_space(rel, out_size):
+    """Проверить место уже после конвертации: WAV может быть больше входа."""
+    target, system = _source(rel)
+    reserve = 2 * 1024 * 1024
+    backup_extra = 0 if _has_backup(rel) else os.path.getsize(target)
+    data_free = _free(DATA_ROOT)
+    if system:
+        root_free = _free("/")
+        if root_free < out_size + reserve:
+            raise ValueError("не хватает места на /: нужно %d МБ"
+                             % int((out_size + reserve) / 1048576))
+        if data_free < backup_extra + reserve:
+            raise ValueError("не хватает места в /data для бэкапа")
+    elif data_free < out_size + backup_extra + reserve:
+        raise ValueError("не хватает места в /data: нужно %d МБ"
+                         % int((out_size + backup_extra + reserve) / 1048576))
+
+
 def _replace(rel, filename):
     ext = os.path.splitext(rel)[1].lower()
     if ext not in SUPPORTED:
         raise ValueError("формат %s пока нельзя заменить: только .opus и .wav" % ext)
     raw = _read_upload()
+    limit = _limit_for(rel)
+    if len(raw) > limit:
+        raise ValueError("не хватает места: максимум %d МБ для этого звука"
+                         % max(1, int(limit / 1048576)))
     tmpdir = tempfile.mkdtemp(prefix="mypult-snd-")
     src = os.path.join(tmpdir, "input")
     dst = os.path.join(tmpdir, "output" + ext)
@@ -275,6 +346,7 @@ def _replace(rel, filename):
         with open(src, "wb") as fh:
             fh.write(raw)
         _convert(src, ext, dst)
+        _ensure_space(rel, os.path.getsize(dst))
         _write_target(rel, dst)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -320,7 +392,11 @@ def main():
         common.ok(restored=rel, reboot=True)
         return
 
-    common.ok(sounds=_items(), groups=list(GROUPS), max_upload=MAX_UPLOAD)
+    items = _items()
+    common.ok(sounds=items, groups=list(GROUPS),
+              max_upload=min([item["max_upload"] for item in items] + [MAX_UPLOAD]),
+              backup_root=BACKUP_ROOT, backup_bytes=_backup_size(),
+              disks=_disk_info())
 
 
 if __name__ == "__main__":
