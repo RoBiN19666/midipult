@@ -265,6 +265,22 @@ Entware**; YAM не обязателен, но совместим и не кон
 
 **Entware** — Python, lighttpd, CGI-модули и утилиты устанавливаются в `/opt`.
 
+**Yandex Station Extended** ([Marker284/yandex-station-extended](https://github.com/Marker284/yandex-station-extended),
+[hackalice.me](https://hackalice.me/)) — публичная wiki по станциям. Из неё
+взяты сведения о Cucumber, путях системных звуков, `quasar`/`Glagol` и
+восстановлении; спасибо авторам и участникам.
+
+**4PDA**, ветка [«Взлом Яндекс станции»](https://4pda.to/forum/index.php?showtopic=1128279)
+и её участники — спасибо за публичные материалы, шапку и обсуждение станций.
+Отдельная благодарность **UNF0X** за кураторство шапки.
+
+**GStreamer** — конвертация и воспроизведение звуков; **sing-box** — VPN;
+**lighttpd**, **Python**, **OpenSSH/socat**, **unbound** и **wpa_supplicant** —
+штатные компоненты, на которых работает пульт.
+
+**Яндекс** — Алиса, `quasar`, `maind` и `Glagol`; это проприетарные компоненты
+колонки, проект с ними не аффилирован.
+
 Установщик пишет только свой конфиг `/opt/etc/lighttpd/myweb.conf` и файлы
 пульта; конфиги Luna, YAM и Entware он не перезаписывает. Существующий
 `myweb.conf` и веб-файлы перед обновлением копируются в
