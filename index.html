@@ -536,6 +536,15 @@ input[type="color"]::-moz-color-swatch{border:2px solid rgba(255,255,255,.32);bo
 .counter{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 #ttsText{min-height:96px}
 
+/* ---------- характеристики ---------- */
+.hw-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:7px;margin-top:12px}
+.hw-item{display:flex;align-items:baseline;gap:8px;padding:7px 9px;border:1px solid var(--stroke);border-radius:9px;background:rgba(255,255,255,.03);min-width:0}
+.hw-label{font-size:11px;color:var(--muted);flex:0 0 auto}
+.hw-value{font-size:12px;font-weight:600;margin-left:auto;text-align:right;overflow-wrap:anywhere}
+.hw-src{font-size:9px;color:var(--muted);border:1px solid var(--stroke);border-radius:5px;padding:1px 4px;flex:0 0 auto}
+.hw-src.wiki{color:var(--warn);border-color:rgba(251,191,36,.35)}
+body.light .hw-item{background:rgba(76,62,48,.035)}
+
 /* ---------- звуки ---------- */
 .sound-drop{
   margin-top:10px;padding:14px;border:1px dashed var(--stroke);border-radius:12px;
@@ -1005,6 +1014,13 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
         <small id="sysBoard"></small>
       </div>
     </div>
+  </section>
+
+  <!-- ───────── характеристики ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-hw">
+    <h2 id="h-hw"><span class="dot"></span>Характеристики</h2>
+    <div class="hw-grid" id="hwList"><div class="seg-note">Читаю данные с колонки…</div></div>
+    <div class="seg-note" style="margin-top:8px">Данные из <code>/proc</code> и <code>/sys</code>. Пометка «вики» — то, что Linux не отдаёт (динамики, порты, Zigbee); значения взяты из статьи hackalice.me для Cucumber.</div>
   </section>
 
   <!-- ───────── bluetooth ───────── -->
@@ -2970,6 +2986,38 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     return mins + ' мин';
   }
 
+  function renderHardware(items) {
+    if (!el.hwList) return;
+    el.hwList.innerHTML = '';
+    if (!items || !items.length) {
+      var empty = document.createElement('div');
+      empty.className = 'seg-note';
+      empty.textContent = 'Характеристики недоступны.';
+      el.hwList.appendChild(empty);
+      return;
+    }
+    items.forEach(function (item) {
+      var row = document.createElement('div');
+      row.className = 'hw-item';
+      var label = document.createElement('span');
+      label.className = 'hw-label';
+      label.textContent = item.label;
+      var value = document.createElement('span');
+      value.className = 'hw-value';
+      value.textContent = item.value || '—';
+      var src = document.createElement('span');
+      src.className = 'hw-src' + (item.source === 'wiki' ? ' wiki' : '');
+      src.textContent = item.source === 'wiki' ? 'вики' : 'система';
+      src.title = item.source === 'wiki'
+        ? 'Linux не отдаёт это значение; взято из статьи hackalice.me'
+        : 'Прочитано из /proc или /sys';
+      row.appendChild(label);
+      row.appendChild(value);
+      row.appendChild(src);
+      el.hwList.appendChild(row);
+    });
+  }
+
   function refreshSystem() {
     if (document.hidden) return Promise.resolve();
     return cgi('system.py', {}, { timeout: 8000, silent: true }).then(function (data) {
@@ -3014,6 +3062,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       (data.disk || []).forEach(function (item) { disks[item.mount] = item; });
       paintDisk(disks['/data'], el.sysDisk, el.sysDiskBar, el.sysDiskSub);
       paintDisk(disks['/'], el.sysRoot, el.sysRootBar, el.sysRootSub);
+      renderHardware(data.hardware);
 
       var light = data.light;
       if (light) {
@@ -4507,7 +4556,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
       'voiceMax', 'btnVoiceMax', 'voiceMaxStatus',
       'sysCpu', 'sysCpuBar', 'sysLoad', 'sysRam', 'sysRamBar', 'sysRamSub', 'sysTemp', 'sysTempSub',
-      'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
+      'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'hwList', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     buildRing();

@@ -173,6 +173,101 @@ def uptime():
         return None
 
 
+def hardware():
+    """Характеристики: сначала /proc и /sys, статику — только как fallback."""
+    compatible = (read("/proc/device-tree/compatible") or "").replace("\x00", " ")
+    model = (read("/proc/device-tree/model") or "—").replace("\x00", "").strip() or "—"
+    lower = (compatible + " " + model).lower()
+    is_cucumber = "cucumber" in lower
+
+    cpuinfo = read("/proc/cpuinfo") or ""
+    cores = cpuinfo.count("processor")
+    part = ""
+    for line in cpuinfo.splitlines():
+        if line.startswith("CPU part"):
+            part = line.split(":", 1)[1].strip()
+            break
+    core_name = {"0xd05": "Cortex-A55", "0xd03": "Cortex-A53"}.get(part, "ARM")
+    max_khz = read("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
+    try:
+        ghz = "%.3f" % (int(max_khz) / 1000000.0)
+        ghz = ghz.rstrip("0").rstrip(".")
+        cpu = "%d× %s до %s ГГц" % (cores, core_name, ghz) if cores else "—"
+    except (TypeError, ValueError):
+        cpu = "%d× %s" % (cores, core_name) if cores else "—"
+
+    total_kb = 0
+    for line in (read("/proc/meminfo") or "").splitlines():
+        if line.startswith("MemTotal:"):
+            try:
+                total_kb = int(line.split()[1])
+            except (IndexError, ValueError):
+                pass
+            break
+    ram = ("%.0f МБ" % (total_kb / 1024.0)) if total_kb else "—"
+
+    storage = "—"
+    blocks = read("/sys/block/mmcblk0/size")
+    try:
+        size_gib = int(blocks) * 512 / 1073741824.0
+        storage = "eMMC %.1f ГиБ" % size_gib
+    except (TypeError, ValueError):
+        pass
+
+    uname = os.uname()
+    kernel = "%s %s" % (uname.release, uname.machine)
+
+    userspace = "—"
+    for line in (read("/etc/os-release") or "").splitlines():
+        if line.startswith("PRETTY_NAME="):
+            userspace = line.split("=", 1)[1].strip().strip('"')
+            break
+
+    quasar = read("/system/vendor/quasar/version_full") or "—"
+    quasar_short = read("/system/vendor/quasar/VERSION")
+    if quasar_short and quasar != "—":
+        quasar = "%s · %s" % (quasar_short, quasar)
+    elif quasar_short:
+        quasar = quasar_short
+
+    static = {
+        "Кодовое имя": ("Cucumber", "DVT2"),
+        "SoC": ("Amlogic A5", "amlogic, a5"),
+        "Архитектура": ("ARMv8.2-A, 64 бит", "aarch64"),
+        "Звук": ("2× FS2105 (вуфер + твитеры), 4 PDM-микрофона", ""),
+        "Индикация": ("24 RGB-кольца, 6 RGB-логотип, 45 сегментов часов", ""),
+        "Радио": ("Unisoc Wi-Fi + Bluetooth", ""),
+        "Питание": ("USB-C Power Delivery", ""),
+        "Zigbee": ("Telink, Zigbee-хаб", ""),
+        "Ускорители": ("Vivante VIPNano-Q + Cadence HiFi4 DSP", ""),
+    }
+
+    items = [
+        {"label": "Модель", "value": model, "source": "system"},
+        {"label": "Кодовое имя", "value": "Cucumber (DVT2)" if is_cucumber else "—",
+         "source": "system" if is_cucumber else "wiki"},
+        {"label": "SoC", "value": "Amlogic A5" if "amlogic, a5" in lower else "—",
+         "source": "system" if "amlogic, a5" in lower else "wiki"},
+        {"label": "CPU", "value": cpu, "source": "system"},
+        {"label": "Архитектура", "value": "ARMv8.2-A, %s" % uname.machine,
+         "source": "system"},
+        {"label": "ОЗУ", "value": ram, "source": "system"},
+        {"label": "Хранилище", "value": storage, "source": "system"},
+        {"label": "Ядро", "value": kernel, "source": "system"},
+        {"label": "Userspace", "value": userspace, "source": "system"},
+        {"label": "Quasar", "value": quasar, "source": "system"},
+    ]
+
+    for label, value in static.items():
+        current = next((item for item in items if item["label"] == label), None)
+        if current and current["value"] not in ("", "—"):
+            continue
+        items.append({"label": label, "value": value[0] if is_cucumber else "—",
+                      "source": "wiki" if is_cucumber else "wiki"})
+
+    return items
+
+
 def main():
     load = read("/proc/loadavg")
     temps = temperatures()
@@ -189,6 +284,7 @@ def main():
         "temperature": {"all": temps, "hottest": hottest},
         "light": light_sensor(),
         "disk": disk(),
+        "hardware": hardware(),
         "uptime_s": uptime(),
         "board": read("/proc/device-tree/model"),
     })
