@@ -1197,6 +1197,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     <div class="row" style="margin-top:12px">
       <button class="btn sm ghost" id="btnSoundBackup">Скачать все</button>
       <button class="btn sm ghost" id="btnSoundRefresh">Обновить</button>
+      <button class="btn sm" id="btnSoundApply">Применить без ребута</button>
       <input type="file" id="soundFile" accept="audio/*,.opus,.wav" hidden>
     </div>
     <div class="sound-drop" id="soundDrop">Перетащите сюда — добавится в «Мои звуки». На строку системного — заменить</div>
@@ -1220,7 +1221,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <input id="soundSearch" class="net-input" type="search" placeholder="Поиск по имени" autocomplete="off">
     </div>
     <div class="sound-list" id="soundList"><div class="seg-note">Загружаю список…</div></div>
-    <div class="seg-note" style="margin-top:8px" id="soundStatus">Оригинал автоматически сохраняется на колонке. После замены нужна перезагрузка.</div>
+    <div class="seg-note" style="margin-top:8px" id="soundStatus">Оригинал автоматически сохраняется на колонке. После замены можно применить без ребута или перезагрузить.</div>
   </section>
 
   <!-- ───────── PIN ───────── -->
@@ -1296,7 +1297,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <summary>Как заменить системный звук?</summary>
       <p>Откройте «Система → Звуки», найдите нужный файл и перетащите на него
       <code>.opus</code> или <code>.wav</code>. Оригинал сохранится на колонке;
-      после замены перезагрузите её. MP3-цель принимается готовым MP3.</p>
+      после замены примените её без ребута или перезагрузите. MP3-цель принимается готовым MP3.</p>
     </details>
     <details>
       <summary>Как включить голосовые команды?</summary>
@@ -4087,6 +4088,23 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.soundStatus.style.color = bad ? 'var(--warn)' : '';
   }
 
+  function applySoundWithoutReboot() {
+    if (!window.confirm('Перезапустить аудиосервис? Алиса и TTS пропадут примерно на 15 секунд.')) return;
+    setSoundStatus('Перезапускаю аудиосервис…');
+    cgi('maintenance.py', { reload_sounds: 'yes' }, { timeout: 32000, silent: true }).then(function (data) {
+      if (data.new_pid) {
+        toast('Аудиосервис перезапущен', 'ok');
+        setSoundStatus('Аудиосервис перезапущен. Проверьте системный звук.');
+      } else {
+        toast('Сервис не подтвердил перезапуск', 'warn');
+        setSoundStatus('Сервис не подтвердил перезапуск. Перезагрузите колонку.', true);
+      }
+    }).catch(function (err) {
+      toast('Применение: ' + err.message, 'bad');
+      setSoundStatus('Не удалось перезапустить сервис. Перезагрузите колонку.', true);
+    });
+  }
+
   var CUSTOM_NAME_RE = /^[A-Za-z0-9_-]{1,40}$/;
 
   function customNameFromFile(name) {
@@ -4107,7 +4125,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.soundDrop.textContent = 'Перетащите аудиофайл на строку нужного звука или нажмите «Заменить» · до ' + limit;
     setSoundStatus('Бэкапы: ' + (data.backup_root || '/data/mypult/sounds-backup') +
       ' · ' + fmtSoundSize(data.backup_bytes || 0) + free +
-      '. После замены нужна перезагрузка.');
+      '. После замены: «Применить без ребута» или перезагрузка.');
   }
 
   function loadSounds(force) {
@@ -4429,8 +4447,8 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       if (!result.ok || result.data.ok === false) {
         throw new Error(result.data.error || 'не удалось заменить');
       }
-      toast('Звук заменён. Перезагрузите колонку.', 'ok');
-      setSoundStatus('Звук заменён: ' + rel + '. Перезагрузите колонку.');
+      toast('Звук заменён. Можно применить без ребута.', 'ok');
+      setSoundStatus('Звук заменён: ' + rel + '. Нажмите «Применить без ребута».');
       return loadSounds(true);
     }).catch(function (err) {
       setSoundStatus('Ошибка: ' + err.message, true);
@@ -4442,8 +4460,8 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     if (!window.confirm('Вернуть оригинальный звук «' + rel + '»?')) return;
     setSoundStatus('Возвращаю оригинал…');
     cgi('sounds.py', { restore: rel }, { timeout: 30000 }).then(function () {
-      toast('Оригинал возвращён. Перезагрузите колонку.', 'ok');
-      setSoundStatus('Оригинал возвращён: ' + rel + '. Перезагрузите колонку.');
+      toast('Оригинал возвращён. Можно применить без ребута.', 'ok');
+      setSoundStatus('Оригинал возвращён: ' + rel + '. Нажмите «Применить без ребута».');
       return loadSounds(true);
     }).catch(function (err) {
       setSoundStatus('Ошибка: ' + err.message, true);
@@ -4934,6 +4952,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       el.backupFile.value = '';
     });
     el.btnSoundRefresh.addEventListener('click', loadSounds);
+    el.btnSoundApply.addEventListener('click', applySoundWithoutReboot);
     el.btnSoundBackup.addEventListener('click', function () {
       window.location.href = '/cgi-bin/sounds.py?zip=1';
     });
@@ -5109,7 +5128,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       'btnNetcheck', 'btnCleanup', 'btnReboot', 'btnPoweroff', 'maintBox', 'autoBright', 'autoBrightStatus',
       'btnSpeed', 'btnBackup', 'backupFile',
       'rebootDlg', 'btnCloseReboot', 'rebootStatus', 'rebootBar', 'rebootTime',
-      'btnSoundBackup', 'btnSoundRefresh', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
+      'btnSoundBackup', 'btnSoundRefresh', 'btnSoundApply', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
       'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
