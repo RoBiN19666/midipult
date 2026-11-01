@@ -222,6 +222,12 @@ stop_web() {
     fi
 }
 
+start_ipv6() {
+    [ -f "$WEB/cgi-bin/ipv6.py" ] || return 0
+    "$PY" "$WEB/cgi-bin/ipv6.py" --apply >/dev/null 2>&1 || \
+        log "ipv6: не удалось применить сохранённую настройку"
+}
+
 reload_web() {
     # SIGHUP перечитывает конфиг без обрыва соединений — вкладки не отваливаются.
     pid=$(cat "$LIGHTTPD_PIDFILE" 2>/dev/null)
@@ -332,6 +338,7 @@ case "$1" in
         start_ipc
         start_luna
         start_web
+        start_ipv6
         restore_volume
         start_voice
         start_state
@@ -349,6 +356,7 @@ case "$1" in
         start_ipc
         start_luna
         start_web
+        start_ipv6
         restore_volume
         start_voice
         start_state

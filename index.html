@@ -1061,6 +1061,11 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <button class="btn sm ghost" id="btnNetDns">DNS</button>
       <button class="btn sm ghost" id="btnNetDnsReset">Сброс</button>
     </div>
+    <label class="llm-toggle" style="margin-top:10px">
+      <input type="checkbox" id="netIpv6">
+      <span>IPv6 включён</span>
+    </label>
+    <div class="seg-note" id="ipv6Status" style="margin-top:6px">—</div>
     <div class="bt-list" id="netList"></div>
   </section>
 
@@ -1324,6 +1329,12 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <p>Обновление — повторный запуск установщика. Удаление — команда
       <code>sh /data/mypult/uninstall.sh</code>; настройки сохранятся,
       <code>--purge</code> удаляет и их.</p>
+    </details>
+    <details>
+      <summary>Почему IPv6 выключен?</summary>
+      <p>В сетях без глобального IPv6 AAAA-записи есть, а маршрута нет — колонка
+      может ждать недоступный IPv6. Переключатель в «Сеть → IPv6»; если
+      провайдер выдаёт IPv6, включите обратно.</p>
     </details>
     <details>
       <summary>Где посмотреть ошибки?</summary>
@@ -2802,6 +2813,40 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       }).catch(function (err) {
         toast('Голос: ' + err.message, 'bad');
       });
+    });
+  }
+
+  function loadIpv6() {
+    return cgi('ipv6.py', {}, { timeout: 10000, silent: true }).then(function (data) {
+      if (!data.supported) {
+        el.netIpv6.checked = false;
+        el.netIpv6.disabled = true;
+        el.ipv6Status.textContent = 'IPv6 не поддерживается ядром';
+        return;
+      }
+      el.netIpv6.checked = !data.disabled;
+      el.ipv6Status.textContent = data.disabled
+        ? 'выключен · используется IPv4'
+        : 'включён · при отсутствии IPv6 возможны задержки';
+    }).catch(function (err) {
+      el.ipv6Status.textContent = 'IPv6: ' + err.message;
+    });
+  }
+
+  function toggleIpv6() {
+    var disabled = !el.netIpv6.checked;
+    el.ipv6Status.textContent = disabled ? 'выключаю…' : 'включаю…';
+    cgi('ipv6.py', { disabled: disabled }, { timeout: 15000 }).then(function (data) {
+      el.netIpv6.checked = !data.disabled;
+      el.ipv6Status.textContent = data.disabled
+        ? 'выключен · используется IPv4'
+        : 'включён · при отсутствии IPv6 возможны задержки';
+      toast(data.disabled ? 'IPv6 выключен' : 'IPv6 включён',
+        data.disabled ? 'ok' : 'warn');
+    }).catch(function (err) {
+      el.netIpv6.checked = !el.netIpv6.checked;
+      el.ipv6Status.textContent = 'IPv6: ' + err.message;
+      toast('IPv6: ' + err.message, 'bad');
     });
   }
 
@@ -4776,6 +4821,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.btnNetScan.addEventListener('click', netScan);
     el.btnNetDns.addEventListener('click', netDnsApply);
     el.btnNetDnsReset.addEventListener('click', netDnsReset);
+    el.netIpv6.addEventListener('change', toggleIpv6);
 
     /* zigbee */
     el.btnZbSend.addEventListener('click', sendZb);
@@ -4981,7 +5027,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       'radioName', 'btnRadioAdd',
       'btnBtPairMode', 'btnBtScan', 'btStatus', 'btDevices', 'btnBtPower',
       'netPsk', 'btnNetScan', 'netStatus', 'netList', 'netDetails',
-      'netDns', 'btnNetDns', 'btnNetDnsReset',
+      'netDns', 'btnNetDns', 'btnNetDnsReset', 'netIpv6', 'ipv6Status',
       'zbStatus', 'zbCommand', 'btnZbSend',
       'scBuiltin', 'scList', 'scName', 'scPhrases', 'scActions', 'scType',
       'scTime', 'scDays', 'scCondVpn', 'scCondMusic',
@@ -5026,6 +5072,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     loadAuth();
     loadVoiceCfg();
     loadSounds();
+    loadIpv6();
     initCardDrag();
     refreshSystem();
     setInterval(refreshSystem, 10000);
