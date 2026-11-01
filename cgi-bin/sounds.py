@@ -32,7 +32,7 @@ CUSTOM_INDEX = os.path.join(CUSTOM_ROOT, "index.json")
 QUASAR = "/system/vendor/quasar"
 MAIND = os.path.join(QUASAR, "maind")
 GROUPS = ("common", "ru-RU")
-SUPPORTED = (".opus", ".wav")
+SUPPORTED = (".opus", ".wav", ".mp3")
 ALL_EXT = (".opus", ".wav", ".mp3")
 MAX_UPLOAD = 12 * 1024 * 1024
 
@@ -255,6 +255,12 @@ def _wait_output(path):
         raise RuntimeError("GStreamer не создал файл")
 
 
+def _looks_like_mp3(data):
+    if data.startswith(b"ID3"):
+        return True
+    return len(data) >= 2 and data[0] == 0xFF and (data[1] & 0xE0) == 0xE0
+
+
 def _convert(src, ext, dst):
     if ext == ".opus":
         _run_gst(
@@ -434,12 +440,26 @@ def _ensure_space(rel, out_size):
 def _replace(rel, filename):
     ext = os.path.splitext(rel)[1].lower()
     if ext not in SUPPORTED:
-        raise ValueError("формат %s пока нельзя заменить: только .opus и .wav" % ext)
+        raise ValueError("формат %s пока нельзя заменить" % ext)
     raw = _read_upload()
     limit = _limit_for(rel)
     if len(raw) > limit:
         raise ValueError("не хватает места: максимум %d МБ для этого звука"
                          % max(1, int(limit / 1048576)))
+    if ext == ".mp3":
+        if not _looks_like_mp3(raw):
+            raise ValueError("для .mp3 нужен готовый MP3-файл: энкодера на колонке нет")
+        tmpdir = tempfile.mkdtemp(prefix="mypult-snd-")
+        src = os.path.join(tmpdir, "input.mp3")
+        try:
+            with open(src, "wb") as fh:
+                fh.write(raw)
+            _ensure_space(rel, len(raw))
+            _write_target(rel, src)
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+        return {"path": rel, "format": "mp3", "converted": False,
+                "backup": _has_backup(rel), "reboot": True}
     tmpdir = tempfile.mkdtemp(prefix="mypult-snd-")
     src = os.path.join(tmpdir, "input")
     dst = os.path.join(tmpdir, "output" + ext)
