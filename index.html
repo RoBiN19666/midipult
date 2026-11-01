@@ -1192,6 +1192,11 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <input type="file" id="soundFile" accept="audio/*,.opus,.wav" hidden>
     </div>
     <div class="sound-drop" id="soundDrop">Перетащите аудиофайл на строку нужного звука или нажмите «Заменить»</div>
+    <label class="llm-toggle" style="margin-top:12px">
+      <input type="checkbox" id="earconToggle">
+      <span>Звук отклика «Алиса»</span>
+    </label>
+    <div class="seg-note" id="earconStatus" style="margin-top:6px">Читаю настройку…</div>
     <div class="row" style="margin-top:10px">
       <input id="customSoundName" class="net-input" type="text" maxlength="60"
              placeholder="Название своего звука" autocomplete="off">
@@ -1275,6 +1280,12 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <p>В «Система → Звуки» введите название, нажмите «Добавить звук» и
       выберите файл. Затем в сценарии добавьте действие «Свой звук» и выберите
       его из списка.</p>
+    </details>
+    <details>
+      <summary>Как включить звук отклика «Алиса»?</summary>
+      <p>В «Система → Звуки» включите «Звук отклика «Алиса»» и перезагрузите
+      колонку. Настройка хранится в <code>user_config.dat</code>; приложение
+      Алисы может перезаписать её при синхронизации.</p>
     </details>
     <details>
       <summary>Как заменить системный звук?</summary>
@@ -3976,6 +3987,34 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.soundStatus.style.color = bad ? 'var(--warn)' : '';
   }
 
+  function loadEarcon() {
+    return cgi('soundcfg.py', {}, { timeout: 10000, silent: true }).then(function (data) {
+      el.earconToggle.checked = !!data.jingle;
+      el.earconStatus.textContent = data.jingle
+        ? 'Включён · изменение применится после перезагрузки'
+        : 'Выключен · изменение применится после перезагрузки';
+    }).catch(function (err) {
+      el.earconStatus.textContent = 'Настройка: ' + err.message;
+    });
+  }
+
+  function toggleEarcon() {
+    var want = el.earconToggle.checked ? 1 : 0;
+    el.earconStatus.textContent = 'Сохраняю…';
+    cgi('soundcfg.py', { jingle: want }, { timeout: 10000 }).then(function (data) {
+      el.earconToggle.checked = !!data.jingle;
+      el.earconStatus.textContent = data.jingle
+        ? 'Включён · перезагрузите колонку'
+        : 'Выключен · перезагрузите колонку';
+      toast(data.jingle ? 'Звук отклика включён' : 'Звук отклика выключен',
+        data.jingle ? 'ok' : 'warn');
+    }).catch(function (err) {
+      el.earconToggle.checked = !el.earconToggle.checked;
+      el.earconStatus.textContent = 'Ошибка: ' + err.message;
+      toast('Звук отклика: ' + err.message, 'bad');
+    });
+  }
+
   function loadSounds() {
     return cgi('sounds.py', {}, { timeout: 20000, silent: true }).then(function (data) {
       State.sounds = data.sounds || [];
@@ -4789,6 +4828,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     });
     el.soundGroup.addEventListener('change', renderSounds);
     el.soundSearch.addEventListener('input', renderSounds);
+    el.earconToggle.addEventListener('change', toggleEarcon);
     el.soundDrop.addEventListener('dragover', function (ev) {
       ev.preventDefault();
       el.soundDrop.classList.add('drag');
@@ -4946,6 +4986,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       'rebootDlg', 'btnCloseReboot', 'rebootStatus', 'rebootBar', 'rebootTime',
       'btnSoundBackup', 'btnSoundRefresh', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
       'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
+      'earconToggle', 'earconStatus',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
       'voiceMax', 'btnVoiceMax', 'voiceMaxStatus',
@@ -4978,6 +5019,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     loadAuth();
     loadVoiceCfg();
     loadSounds();
+    loadEarcon();
     initCardDrag();
     refreshSystem();
     setInterval(refreshSystem, 5000);
