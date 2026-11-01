@@ -226,6 +226,8 @@ start_ipv6() {
     [ -f "$WEB/cgi-bin/ipv6.py" ] || return 0
     "$PY" "$WEB/cgi-bin/ipv6.py" --apply >/dev/null 2>&1 || \
         log "ipv6: не удалось применить сохранённую настройку"
+    # Сеть может подняться позже и снова включить IPv6 — повторяем после старта.
+    ( sleep 25; "$PY" "$WEB/cgi-bin/ipv6.py" --apply >/dev/null 2>&1 ) &
 }
 
 reload_web() {

@@ -79,12 +79,14 @@ def main():
 
     if data.get("reboot") == "yes":
         common.ok(reboot=True)
-        common.run(["/sbin/reboot"], timeout=5)
+        common.run(["/sbin/sync"], timeout=3)
+        common.run(["/sbin/reboot", "-f"], timeout=5)
         return
 
     if data.get("poweroff") == "yes":
         common.ok(poweroff=True)
-        common.run(["/sbin/poweroff"], timeout=5)
+        common.run(["/sbin/sync"], timeout=3)
+        common.run(["/sbin/poweroff", "-f"], timeout=5)
         return
 
     common.ok(items=sizes())

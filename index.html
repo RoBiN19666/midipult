@@ -682,8 +682,8 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
   <button class="tab" data-tab="sound" aria-pressed="false">♪ Звук</button>
   <button class="tab" data-tab="ai" aria-pressed="false">✦ Нейросеть</button>
   <button class="tab" data-tab="network" aria-pressed="false">⇄ Сеть</button>
-  <button class="tab" data-tab="system" aria-pressed="true">▤ Система</button>
   <button class="tab" data-tab="scenarios" aria-pressed="false">▦ Сценарии</button>
+  <button class="tab" data-tab="system" aria-pressed="true">▤ Система</button>
 </nav>
 
 <main class="grid">
@@ -2370,6 +2370,20 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     if (data.player && !data.player.error) applyPlayerData(data.player);
   }
 
+  var stateTimer = null;
+
+  function scheduleStateRefresh() {
+    if (stateTimer) clearTimeout(stateTimer);
+    var delay = State.tab === 'sound' ? 6000 : 15000;
+    stateTimer = setTimeout(function () {
+      if (document.hidden) {
+        scheduleStateRefresh();
+        return;
+      }
+      refreshState().then(scheduleStateRefresh, scheduleStateRefresh);
+    }, delay);
+  }
+
   function refreshState() {
     if (document.hidden) return Promise.resolve();
     return fetch('/state', { cache: 'no-store', credentials: 'same-origin' })
@@ -3121,8 +3135,20 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
   }
 
   function refreshSystem() {
-    if (document.hidden) return Promise.resolve();
-    return cgi('system.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+    if (document.hidden || State.tab !== 'system') return Promise.resolve();
+    return fetch('/state?full=1', { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (res) {
+        if (!res.ok) throw new Error('state ' + res.status);
+        return res.json();
+      })
+      .then(function (state) {
+        if (state.system && Object.keys(state.system).length) return state.system;
+        return cgi('system.py', {}, { timeout: 8000, silent: true });
+      })
+      .catch(function () {
+        return cgi('system.py', {}, { timeout: 8000, silent: true });
+      })
+      .then(function (data) {
       var cpu = data.cpu || {};
       el.sysCpu.textContent = (cpu.percent == null) ? '—' : cpu.percent + '%';
       el.sysCpuBar.style.width = (cpu.percent || 0) + '%';
@@ -3181,9 +3207,36 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
   }
 
   /* ─────────── разделы ─────────── */
-  var TABS = ['display', 'sound', 'ai', 'network', 'system', 'scenarios'];
+  var TABS = ['display', 'sound', 'ai', 'network', 'scenarios', 'system'];
   var TAB_KEY = 'mypult.tab';
   var START_KEY = 'mypult.start-system';
+
+  function loadTabData(name) {
+    if (name === 'display') {
+      loadRingBrightness();
+      autoSyncClock();
+    } else if (name === 'sound') {
+      loadRadio();
+      loadVoice();
+    } else if (name === 'ai') {
+      loadLlm();
+    } else if (name === 'network') {
+      loadVpn();
+      loadBt();
+      loadNet();
+      loadZb();
+      loadIpv6();
+    } else if (name === 'system') {
+      loadLogs();
+      loadAutoBright();
+      loadVoiceCfg();
+      loadSounds();
+      refreshSystem();
+    } else if (name === 'scenarios') {
+      loadScenarios();
+      loadSounds();
+    }
+  }
 
   function showTab(name, save) {
     if (TABS.indexOf(name) < 0) name = 'display';
@@ -3194,6 +3247,8 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       btn.setAttribute('aria-pressed', String(btn.dataset.tab === name));
     });
     State.tab = name;
+    loadTabData(name);
+    scheduleStateRefresh();
     if (save !== false) {
       store.set(TAB_KEY, name);
       if (window.scrollTo) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4038,22 +4093,37 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       .replace(/^_+|_+$/g, '').slice(0, 40) || 'sound';
   }
 
-  function loadSounds() {
-    return cgi('sounds.py', {}, { timeout: 20000, silent: true }).then(function (data) {
-      State.sounds = data.sounds || [];
-      State.customSounds = data.custom || [];
-      State.soundInfo = data;
-      renderSounds();
-      renderCustomSounds();
-      refreshSoundPickers();
-      var disk = (data.disks || []).filter(function (item) { return item.mount === '/data'; })[0];
-      var free = disk ? ' · свободно /data ' + fmtSoundSize(disk.free_mb * 1024 * 1024) : '';
-      var limit = fmtSoundSize(data.max_upload || 12 * 1024 * 1024);
-      el.soundDrop.textContent = 'Перетащите аудиофайл на строку нужного звука или нажмите «Заменить» · до ' + limit;
-      setSoundStatus('Бэкапы: ' + (data.backup_root || '/data/mypult/sounds-backup') +
-        ' · ' + fmtSoundSize(data.backup_bytes || 0) + free +
-        '. После замены нужна перезагрузка.');
-    }).catch(function (err) {
+  function applySounds(data) {
+    State.sounds = data.sounds || [];
+    State.customSounds = data.custom || [];
+    State.soundInfo = data;
+    renderSounds();
+    renderCustomSounds();
+    refreshSoundPickers();
+    var disk = (data.disks || []).filter(function (item) { return item.mount === '/data'; })[0];
+    var free = disk ? ' · свободно /data ' + fmtSoundSize(disk.free_mb * 1024 * 1024) : '';
+    var limit = fmtSoundSize(data.max_upload || 12 * 1024 * 1024);
+    el.soundDrop.textContent = 'Перетащите аудиофайл на строку нужного звука или нажмите «Заменить» · до ' + limit;
+    setSoundStatus('Бэкапы: ' + (data.backup_root || '/data/mypult/sounds-backup') +
+      ' · ' + fmtSoundSize(data.backup_bytes || 0) + free +
+      '. После замены нужна перезагрузка.');
+  }
+
+  function loadSounds(force) {
+    var fromCgi = function () {
+      return cgi('sounds.py', {}, { timeout: 20000, silent: true });
+    };
+    var initial = force ? Promise.reject(new Error('force')) :
+      fetch('/state?full=1', { cache: 'no-store', credentials: 'same-origin' })
+        .then(function (res) {
+          if (!res.ok) throw new Error('state ' + res.status);
+          return res.json();
+        })
+        .then(function (state) {
+          if (Array.isArray(state.sounds)) return state;
+          throw new Error('в state нет звуков');
+        });
+    return initial.catch(fromCgi).then(applySounds).catch(function (err) {
       setSoundStatus('Список звуков: ' + err.message, true);
     });
   }
@@ -4129,7 +4199,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     cgi('sounds.py', { rename_custom: item.id, name: value }, { timeout: 15000 })
       .then(function () {
         toast('Звук переименован', 'ok');
-        return loadSounds();
+        return loadSounds(true);
       }).catch(function (err) {
         toast('Переименование: ' + err.message, 'bad');
       });
@@ -4139,7 +4209,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     if (!window.confirm('Удалить звук «' + item.name + '»?')) return;
     cgi('sounds.py', { delete_custom: item.id }, { timeout: 15000 }).then(function () {
       toast('Звук удалён', 'ok');
-      return loadSounds();
+      return loadSounds(true);
     }).catch(function (err) {
       toast('Удаление: ' + err.message, 'bad');
     });
@@ -4170,7 +4240,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       }
       el.customSoundName.value = '';
       toast('Свой звук добавлен', 'ok');
-      return loadSounds();
+      return loadSounds(true);
     }).catch(function (err) {
       toast('Свой звук: ' + err.message, 'bad');
     });
@@ -4360,7 +4430,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       }
       toast('Звук заменён. Перезагрузите колонку.', 'ok');
       setSoundStatus('Звук заменён: ' + rel + '. Перезагрузите колонку.');
-      return loadSounds();
+      return loadSounds(true);
     }).catch(function (err) {
       setSoundStatus('Ошибка: ' + err.message, true);
       toast('Звук: ' + err.message, 'bad');
@@ -4373,7 +4443,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     cgi('sounds.py', { restore: rel }, { timeout: 30000 }).then(function () {
       toast('Оригинал возвращён. Перезагрузите колонку.', 'ok');
       setSoundStatus('Оригинал возвращён: ' + rel + '. Перезагрузите колонку.');
-      return loadSounds();
+      return loadSounds(true);
     }).catch(function (err) {
       setSoundStatus('Ошибка: ' + err.message, true);
       toast('Возврат: ' + err.message, 'bad');
@@ -5053,36 +5123,22 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     bind();
     tickClock();
     setInterval(tickClock, 1000);
-    autoSyncClock();
-    setInterval(autoSyncClock, 30000);
+    setInterval(function () {
+      if (!document.hidden && State.tab === 'display') autoSyncClock();
+    }, 30000);
     renderStatus();
     loadVersion();
-    loadLlm();
-    loadVpn();
-    loadVoice();
-    loadRadio();
-    loadBt();
-    loadNet();
-    loadZb();
     fillScTypes();
-    loadScenarios();
     addScRow('speak');
-    loadLogs();
-    loadAutoBright();
     loadAuth();
-    loadVoiceCfg();
-    loadSounds();
-    loadIpv6();
     initCardDrag();
-    refreshSystem();
-    setInterval(refreshSystem, 10000);
-    loadRingBrightness();
     loadRingSpeed();
     syncVolumeFromDevice();
     refreshState();
+    scheduleStateRefresh();
     setInterval(function () {
-      if (!document.hidden) refreshState();
-    }, 6000);
+      if (!document.hidden && State.tab === 'system') refreshSystem();
+    }, 10000);
     var startTab = (location.hash || '').replace('#', '') ||
       store.get(TAB_KEY, 'system');
     if (!(location.hash || '') && !store.get(START_KEY)) {

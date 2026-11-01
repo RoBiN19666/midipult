@@ -8,6 +8,7 @@ MP3-файлы можно скачать и сохранить в бэкап, н
 
 from __future__ import annotations
 
+import filecmp
 import io
 import json
 import os
@@ -279,6 +280,12 @@ def _restore(rel):
     finally:
         if system:
             _remount(False)
+    # Оригинал уже на месте: бэкап больше не нужен, иначе UI снова
+    # показывает «Вернуть». При следующей замене он создастся заново.
+    try:
+        os.remove(backup)
+    except OSError:
+        pass
 
 
 def _run_gst(pipeline):
@@ -407,6 +414,14 @@ def _items():
             except ValueError:
                 continue
             ext = os.path.splitext(name)[1].lower()
+            backup = _has_backup(rel)
+            if backup:
+                try:
+                    if filecmp.cmp(_backup_path(rel), path, shallow=False):
+                        os.remove(_backup_path(rel))
+                        backup = False
+                except OSError:
+                    pass
             items.append({
                 "path": rel,
                 "group": group,
@@ -417,7 +432,7 @@ def _items():
                 "source": "system" if system else "data",
                 "system": system,
                 "writable": ext in SUPPORTED,
-                "backup": _has_backup(rel),
+                "backup": backup,
                 "max_upload": _limit_for(rel),
             })
     return items
@@ -439,6 +454,27 @@ def _disk_info():
         except OSError:
             pass
     return result
+
+
+def snapshot():
+    """Снимок для state_daemon: без запуска CGI на каждый опрос."""
+    try:
+        _free.cache_clear()
+    except AttributeError:
+        pass
+    items = _items()
+    custom = _custom_items()
+    return {
+        "sounds": items,
+        "custom": custom,
+        "groups": list(GROUPS),
+        "max_upload": min([item["max_upload"] for item in items] + [MAX_UPLOAD]),
+        "custom_max_upload": _custom_limit(),
+        "custom_root": CUSTOM_ROOT,
+        "backup_root": BACKUP_ROOT,
+        "backup_bytes": _backup_size(),
+        "disks": _disk_info(),
+    }
 
 
 def _read_upload():
@@ -645,13 +681,7 @@ def main():
         common.ok(restored=rel, reboot=True)
         return
 
-    items = _items()
-    custom = _custom_items()
-    common.ok(sounds=items, custom=custom, groups=list(GROUPS),
-              max_upload=min([item["max_upload"] for item in items] + [MAX_UPLOAD]),
-              custom_max_upload=_custom_limit(), custom_root=CUSTOM_ROOT,
-              backup_root=BACKUP_ROOT, backup_bytes=_backup_size(),
-              disks=_disk_info())
+    common.ok(**snapshot())
 
 
 if __name__ == "__main__":
