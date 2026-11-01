@@ -59,7 +59,7 @@ lighttpd ── static /data/myweb/index.html
 index.html                 SPA целиком (HTML+CSS+JS)
 index.py                   серверный PIN-гейт и отдача index.html
 manifest.json, favicon.ico PWA-ярлык и иконки (без service worker)
-icon-192.png, icon-512.png, icon.png
+icon-192.png, icon-512.png, icon.png, icon-circle.png
 docs/img/logo.png         горизонтальный логотип для README
 version.json               версия и дата
 CHANGELOG.md               история
