@@ -4107,7 +4107,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
         throw new Error(result.data.error || 'не удалось заменить');
       }
       toast('Звук заменён. Перезагрузите колонку.', 'ok');
-      setSoundStatus('Готово: ' + rel + '. Нужна перезагрузка колонки.');
+      setSoundStatus('Звук заменён: ' + rel + '. Перезагрузите колонку.');
       return loadSounds();
     }).catch(function (err) {
       setSoundStatus('Ошибка: ' + err.message, true);
@@ -4120,6 +4120,7 @@ body.light .faq-list code{background:rgba(76,62,48,.07)}
     setSoundStatus('Возвращаю оригинал…');
     cgi('sounds.py', { restore: rel }, { timeout: 30000 }).then(function () {
       toast('Оригинал возвращён. Перезагрузите колонку.', 'ok');
+      setSoundStatus('Оригинал возвращён: ' + rel + '. Перезагрузите колонку.');
       return loadSounds();
     }).catch(function (err) {
       setSoundStatus('Ошибка: ' + err.message, true);
