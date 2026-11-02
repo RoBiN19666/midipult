@@ -256,8 +256,6 @@ sh /data/mypult/uninstall.sh --purge
 - делает бэкап в `/data/mypult-uninstall-<дата>`;
 - удаляет `/data/myweb`, `/opt/etc/init.d/S99mypult`,
   `/etc/init.d/S99mypult` и `/opt/etc/lighttpd/myweb.conf`;
-- не запускает и не восстанавливает `alice_light` — это отдельный
-  пользовательский скрипт, проект его не использует;
 - по умолчанию оставляет `/data/mypult` с настройками для переустановки;
 - `--purge` удаляет и `/data/mypult` (бэкап остаётся).
 
