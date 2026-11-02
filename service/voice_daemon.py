@@ -536,6 +536,12 @@ def handle(text):
             generation = time.time() - started_at
             stop_alice_speech()
             say("Нейросеть отвечает. " + answer)
+            if speak_level != level_before and level_before and level_before > 0:
+                # Если пользователь не крутил громкость во время ответа,
+                # возвращаем уровень, который был до временного потолка.
+                current = volume_level(speak_level)
+                if current == speak_level:
+                    set_volume(level_before)
             log("llm answer: %d символов, генерация %.1f с, громкость %d"
                 % (len(answer), generation, speak_level))
             return True
@@ -570,6 +576,13 @@ def volume_restore_loop():
         with open("/data/mypult/volume.json", "r", encoding="utf-8") as fh:
             level = int(json.load(fh).get("level"))
     except (OSError, ValueError, TypeError):
+        return
+    actual = volume_level(None)
+    # Если пользователь уже выставил другую громкость физическими кнопками,
+    # не перетираем её старым сохранённым значением.
+    if actual is not None and actual not in (0, 40) and actual != level:
+        set_volume(actual)
+        log("громкость оставлена: %d%%" % actual)
         return
     if 0 < level <= 100:
         set_volume(level)
