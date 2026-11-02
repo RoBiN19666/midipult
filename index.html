@@ -619,6 +619,13 @@ dialog::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(5px)}
 .faq-list details{border:1px solid var(--stroke);border-radius:12px;background:rgba(255,255,255,.035);padding:0 12px}
 .faq-list summary{cursor:pointer;padding:11px 0;font-size:13.5px;font-weight:600;list-style:none;display:flex;gap:8px;align-items:center}
 .faq-list summary::-webkit-details-marker{display:none}
+.update-notes{
+  margin:10px 0 0;padding:10px 12px;max-height:220px;overflow:auto;
+  white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.45;
+  border:1px solid var(--stroke);border-radius:10px;background:rgba(255,255,255,.035);
+  color:var(--muted);font-family:inherit;
+}
+body.light .update-notes{background:rgba(76,62,48,.04);color:#5f594f}
 .faq-list summary::before{content:"+";color:var(--accent2);font-size:16px;line-height:1;width:12px;flex:0 0 auto}
 .faq-list details[open] summary::before{content:"−"}
 .faq-list p{margin:0 0 11px;font-size:13px;line-height:1.5;color:var(--muted)}
@@ -1165,6 +1172,28 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     </div>
   </section>
 
+  <!-- ───────── обновление ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-update">
+    <h2 id="h-update"><span class="dot"></span>Обновление</h2>
+    <div class="row between" style="margin-top:12px">
+      <span class="seg-note">Текущая версия</span>
+      <b id="updCurrent">—</b>
+      <span class="seg-note" id="updChecked"></span>
+    </div>
+    <div id="updNew" hidden>
+      <div class="seg-note" id="updNewTitle" style="margin-top:10px"></div>
+      <pre class="update-notes" id="updNotes"></pre>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm primary" id="btnUpdateApply">Обновить</button>
+        <span class="seg-note" id="updHint"></span>
+      </div>
+    </div>
+    <div class="seg-note" id="updState" style="margin-top:10px">Проверяю обновления…</div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm ghost" id="btnUpdateCheck">Проверить обновления</button>
+    </div>
+  </section>
+
   <!-- ───────── логи ───────── -->
   <section class="card c-sys" data-group="system" aria-labelledby="h-logs">
     <h2 id="h-logs"><span class="dot"></span>Логи</h2>
@@ -1385,6 +1414,23 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
   </div>
 </dialog>
 
+<dialog id="updateDlg" class="confirm-dlg update-dlg">
+  <div class="dlg-head">
+    <h3>Доступно обновление <small id="updateDlgVer"></small></h3>
+    <button class="btn sm ghost" id="btnUpdateLater">Позже</button>
+  </div>
+  <div class="seg-note" id="updateDlgFrom"></div>
+  <pre class="update-notes" id="updateDlgNotes"></pre>
+  <label class="llm-toggle" style="margin-top:10px">
+    <input type="checkbox" id="updateDismiss">
+    <span>Больше не показывать это обновление</span>
+  </label>
+  <div class="confirm-actions">
+    <button class="btn sm ghost" id="btnUpdateDlgNo">Отмена</button>
+    <button class="btn sm primary" id="btnUpdateDlgYes">Обновить</button>
+  </div>
+</dialog>
+
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M9 6.4v11.2L18.6 12z" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7.5 5.5h3.2v13H7.5zM13.3 5.5h3.2v13h-3.2z" fill="currentColor" stroke="none"/></symbol>
@@ -1528,6 +1574,8 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     mediaProgress: 0,
     seeking: false,
     volumeDragging: false,
+    updateInfo: null,
+    updateRunning: false,
     dragCard: null
   };
 
@@ -4810,6 +4858,171 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     });
   }
 
+  /* ─────────── обновления ─────────── */
+  var UPDATE_DISMISS_KEY = 'updateDismissedVersion';
+  var UPDATE_PROMPT_KEY = 'updatePrompted';
+
+  function updateDismissed(version) {
+    return !!version && String(store.get(UPDATE_DISMISS_KEY, '')) === String(version);
+  }
+
+  function formatUpdateTime(seconds) {
+    if (!seconds) return '';
+    try {
+      return new Date(seconds * 1000).toLocaleString('ru-RU', {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function renderUpdateInfo(data) {
+    State.updateInfo = data || null;
+    var current = (data && data.current) || State.version || '—';
+    el.updCurrent.textContent = 'v' + current;
+    if (data && data.checked_at) {
+      el.updChecked.textContent = 'проверено ' + formatUpdateTime(data.checked_at);
+    } else {
+      el.updChecked.textContent = '';
+    }
+    el.btnUpdateApply.disabled = !(data && data.update_available) || State.updateRunning;
+    if (!data || !data.update_available) {
+      el.updNew.hidden = true;
+      el.updHint.textContent = '';
+      if (data && data.error) {
+        el.updState.textContent = data.error;
+      } else if (data && data.latest) {
+        el.updState.textContent = 'Установлена последняя версия: v' + data.latest;
+      } else {
+        el.updState.textContent = 'Проверка недоступна';
+      }
+      return;
+    }
+    el.updNew.hidden = false;
+    el.updNewTitle.textContent = 'Доступна версия v' + data.latest +
+      (data.published_at ? ' · ' + formatUpdateTime(Date.parse(data.published_at) / 1000) : '');
+    el.updNotes.textContent = data.body || 'Описание изменений не приложено.';
+    el.updState.textContent = 'Есть обновление: v' + current + ' → v' + data.latest;
+    el.updHint.textContent = updateDismissed(data.latest) ? 'уведомление отключено' : '';
+  }
+
+  function showUpdateDialog(data) {
+    if (!data || !data.update_available) return;
+    State.updateInfo = data;
+    el.updateDlgVer.textContent = 'v' + data.latest;
+    el.updateDlgFrom.textContent = 'Сейчас: v' + data.current +
+      (data.published_at ? ' · опубликовано ' + formatUpdateTime(Date.parse(data.published_at) / 1000) : '');
+    el.updateDlgNotes.textContent = data.body || 'Описание изменений не приложено.';
+    el.updateDismiss.checked = updateDismissed(data.latest);
+    if (typeof el.updateDlg.showModal === 'function') {
+      if (!el.updateDlg.open) el.updateDlg.showModal();
+    } else {
+      el.updateDlg.setAttribute('open', '');
+    }
+  }
+
+  function closeUpdateDialog() {
+    if (typeof el.updateDlg.close === 'function') {
+      try { el.updateDlg.close(); } catch (e) {}
+    } else {
+      el.updateDlg.removeAttribute('open');
+    }
+  }
+
+  function maybePromptUpdate(data) {
+    if (!data || !data.update_available) return;
+    if (updateDismissed(data.latest) || State.updateRunning) return;
+    var prompted = store.get(UPDATE_PROMPT_KEY, {}) || {};
+    var today = new Date().toISOString().slice(0, 10);
+    if (prompted.version === data.latest && prompted.date === today) return;
+    store.set(UPDATE_PROMPT_KEY, { version: data.latest, date: today });
+    showUpdateDialog(data);
+  }
+
+  function loadUpdateInfo(force, manual) {
+    el.updState.textContent = force ? 'Проверяю GitHub…' : 'Проверяю обновления…';
+    var payload = force ? { check: 1 } : { info: 1 };
+    return cgi('update.py', payload, { timeout: 25000, silent: true }).then(function (data) {
+      renderUpdateInfo(data);
+      if (manual) {
+        if (data.update_available) showUpdateDialog(data);
+        else toast('Обновлений нет', 'ok');
+      } else {
+        maybePromptUpdate(data);
+      }
+      return data;
+    }).catch(function (err) {
+      el.updState.textContent = 'Не удалось проверить: ' + err.message;
+      if (manual) toast('Обновления: ' + err.message, 'bad');
+    });
+  }
+
+  function pollUpdateStatus(attempt) {
+    return cgi('update.py', { status: 1 }, { timeout: 8000, silent: true }).then(function (data) {
+      var status = data.status || {};
+      var state = status.state || 'idle';
+      if (state === 'done') {
+        el.updState.textContent = 'Обновление установлено. Перезагружаю панель…';
+        setTimeout(function () { location.reload(); }, 2400);
+        return;
+      }
+      if (state === 'error') {
+        State.updateRunning = false;
+        el.btnUpdateApply.disabled = false;
+        el.updState.textContent = 'Ошибка обновления: ' + (status.error || 'неизвестно') +
+          (status.rolled_back ? ' · выполнен откат' : '');
+        toast('Обновление не установлено', 'bad');
+        return;
+      }
+      if (state === 'queued' || state === 'downloading' || state === 'installing' || state === 'rollback') {
+        el.updState.textContent = status.message ||
+          (state === 'downloading' ? 'Скачиваю архив…' : 'Устанавливаю…');
+        window.setTimeout(function () { pollUpdateStatus(attempt + 1); }, 2500);
+        return;
+      }
+      // После перезапуска lighttpd статус может быть временно недоступен.
+      if (State.updateRunning) {
+        if (attempt < 30) window.setTimeout(function () { pollUpdateStatus(attempt + 1); }, 2500);
+        else {
+          State.updateRunning = false;
+          el.btnUpdateApply.disabled = false;
+          el.updState.textContent = 'Панель перезапускается. Проверьте обновление вручную.';
+        }
+      }
+    }).catch(function () {
+      if (State.updateRunning && attempt < 30) {
+        window.setTimeout(function () { pollUpdateStatus(attempt + 1); }, 2500);
+      } else if (State.updateRunning) {
+        State.updateRunning = false;
+        el.btnUpdateApply.disabled = false;
+        el.updState.textContent = 'Панель перезапускается. Проверьте обновление вручную.';
+      }
+    });
+  }
+
+  function startUpdate() {
+    if (State.updateRunning) return;
+    var info = State.updateInfo;
+    if (!info || !info.update_available) {
+      toast('Нет доступного обновления', 'warn');
+      return;
+    }
+    if (el.updateDismiss.checked) store.set(UPDATE_DISMISS_KEY, info.latest);
+    closeUpdateDialog();
+    State.updateRunning = true;
+    el.btnUpdateApply.disabled = true;
+    el.updState.textContent = 'Запускаю обновление…';
+    return cgi('update.py', { apply: 1 }, { timeout: 20000, silent: true }).then(function () {
+      pollUpdateStatus(0);
+    }).catch(function (err) {
+      State.updateRunning = false;
+      el.btnUpdateApply.disabled = false;
+      el.updState.textContent = 'Не удалось запустить: ' + err.message;
+      toast('Обновление: ' + err.message, 'bad');
+    });
+  }
+
   /* ─────────── привязка ─────────── */
   function bind() {
     el.btnDebug.addEventListener('click', function () {
@@ -5149,6 +5362,19 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.btnPoweroff.addEventListener('click', doPoweroff);
     el.autoBright.addEventListener('change', toggleAutoBright);
     el.btnBackup.addEventListener('click', downloadBackup);
+    el.btnUpdateCheck.addEventListener('click', function () { loadUpdateInfo(true, true); });
+    el.btnUpdateApply.addEventListener('click', startUpdate);
+    el.btnUpdateDlgYes.addEventListener('click', startUpdate);
+    el.btnUpdateLater.addEventListener('click', closeUpdateDialog);
+    el.btnUpdateDlgNo.addEventListener('click', closeUpdateDialog);
+    el.updateDismiss.addEventListener('change', function () {
+      var info = State.updateInfo;
+      if (!info || !info.latest) return;
+      store.set(UPDATE_DISMISS_KEY, el.updateDismiss.checked ? info.latest : '');
+      if (el.updHint) {
+        el.updHint.textContent = el.updateDismiss.checked ? 'уведомление отключено' : '';
+      }
+    });
     el.backupFile.addEventListener('change', function () {
       if (el.backupFile.files && el.backupFile.files[0]) restoreBackup(el.backupFile.files[0]);
       el.backupFile.value = '';
@@ -5330,6 +5556,10 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       'btnSpeed', 'btnBackup', 'backupFile',
       'rebootDlg', 'btnCloseReboot', 'rebootStatus', 'rebootBar', 'rebootTime',
       'confirmDlg', 'confirmText', 'btnConfirmNo', 'btnConfirmYes',
+      'updCurrent', 'updChecked', 'updNew', 'updNewTitle', 'updNotes', 'updHint',
+      'updState', 'btnUpdateCheck', 'btnUpdateApply',
+      'updateDlg', 'updateDlgVer', 'updateDlgFrom', 'updateDlgNotes', 'updateDismiss',
+      'btnUpdateLater', 'btnUpdateDlgNo', 'btnUpdateDlgYes',
       'btnSoundBackup', 'btnSoundRefresh', 'soundFile', 'soundList', 'soundDrop', 'soundGroup', 'soundSearch', 'soundStatus',
       'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
@@ -5349,6 +5579,10 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     }, 30000);
     renderStatus();
     loadVersion();
+    loadUpdateInfo(false, false);
+    setInterval(function () {
+      if (!document.hidden) loadUpdateInfo(false, false);
+    }, 6 * 60 * 60 * 1000);
     fillScTypes();
     addScRow('speak');
     loadAuth();
