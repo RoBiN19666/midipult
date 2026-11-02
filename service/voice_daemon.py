@@ -485,13 +485,16 @@ def handle(text):
         log("llm <- %r" % text)
         info = llm_info()
         long_answer = int(info.get("max_tokens") or 260) >= 600
-        system = (
-            "Ты голосовой ассистент умной колонки. "
-            + ("Отвечай по существу: если вопрос требует объяснения — дай "
-               "развёрнутый ответ, на простой вопрос отвечай коротко. " if long_answer
-               else "Отвечай кратко, по-русски, одним-двумя предложениями. ")
-            + "Никогда не называй себя Алисой или ChatGPT."
-        )
+        custom_prompt = str(info.get("system_prompt") or "").strip()
+        if custom_prompt:
+            system = custom_prompt
+        else:
+            system = (
+                "Ты голосовой ассистент умной колонки. "
+                + ("Отвечай по существу: если вопрос требует объяснения — дай "
+                   "развёрнутый ответ, на простой вопрос отвечай коротко. " if long_answer
+                   else "Отвечай кратко, по-русски, одним-двумя предложениями. ")
+            )
         box = {}
 
         def ask_model():
@@ -517,7 +520,7 @@ def handle(text):
         if answer:
             generation = time.time() - started_at
             stop_alice_speech()
-            say("Нейросеть отвечает. " + answer)
+            say(answer)
             log("llm answer: %d символов, генерация %.1f с"
                 % (len(answer), generation))
             return True

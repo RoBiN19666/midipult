@@ -934,6 +934,15 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       </label>
     </div>
 
+    <label class="llm-field" style="margin-top:10px"><span>Характер ответов (system prompt)</span>
+      <textarea id="llmSystem" rows="3" maxlength="4000"
+        placeholder="Пусто — стандартный голосовой ассистент. Здесь можно задать стиль, имя и правила."></textarea>
+    </label>
+    <div class="row between" style="margin-top:6px">
+      <span class="seg-note" id="llmSystemStatus">Пусто — стандартный промпт</span>
+      <button class="btn sm ghost" id="btnLlmSystem">Сохранить промпт</button>
+    </div>
+
     <div class="llm-grid">
       <label class="llm-field"><span>Провайдер</span>
         <select id="llmProviderSelect" aria-label="Провайдер"></select>
@@ -2758,6 +2767,10 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       if (!el.llmLength.value) el.llmLength.value = '260';
     }
     if (el.llmChat) el.llmChat.textContent = data.active_chat_name || 'Чат 1';
+    if (el.llmSystem) {
+      el.llmSystem.value = data.system_prompt || '';
+      el.llmSystemStatus.textContent = data.system_prompt ? 'Свой промпт' : 'Стандартный промпт';
+    }
     applyProfile(findProfile(data.active));
     updateLlmStatus();
   }
@@ -2776,6 +2789,16 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       applyLlmInfo(data);
     }).catch(function (err) {
       el.llmStatus.textContent = 'LLM недоступна: ' + err.message;
+    });
+  }
+
+  function saveLlmSystem() {
+    var value = el.llmSystem.value.trim();
+    return cgi('llm.py', { system_prompt: value }, { timeout: 15000 }).then(function (data) {
+      applyLlmInfo(data);
+      toast(value ? 'Промпт сохранён' : 'Вернул стандартный промпт', 'ok');
+    }).catch(function (err) {
+      toast('Промпт: ' + err.message, 'bad');
     });
   }
 
@@ -5025,6 +5048,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.llmModel.addEventListener('change', toggleCustomModel);
     el.btnLlmVoice.addEventListener('click', askLlmVoice);
     el.btnLlmSave.addEventListener('click', saveLlm);
+    el.btnLlmSystem.addEventListener('click', saveLlmSystem);
     el.btnLlmAsk.addEventListener('click', askLlm);
     el.btnLlmSay.addEventListener('click', sayLlmAnswer);
     el.llmPrompt.addEventListener('keydown', function (ev) {
@@ -5286,6 +5310,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       'llmProfiles', 'btnLlmNew', 'llmName', 'llmActive',
       'llmChat', 'btnChatPrev', 'btnChatNext', 'btnChatNew', 'btnChatDel', 'llmLength',
       'llmEnabled', 'llmStatus', 'btnLlmSave', 'llmPrompt', 'btnLlmAsk', 'btnLlmSay', 'btnLlmVoice',
+      'llmSystem', 'btnLlmSystem', 'llmSystemStatus',
       'llmAnswer', 'llmMeta',
       'vpnUrl', 'btnVpnSave', 'btnVpnStart', 'btnVpnStop', 'vpnStatus', 'vpnServer', 'vpnLog', 'vpnAutostart',
       'btnVoiceDaemon', 'voiceDaemonStatus',

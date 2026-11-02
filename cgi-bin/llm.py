@@ -93,6 +93,8 @@ def load_config():
         data["profiles"] = []
     if not isinstance(data.get("max_tokens"), int):
         data["max_tokens"] = 260
+    if not isinstance(data.get("system_prompt"), str):
+        data["system_prompt"] = ""
     return data
 
 
@@ -143,6 +145,7 @@ def info(config=None):
         "active": active.get("id") if active else None,
         "active_name": active.get("name") if active else None,
         "enabled": bool(config.get("enabled")),
+        "system_prompt": str(config.get("system_prompt") or ""),
         "config": public_profile(active),
         "max_tokens": int(config.get("max_tokens") or 260),
         "chats": [chat_public(item) for item in chats.get("chats") or []],
@@ -212,6 +215,8 @@ def ask(prompt, system=None):
     chat = active_chat(chats)
 
     messages = []
+    if not system:
+        system = str(config.get("system_prompt") or "").strip()
     if system:
         messages.append({"role": "system", "content": system})
     messages.extend((chat.get("messages") or [])[-10:])
@@ -361,7 +366,7 @@ def chat_switch(data):
 def main():
     data = common.params()
     action_keys = ("prompt", "enabled", "activate", "delete", "provider", "name", "profile_id",
-                   "max_tokens", "chat_next", "chat_prev", "chat_new", "chat_select", "chat_delete")
+                   "max_tokens", "system_prompt", "chat_next", "chat_prev", "chat_new", "chat_select", "chat_delete")
     if common.truthy(data.get("info")) or not any(key in data for key in action_keys):
         common.respond(200, info())
         return
@@ -370,6 +375,16 @@ def main():
 
     if data.get("max_tokens") is not None:
         config["max_tokens"] = common.to_int(data.get("max_tokens"), 260, 50, 2000)
+        save_config(config)
+        common.respond(200, info(config))
+        return
+
+    if data.get("system_prompt") is not None:
+        prompt = str(data.get("system_prompt") or "").strip()
+        if len(prompt) > 4000:
+            common.fail(413, "Промпт длиннее 4000 символов")
+            return
+        config["system_prompt"] = prompt
         save_config(config)
         common.respond(200, info(config))
         return
