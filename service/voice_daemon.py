@@ -589,6 +589,22 @@ def volume_restore_loop():
         log("громкость восстановлена: %d%%" % level)
 
 
+def volume_sync_loop():
+    """Сохранять громкость, выставленную физическими кнопками."""
+    while True:
+        time.sleep(10)
+        actual = volume_level(None)
+        if actual is None or actual in (0, 40):
+            continue
+        try:
+            with open("/data/mypult/volume.json", "r", encoding="utf-8") as fh:
+                saved = int(json.load(fh).get("level"))
+        except (OSError, ValueError, TypeError):
+            saved = None
+        if actual != saved:
+            set_volume(actual)
+
+
 def disk_cleanup_loop():
     while True:
         try:
@@ -622,6 +638,7 @@ def main():
     threading.Thread(target=scheduler_loop, daemon=True).start()
     threading.Thread(target=autobright_loop, daemon=True).start()
     threading.Thread(target=volume_restore_loop, daemon=True).start()
+    threading.Thread(target=volume_sync_loop, daemon=True).start()
     threading.Thread(target=disk_cleanup_loop, daemon=True).start()
     last_text = ""
     last_ts = 0.0
