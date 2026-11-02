@@ -4667,7 +4667,9 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     var cards = Array.prototype.slice.call(document.querySelectorAll('main .card'));
 
     function groupCards(card) {
-      return cards.filter(function (item) { return item.dataset.group === card.dataset.group; });
+      return Array.prototype.filter.call(
+        document.querySelectorAll('main .card'),
+        function (item) { return item.dataset.group === card.dataset.group; });
     }
 
     function updateMoveButtons() {
