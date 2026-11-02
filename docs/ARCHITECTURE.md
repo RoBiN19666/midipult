@@ -286,9 +286,8 @@ CGI запускаются от root: иначе недоступны sysfs, `am
 
 `deploy/uninstall.sh` останавливает только процессы пульта, делает бэкап в
 `/data/mypult-uninstall-<дата>`, удаляет `/data/myweb`, init-скрипты и
-`myweb.conf`. `alice_light` не запускается и не восстанавливается.
-Luna/YAM/Entware не затрагиваются; `--purge` дополнительно удаляет
-`/data/mypult`, `--dry-run` только показывает план.
+`myweb.conf`. Luna/YAM/Entware не затрагиваются; `--purge` дополнительно
+удаляет `/data/mypult`, `--dry-run` только показывает план.
 
 ---
 
