@@ -341,16 +341,31 @@ def restart_panel():
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def cleanup_backups(keep=2):
+    try:
+        items = sorted(
+            (Path("/data").glob("mypult-update-backup-*")),
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError:
+        return
+    for item in items[keep:]:
+        shutil.rmtree(str(item), ignore_errors=True)
+
+
 def worker(version, archive_url, sha_url):
     status = read_status()
     if status.get("state") in ("downloading", "installing", "rollback"):
         return 1
-    from_version = str(status.get("from") or current_version())
+    from_version = current_version()
     backup = ""
     temp = ""
     try:
         write_status(state="downloading", **{"from": from_version, "to": version,
-                                             "message": "Скачиваю архив…", "error": ""})
+                                             "message": "Скачиваю архив…", "error": "",
+                                             "rolled_back": False, "installed": "",
+                                             "backup": "", "finished_at": 0})
         os.makedirs(DATA_ROOT, exist_ok=True)
         temp = tempfile.mkdtemp(prefix="mypult-update-", dir="/data")
         archive_path = os.path.join(temp, "release.tar.gz")
@@ -393,7 +408,9 @@ def worker(version, archive_url, sha_url):
         write_status(state="installing", message="Перезапускаю пульт…")
         restart_panel()
         write_status(state="done", message="Обновление установлено",
-                     error="", installed=installed, finished_at=int(time.time()))
+                     error="", installed=installed, rolled_back=False,
+                     finished_at=int(time.time()))
+        cleanup_backups()
         return 0
     except Exception as exc:  # noqa: BLE001
         write_status(state="rollback", message="Откатываю изменения…", error=str(exc)[:1000])
@@ -405,7 +422,9 @@ def worker(version, archive_url, sha_url):
             pass
         restart_panel()
         write_status(state="error", message="Обновление не установлено",
-                     error=str(exc)[:1000], rolled_back=restored)
+                     error=str(exc)[:1000], rolled_back=restored,
+                     installed=current_version())
+        cleanup_backups()
         return 1
     finally:
         if temp:
@@ -458,7 +477,9 @@ def main():
         write_status(state="queued", **{"from": current_version(),
                                         "to": cache.get("version"),
                                         "message": "Запускаю обновление…",
-                                        "error": ""})
+                                        "error": "", "rolled_back": False,
+                                        "installed": "", "backup": "",
+                                        "finished_at": 0})
         log = open(WORKER_LOG, "ab")
         try:
             subprocess.Popen(
