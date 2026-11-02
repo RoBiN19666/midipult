@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import ssl
 import time
 import urllib.request
@@ -29,6 +30,7 @@ DEVICES = "/data/quasar/devices.json"
 URL = "wss://127.0.0.1:1961"
 TOKEN_URL = "https://quasar.yandex.net/glagol/token"
 TTL = 3600
+MIDI_PLATFORMS = ("yandexmidi", "cucumber")
 
 
 class GlagolError(RuntimeError):
@@ -47,18 +49,73 @@ def _oauth_tokens():
     return tokens
 
 
+def _local_endpoints():
+    """IP и MAC этой колонки: по ним выбираем её среди устройств аккаунта."""
+    ips = set()
+    macs = set()
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.connect(("8.8.8.8", 80))
+            ips.add(sock.getsockname()[0])
+        finally:
+            sock.close()
+    except OSError:
+        pass
+    try:
+        for iface in os.listdir("/sys/class/net"):
+            try:
+                with open("/sys/class/net/%s/address" % iface, encoding="ascii") as fh:
+                    mac = fh.read().strip().lower()
+                if mac and mac != "00:00:00:00:00:00":
+                    macs.add(mac)
+            except OSError:
+                pass
+    except OSError:
+        pass
+    return ips, macs
+
+
+def _network_info(device):
+    info = device.get("networkInfo") or device.get("network_info") or {}
+    ips = info.get("ip_addresses") or info.get("ipAddresses") or []
+    macs = info.get("mac_addresses") or info.get("macAddresses") or []
+    if isinstance(ips, str):
+        ips = [ips]
+    if isinstance(macs, str):
+        macs = [macs]
+    return ({str(value) for value in ips if value},
+            {str(value).lower() for value in macs if value})
+
+
 def _device():
     try:
         with open(DEVICES, "r", encoding="utf-8") as fh:
             data = json.load(fh)
-        device = data["devices"][0]
-        return device["id"], device["platform"]
+        devices = data.get("devices") or []
+        if not devices:
+            raise GlagolError("в devices.json нет устройств")
+        targets = [device for device in devices
+                   if device.get("platform") in MIDI_PLATFORMS]
+        local_ips, local_macs = _local_endpoints()
+        for device in targets:
+            ips, macs = _network_info(device)
+            if local_ips & ips or local_macs & macs:
+                return device["id"], device["platform"]
+        if targets:
+            return targets[0]["id"], targets[0]["platform"]
+        raise GlagolError(
+            "в devices.json нет устройства yandexmidi/cucumber; "
+            "проверьте, что колонка привязана к аккаунту")
+    except GlagolError:
+        raise
     except (OSError, ValueError, KeyError, IndexError) as exc:
         raise GlagolError("не читается devices.json: %s" % exc)
 
 
-def _fetch_token():
-    device_id, platform = _device()
+def _fetch_token(device_id=None, platform=None):
+    if device_id is None or platform is None:
+        device_id, platform = _device()
     for candidate in _oauth_tokens():
         url = "%s?device_id=%s&platform=%s" % (TOKEN_URL, device_id, platform)
         request = urllib.request.Request(url, headers={
@@ -77,21 +134,26 @@ def _fetch_token():
 
 
 def token(force=False):
+    device_id, platform = _device()
     if not force:
         try:
             with open(CACHE_PATH, "r", encoding="utf-8") as fh:
                 cached = json.load(fh)
-            if cached.get("token") and time.time() - cached.get("ts", 0) < TTL:
+            if (cached.get("token")
+                    and cached.get("device_id") == device_id
+                    and cached.get("platform") == platform
+                    and time.time() - cached.get("ts", 0) < TTL):
                 return cached["token"]
         except (OSError, ValueError):
             pass
 
-    value = _fetch_token()
+    value = _fetch_token(device_id, platform)
     try:
         os.makedirs(CACHE_DIR, exist_ok=True)
         os.chmod(CACHE_DIR, 0o700)
         with open(CACHE_PATH, "w", encoding="utf-8") as fh:
-            json.dump({"token": value, "ts": int(time.time())}, fh)
+            json.dump({"token": value, "ts": int(time.time()),
+                       "device_id": device_id, "platform": platform}, fh)
         os.chmod(CACHE_PATH, 0o600)
     except OSError:
         pass

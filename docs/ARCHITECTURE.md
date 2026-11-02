@@ -73,7 +73,8 @@ cgi-bin/                   CGI-скрипты
   command.py               sendText в Glagol
   diag.py                  расширенная диагностика
   display.py               LED часов, кольцо, яркость, автояркость
-  glagol.py                WebSocket-клиент Glagol
+  glagol.py                WebSocket-клиент Glagol: выбор Миди по платформе и IP/MAC,
+                         кэш токена привязан к device_id/platform
   llm.py                   профили, чаты, запросы к API
   logs.py                  хвосты логов
   maintenance.py           очистка, reboot, poweroff
