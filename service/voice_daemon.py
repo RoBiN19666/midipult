@@ -490,7 +490,6 @@ def handle(text):
             + ("Отвечай по существу: если вопрос требует объяснения — дай "
                "развёрнутый ответ, на простой вопрос отвечай коротко. " if long_answer
                else "Отвечай кратко, по-русски, одним-двумя предложениями. ")
-            + "Никогда не называй себя Алисой или ChatGPT."
         )
         box = {}
 
@@ -517,7 +516,7 @@ def handle(text):
         if answer:
             generation = time.time() - started_at
             stop_alice_speech()
-            say("Нейросеть отвечает. " + answer)
+            say(answer)
             log("llm answer: %d символов, генерация %.1f с"
                 % (len(answer), generation))
             return True
