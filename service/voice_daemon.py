@@ -61,16 +61,6 @@ def set_volume(level):
         pass
 
 
-def voice_max_volume(default=45):
-    """Потолок громкости для голосовых ответов (ночной режим)."""
-    try:
-        with open("/data/mypult/voice.json", "r", encoding="utf-8") as fh:
-            value = json.load(fh).get("max_volume")
-        return max(1, min(int(value), 100))
-    except (OSError, ValueError, TypeError):
-        return default
-
-
 def stop_alice_speech():
     """Отменить текущую речь Алисы: текстовое «стоп» отменяет TTS-директиву."""
     try:
@@ -513,7 +503,6 @@ def handle(text):
 
         worker = threading.Thread(target=ask_model, daemon=True)
         started_at = time.time()
-        level_before = volume_level(40)
         worker.start()
         # «Стоп» в момент распознавания приходит до старта её TTS — повторяем
         # через секунду, когда директива уже активна.
@@ -526,23 +515,11 @@ def handle(text):
             return False
         answer = box.get("answer")
         if answer:
-            # Громкость ответа = текущая громкость, но не выше потолка.
-            # Ниже текущую не поднимаем: если вы поставили 5%, ответ будет тихим.
-            speak_level = level_before if level_before and level_before > 0 else 10
-            speak_level = min(speak_level, voice_max_volume(45))
-            if speak_level != level_before:
-                set_volume(speak_level)
             generation = time.time() - started_at
             stop_alice_speech()
             say("Нейросеть отвечает. " + answer)
-            if speak_level != level_before and level_before and level_before > 0:
-                # Если пользователь не крутил громкость во время ответа,
-                # возвращаем уровень, который был до временного потолка.
-                current = volume_level(speak_level)
-                if current == speak_level:
-                    set_volume(level_before)
-            log("llm answer: %d символов, генерация %.1f с, громкость %d"
-                % (len(answer), generation, speak_level))
+            log("llm answer: %d символов, генерация %.1f с"
+                % (len(answer), generation))
             return True
 
     log("без команды: %r" % text)
@@ -567,29 +544,9 @@ def autobright_loop():
         time.sleep(60)
 
 
-def volume_restore_loop():
-    # maind после загрузки возвращает свою громкость (обычно 40%).
-    # Через 20 секунд после старта демона возвращаем сохранённую пользователем.
-    time.sleep(20)
-    try:
-        with open("/data/mypult/volume.json", "r", encoding="utf-8") as fh:
-            level = int(json.load(fh).get("level"))
-    except (OSError, ValueError, TypeError):
-        return
-    actual = volume_level(None)
-    # Если пользователь уже выставил другую громкость физическими кнопками,
-    # не перетираем её старым сохранённым значением.
-    if actual is not None and actual not in (0, 40) and actual != level:
-        set_volume(actual)
-        log("громкость оставлена: %d%%" % actual)
-        return
-    if 0 < level <= 100:
-        set_volume(level)
-        log("громкость восстановлена: %d%%" % level)
-
-
 def volume_sync_loop():
     """Сохранять громкость, выставленную физическими кнопками."""
+    time.sleep(30)
     while True:
         time.sleep(10)
         actual = volume_level(None)
@@ -636,7 +593,6 @@ def main():
     log("голосовой пульт запущен")
     threading.Thread(target=scheduler_loop, daemon=True).start()
     threading.Thread(target=autobright_loop, daemon=True).start()
-    threading.Thread(target=volume_restore_loop, daemon=True).start()
     threading.Thread(target=volume_sync_loop, daemon=True).start()
     threading.Thread(target=disk_cleanup_loop, daemon=True).start()
     last_text = ""

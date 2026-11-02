@@ -1184,12 +1184,6 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       <label class="llm-toggle"><input type="checkbox" id="autoBright"><span>Автояркость кольца по свету</span></label>
       <span class="seg-note" id="autoBrightStatus"></span>
     </div>
-    <div class="row" style="margin-top:10px">
-      <input id="voiceMax" class="net-input" type="number" min="1" max="100" step="1"
-             aria-label="Потолок громкости ответов" placeholder="Потолок ответов, %">
-      <button class="btn sm ghost" id="btnVoiceMax">Сохранить потолок</button>
-      <span class="seg-note" id="voiceMaxStatus"></span>
-    </div>
     <pre class="log" id="maintBox" style="margin-top:10px">—</pre>
   </section>
 
@@ -3279,7 +3273,6 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     } else if (name === 'system') {
       loadLogs();
       loadAutoBright();
-      loadVoiceCfg();
       loadSounds();
       refreshSystem();
     } else if (name === 'scenarios') {
@@ -4589,22 +4582,6 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     });
   }
 
-  function loadVoiceCfg() {
-    return cgi('voicecfg.py', {}, { timeout: 8000, silent: true }).then(function (data) {
-      if (el.voiceMax) el.voiceMax.value = data.max_volume || 45;
-      if (el.voiceMaxStatus) el.voiceMaxStatus.textContent = 'сейчас ' + (data.max_volume || 45) + '%';
-    }).catch(function () { /* тихо */ });
-  }
-
-  function saveVoiceCfg() {
-    var value = parseInt(el.voiceMax.value, 10) || 45;
-    return cgi('voicecfg.py', { max_volume: value }, { timeout: 10000 }).then(function (data) {
-      el.voiceMaxStatus.textContent = 'сейчас ' + data.max_volume + '%';
-      toast('Потолок ответов: ' + data.max_volume + '%', 'ok');
-    }).catch(function (err) { toast('Потолок: ' + err.message, 'bad'); });
-  }
-
-  /* ─────────── PIN ─────────── */
   function showPinGate(show) {
     el.pinGate.hidden = !show;
     if (show && el.pinInput) setTimeout(function () { el.pinInput.focus(); }, 60);
@@ -5194,7 +5171,6 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.btnPinEnable.addEventListener('click', enablePin);
     el.btnPinDisable.addEventListener('click', disablePin);
     el.btnPinLock.addEventListener('click', lockPanel);
-    el.btnVoiceMax.addEventListener('click', saveVoiceCfg);
     el.btnPinLogin.addEventListener('click', loginPin);
     el.pinInput.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') loginPin();
@@ -5333,7 +5309,6 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
       'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus',
-      'voiceMax', 'btnVoiceMax', 'voiceMaxStatus',
       'sysCpu', 'sysCpuBar', 'sysLoad', 'sysRam', 'sysRamBar', 'sysRamSub', 'sysTemp', 'sysTempSub',
       'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'hwList', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
