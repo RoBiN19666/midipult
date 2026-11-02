@@ -20,6 +20,7 @@ except Exception:
     pass
 
 import common  # noqa: E402
+import glagol  # noqa: E402
 import media  # noqa: E402
 import speak  # noqa: E402
 import volume  # noqa: E402
@@ -245,6 +246,62 @@ def test_vpn_parsing():
     check("vpn: final на proxy", config["route"]["final"] == "proxy")
 
 
+def test_glagol_device_selection():
+    import json
+    import tempfile
+    import time
+
+    old_devices = glagol.DEVICES
+    old_cache = glagol.CACHE_PATH
+    old_fetch = glagol._fetch_token
+    old_local = glagol._local_endpoints
+    path = None
+    cache = None
+    try:
+        fd, path = tempfile.mkstemp(prefix="mypult-devices-", suffix=".json")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"devices": [
+                {"id": "light", "platform": "yandexmicro",
+                 "networkInfo": {"ip_addresses": ["192.168.31.50"]}},
+                {"id": "midi", "platform": "cucumber",
+                 "networkInfo": {"ip_addresses": ["192.168.31.220"]}},
+            ]}, fh)
+        glagol.DEVICES = path
+        glagol._local_endpoints = lambda: ({"192.168.31.220"}, set())
+        check("glagol: выбирает Миди по IP, а не первое устройство",
+              glagol._device() == ("midi", "cucumber"), str(glagol._device()))
+
+        fd, cache = tempfile.mkstemp(prefix="mypult-glagol-", suffix=".json")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump({"token": "old-light-token", "ts": int(time.time())}, fh)
+        glagol.CACHE_PATH = cache
+        glagol._fetch_token = lambda device_id=None, platform=None: "new-midi-token"
+        check("glagol: старый кэш без device_id перезапрашивается",
+              glagol.token() == "new-midi-token")
+
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"devices": [
+                {"id": "light", "platform": "yandexmicro",
+                 "networkInfo": {"ip_addresses": ["192.168.31.50"]}},
+            ]}, fh)
+        try:
+            glagol._device()
+            rejected = False
+        except glagol.GlagolError:
+            rejected = True
+        check("glagol: без Миди не берёт чужое устройство", rejected)
+    finally:
+        glagol.DEVICES = old_devices
+        glagol.CACHE_PATH = old_cache
+        glagol._fetch_token = old_fetch
+        glagol._local_endpoints = old_local
+        for name in (path, cache):
+            try:
+                os.remove(name)
+            except (OSError, TypeError):
+                pass
+
+
 def main():
     for test in (
         test_generic_helpers,
@@ -252,6 +309,7 @@ def main():
         test_volume_parse,
         test_volume_set,
         test_glagol_payloads,
+        test_glagol_device_selection,
         test_media_config_override,
         test_speak_frames,
         test_vpn_parsing,
