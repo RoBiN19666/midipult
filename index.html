@@ -163,8 +163,18 @@ main.grid{
   .pin-card h2{margin:0;font-size:18px}
   .pin-card input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--stroke);background:rgba(255,255,255,.06);color:var(--text);font-size:20px;text-align:center;letter-spacing:6px}
   main .card.dragging{opacity:.45}
-  main .card h2{cursor:grab}
+  main .card h2{cursor:grab;padding-right:66px}
   main .card h2:active{cursor:grabbing}
+  .card-move{position:absolute;top:10px;right:10px;display:flex;gap:3px;z-index:5}
+  .card-move button{
+    width:27px;height:27px;padding:0;border-radius:8px;border:1px solid var(--stroke);
+    background:rgba(255,255,255,.06);color:var(--muted);font-size:14px;line-height:1;
+    cursor:pointer;
+  }
+  .card-move button:hover:not(:disabled){color:var(--text);background:rgba(124,92,255,.22)}
+  .card-move button:disabled{opacity:.22;cursor:default}
+  body.light .card-move button{background:rgba(76,62,48,.06)}
+  body.light .card-move button:hover:not(:disabled){background:rgba(124,92,255,.14);color:#20242c}
 
   /* навигация по разделам: одна аккуратная капсула вместо полосы */
   .tabs{
@@ -1514,6 +1524,7 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     mediaDuration: 0,
     mediaProgress: 0,
     seeking: false,
+    volumeDragging: false,
     dragCard: null
   };
 
@@ -2445,6 +2456,12 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
 
   var volTimer = null;
   var volPending = false;
+  var volDragTimer = null;
+
+  function endVolumeDrag() {
+    if (volDragTimer) clearTimeout(volDragTimer);
+    volDragTimer = setTimeout(function () { State.volumeDragging = false; }, 700);
+  }
 
   function pushVolume() {
     if (volTimer) clearTimeout(volTimer);
@@ -2579,9 +2596,27 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
 
   /* ─────────── нейросеть ─────────── */
   function syncVolumeFromDevice() {
+    if (State.volumeDragging || volPending) return Promise.resolve();
     return cgi('volume.py', {}, { timeout: 6000, silent: true }).then(function (data) {
-      if (data && typeof data.level === 'number') setVolumeUI(data.level);
+      if (data && typeof data.level === 'number' && data.level !== State.volume) {
+        setVolumeUI(data.level);
+      }
     }).catch(function () { /* тихо */ });
+  }
+
+  var volumePollTimer = null;
+
+  function stopVolumePoll() {
+    if (volumePollTimer) clearInterval(volumePollTimer);
+    volumePollTimer = null;
+  }
+
+  function startVolumePoll() {
+    stopVolumePoll();
+    syncVolumeFromDevice();
+    volumePollTimer = setInterval(function () {
+      if (!document.hidden && State.tab === 'sound') syncVolumeFromDevice();
+    }, 5000);
   }
 
   function fillProviderSelect() {
@@ -3263,6 +3298,8 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     });
     State.tab = name;
     loadTabData(name);
+    if (name === 'sound') startVolumePoll();
+    else stopVolumePoll();
     scheduleStateRefresh();
     if (save !== false) {
       store.set(TAB_KEY, name);
@@ -4626,12 +4663,62 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
 
   /* ─────────── порядок карточек ─────────── */
   function initCardDrag() {
+    var main = document.querySelector('main');
     var cards = Array.prototype.slice.call(document.querySelectorAll('main .card'));
+
+    function groupCards(card) {
+      return cards.filter(function (item) { return item.dataset.group === card.dataset.group; });
+    }
+
+    function updateMoveButtons() {
+      cards.forEach(function (card) {
+        var box = card.querySelector('.card-move');
+        if (!box) return;
+        var siblings = groupCards(card);
+        var index = siblings.indexOf(card);
+        box.children[0].disabled = index <= 0;
+        box.children[1].disabled = index < 0 || index >= siblings.length - 1;
+      });
+    }
+
+    function moveCard(card, direction) {
+      var siblings = groupCards(card);
+      var target = siblings[siblings.indexOf(card) + direction];
+      if (!target) return;
+      main.insertBefore(card, direction < 0 ? target : target.nextSibling);
+      saveCardOrder();
+      updateMoveButtons();
+    }
+
     cards.forEach(function (card, index) {
       var head = card.querySelector('h2');
       if (!head) return;
-      card.dataset.cardId = (head.textContent.trim() || 'card') + '-' + index;
+      card.dataset.cardId = head.id || ((head.textContent.trim() || 'card') + '-' + index);
+      card.dataset.legacyCardId = (head.textContent.trim() || 'card') + '-' + index;
       head.draggable = true;
+      var controls = document.createElement('div');
+      controls.className = 'card-move';
+      var up = document.createElement('button');
+      up.type = 'button';
+      up.textContent = '↑';
+      up.title = 'Поднять карточку';
+      up.setAttribute('aria-label', 'Поднять карточку');
+      var down = document.createElement('button');
+      down.type = 'button';
+      down.textContent = '↓';
+      down.title = 'Опустить карточку';
+      down.setAttribute('aria-label', 'Опустить карточку');
+      up.addEventListener('click', function (event) {
+        event.stopPropagation();
+        moveCard(card, -1);
+      });
+      down.addEventListener('click', function (event) {
+        event.stopPropagation();
+        moveCard(card, 1);
+      });
+      controls.appendChild(up);
+      controls.appendChild(down);
+      card.appendChild(controls);
       head.addEventListener('dragstart', function (event) {
         State.dragCard = card;
         card.classList.add('dragging');
@@ -4642,29 +4729,47 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
         card.classList.remove('dragging');
         State.dragCard = null;
         saveCardOrder();
+        updateMoveButtons();
       });
     });
 
     var saved = [];
     try { saved = JSON.parse(localStorage.getItem('mypult-cards') || '[]'); } catch (e) {}
     if (saved.length) {
-      var main = document.querySelector('main');
       var map = {};
-      cards.forEach(function (card) { map[card.dataset.cardId] = card; });
-      saved.forEach(function (id) { if (map[id]) main.appendChild(map[id]); });
+      var legacy = {};
+      cards.forEach(function (card) {
+        map[card.dataset.cardId] = card;
+        if (card.dataset.legacyCardId) legacy[card.dataset.legacyCardId] = card;
+      });
+      saved.forEach(function (id) {
+        var card = map[id] || legacy[id];
+        if (card) main.appendChild(card);
+      });
     }
+    updateMoveButtons();
 
-    var main = document.querySelector('main');
+    var lastDragAt = 0;
     main.addEventListener('dragover', function (event) {
       if (!State.dragCard) return;
       var card = event.target.closest ? event.target.closest('.card') : null;
       if (!card || card === State.dragCard) return;
+      if (card.dataset.group !== State.dragCard.dataset.group) return;
+      if (Date.now() - lastDragAt < 25) return;
       event.preventDefault();
       var box = card.getBoundingClientRect();
       var after = event.clientY > box.top + box.height / 2;
-      card.parentNode.insertBefore(State.dragCard, after ? card.nextSibling : card);
+      if (after && card.nextElementSibling === State.dragCard) return;
+      if (!after && card.previousElementSibling === State.dragCard) return;
+      lastDragAt = Date.now();
+      main.insertBefore(State.dragCard, after ? card.nextSibling : card);
     });
-    main.addEventListener('drop', function (event) { event.preventDefault(); });
+    main.addEventListener('drop', function (event) {
+      event.preventDefault();
+      State.dragCard = null;
+      saveCardOrder();
+      updateMoveButtons();
+    });
   }
 
   function saveCardOrder() {
@@ -4840,10 +4945,18 @@ body.light .reboot-bar{background:rgba(76,62,48,.1)}
     el.btnPlay.addEventListener('click', function () {
       mediaAction(State.playing ? 'pause' : 'play');
     });
+    el.volume.addEventListener('pointerdown', function () {
+      State.volumeDragging = true;
+    });
+    el.volume.addEventListener('pointerup', endVolumeDrag);
+    el.volume.addEventListener('pointercancel', endVolumeDrag);
+    el.volume.addEventListener('blur', endVolumeDrag);
     el.volume.addEventListener('input', function () {
+      State.volumeDragging = true;
       setVolumeUI(parseInt(el.volume.value, 10), true);
       el.volumeVal.textContent = State.volume + '%';
       pushVolume();
+      endVolumeDrag();
     });
     el.btnVolUp.addEventListener('click', function () {
       setVolumeUI(State.volume + 5);
