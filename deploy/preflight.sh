@@ -21,6 +21,14 @@ die() { echo "[preflight] ОШИБКА: $*" >&2; exit 1; }
 
 mkdir -p /data/mypult 2>/dev/null || die "нет доступа к /data"
 
+# MidiPult рассчитан только на Яндекс Станцию Миди (Cucumber).
+MODEL=$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)
+case "$MODEL" in
+    *Cucumber*|*cucumber*|*Midi*|*midi*) ;;
+    *) die "это не Яндекс Станция Миди (model='${MODEL:-неизвестно}'); установка отменена" ;;
+esac
+say "модель: $MODEL"
+
 # Сколько места на корне (КБ)
 free_kb=$(df -k / 2>/dev/null | awk 'NR==2 {print $4}')
 if [ -n "$free_kb" ] && [ "$free_kb" -lt 20000 ] 2>/dev/null; then

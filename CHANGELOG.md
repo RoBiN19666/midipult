@@ -5,6 +5,12 @@
 развивался итерациями `0.0.x`; полная история — в
 [docs/CHANGELOG-dev.md](docs/CHANGELOG-dev.md).
 
+## 0.4.35 — 2026-11-02
+
+- `deploy/preflight.sh` проверяет `/proc/device-tree/model`: установка
+  отменяется, если это не Яндекс Станция Миди (Cucumber).
+- В README/FAQ/архитектуре отмечена проверка модели.
+
 ## 0.4.34 — 2026-11-01
 
 - Glagol-устройство выбирается по платформе `yandexmidi`/`cucumber` и

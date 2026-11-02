@@ -190,6 +190,8 @@
 `deploy/preflight.sh`:
 
 - требует root и `/opt/bin/opkg`;
+- проверяет `/proc/device-tree/model`: это должна быть Станция Миди
+  (`Cucumber`/`Midi`), иначе установка отменяется;
 - проверяет `python3`, `lighttpd`, `mod_cgi`, `mod_proxy`, `curl`,
   `python3-websocket-client`;
 - при отсутствии делает `opkg update` и `opkg install`;
@@ -205,7 +207,10 @@
 ```
 
 Скрипт сам находит колонку, поднимает версию при изменениях и запускает
-установку. Флаги: `-Station <IP>`, `-NoBump`, `-NoInstall`, `-NoScan`,
+установку. Если найдено несколько SSH-кандидатов, он показывает список
+(IP, наличие Luna, источник) и просит выбрать номер. После выбора
+`preflight.sh` проверяет модель: не Cucumber/Midi — установка отменяется.
+Флаги: `-Station <IP>`, `-NoBump`, `-NoInstall`, `-NoScan`,
 `-Message "…"`.
 
 ---
