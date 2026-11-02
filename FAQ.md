@@ -537,7 +537,8 @@ rm -f /data/mypult/auth.json
 
 ### Установщик поставит зависимости сам?
 
-Если на колонке уже есть **root и Entware**, да: `deploy/preflight.sh` проверит
+Если на колонке уже есть **root и Entware**, да: `deploy/preflight.sh` сначала
+проверит модель (`/proc/device-tree/model` — Cucumber/Midi), затем
 `python3`, `lighttpd`, `mod_cgi`, `mod_proxy`, `curl`,
 `python3-websocket-client` и поставит недостающие через `opkg`. Без Entware
 установщик остановится — root и Entware он не создаёт. Только проверить:

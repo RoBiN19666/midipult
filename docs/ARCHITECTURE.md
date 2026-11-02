@@ -268,9 +268,10 @@ CGI запускаются от root: иначе недоступны sysfs, `am
 ## 8. Деплой
 
 `deploy/install.sh`:
-1. запускает `deploy/preflight.sh`: root, Entware, `opkg`, пакеты
-   (`python3`, `lighttpd`, `mod_cgi`, `mod_proxy`, `curl`,
-   `python3-websocket-client`), Luna, IPC, место; недостающие пакеты ставит;
+1. запускает `deploy/preflight.sh`: модель `/proc/device-tree/model`
+   (Cucumber/Midi), root, Entware, `opkg`, пакеты (`python3`, `lighttpd`,
+   `mod_cgi`, `mod_proxy`, `curl`, `python3-websocket-client`), Luna, IPC,
+   место; недостающие пакеты ставит;
 2. копирует `index.html`, `index.py`, `manifest.json`, `favicon.ico`,
    `icon-192.png`, `icon-512.png`, `icon.png`, CGI, конфиг, init и демоны;
 3. проверяет `lighttpd -t`;

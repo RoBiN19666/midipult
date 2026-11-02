@@ -190,6 +190,8 @@
 `deploy/preflight.sh`:
 
 - требует root и `/opt/bin/opkg`;
+- проверяет `/proc/device-tree/model`: это должна быть Станция Миди
+  (`Cucumber`/`Midi`), иначе установка отменяется;
 - проверяет `python3`, `lighttpd`, `mod_cgi`, `mod_proxy`, `curl`,
   `python3-websocket-client`;
 - при отсутствии делает `opkg update` и `opkg install`;
