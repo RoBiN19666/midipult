@@ -123,6 +123,7 @@ tests/                     статические, юнит- и CGI-тесты
 | `sounds.py` | список, скачивание, бэкап и замена системных звуков |
 | `speak.py` | озвучка текста (IPC 9875) |
 | `command.py` | `sendText` в Glagol, в т.ч. «стоп» |
+| `update.py` | проверка GitHub Releases, self-update, статус |
 | `vpn.py` | подписка, серверы, старт/стоп, статус |
 | `network.py` | Wi-Fi, скан, подключение, DNS |
 | `bluetooth.py` | питание, скан, сопряжение |
