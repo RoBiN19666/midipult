@@ -2793,7 +2793,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     var position = Math.round((value / 1000) * duration);
     State.seeking = false;
     return cgi('media.py', { action: 'seek', position: position }, { timeout: 12000 })
-      .then(function () { return refreshPlayer(); })
+      .then(function () { el.mediaKind.textContent = 'перематываю…'; return refreshPlayer(true); })
       .catch(function (err) { toast('Перемотка: ' + err.message, 'bad'); });
   }
 
@@ -2842,7 +2842,9 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
 
   function scheduleStateRefresh() {
     if (stateTimer) clearTimeout(stateTimer);
-    var delay = State.tab === 'sound' ? 6000 : 15000;
+    // «Звук» опрашивает player отдельно (3 с при игре, 10 с при паузе);
+    // общий state здесь только редкий фон, чтобы не дублировать запросы.
+    var delay = State.tab === 'sound' ? 30000 : 15000;
     stateTimer = setTimeout(function () {
       if (document.hidden) {
         scheduleStateRefresh();
@@ -2852,9 +2854,10 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     }, delay);
   }
 
-  function refreshState() {
+  function refreshState(freshPlayer) {
     if (document.hidden) return Promise.resolve();
-    return fetch('/state', { cache: 'no-store', credentials: 'same-origin' })
+    var url = '/state' + (freshPlayer ? '?player=1' : '');
+    return fetch(url, { cache: 'no-store', credentials: 'same-origin' })
       .then(function (res) {
         if (!res.ok) throw new Error('state ' + res.status);
         return res.json();
@@ -2871,22 +2874,76 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       });
   }
 
-  function refreshPlayer() {
-    return refreshState();
+  var playerPromise = null;
+  var playerTimer = null;
+  var lastPlayerPoll = 0;
+
+  function refreshPlayer(force) {
+    if (playerPromise) {
+      if (!force) return playerPromise;
+      // Команда пришла во время опроса: дождёмся его и сразу запросим новый.
+      return playerPromise.then(function () { return refreshPlayer(true); });
+    }
+    playerPromise = refreshState(true);
+    playerPromise.then(function () { playerPromise = null; },
+                       function () { playerPromise = null; });
+    return playerPromise;
+  }
+
+  function stopPlayerPoll() {
+    if (playerTimer) clearInterval(playerTimer);
+    playerTimer = null;
+  }
+
+  function startPlayerPoll() {
+    stopPlayerPoll();
+    if (State.tab !== 'sound') return;
+    lastPlayerPoll = Date.now();
+    refreshPlayer();
+    playerTimer = setInterval(function () {
+      if (document.hidden || State.tab !== 'sound') return;
+      var active = !!State.playing;
+      var wait = active ? 3000 : 10000;
+      if (Date.now() - lastPlayerPoll < wait) return;
+      lastPlayerPoll = Date.now();
+      refreshPlayer();
+    }, 3000);
   }
 
   function mediaAction(action) {
+    var pending = action === 'play' ? 'включаю…'
+      : action === 'pause' ? 'ставлю на паузу…'
+      : action === 'next' ? 'переключаю…'
+      : action === 'prev' ? 'переключаю…'
+      : action === 'music' ? 'включаю музыку…' : 'отправляю…';
+    el.mediaKind.textContent = pending;
     return withBusy(null, function () {
       return cgi('media.py', { action: action }, { timeout: 9000 }).then(function (data) {
-        if (action === 'play') setPlaying(true);
-        if (action === 'pause') setPlaying(false);
+        applyMediaReply(data, action);
         if (data && data.confirmed === false) toast('Команда отправлена, ответа нет', 'warn');
-        else toast('Команда «' + action + '» выполнена', 'ok');
-        setTimeout(refreshPlayer, 500);
+        else toast('Команда отправлена — проверяю состояние', 'ok');
+        return refreshPlayer(true).then(function () {
+          // Glagol иногда отдаёт playing с задержкой: добираем снимок.
+          setTimeout(function () { refreshPlayer(true); }, 900);
+        });
       }).catch(function (err) {
+        el.mediaKind.textContent = 'не удалось…';
         toast('Плеер: ' + err.message, 'bad');
       });
     });
+  }
+
+  function applyMediaReply(data, action) {
+    var state = (data && data.state) || {};
+    if (typeof state.playing === 'boolean') setPlaying(state.playing);
+    if (state.title) {
+      el.mediaTitle.textContent = state.title;
+      if (el.mediaSub) el.mediaSub.textContent = state.artist || '';
+    }
+    if (typeof state.volume === 'number') setVolumeUI(state.volume);
+    // Без фактического playing не показываем «играет»: следующий
+    // refreshPlayer() даст реальные playing/title/artist из player.py.
+    if (action === 'pause') setPlaying(false);
   }
 
   function setVolumeUI(level, silent) {
@@ -2916,6 +2973,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       cgi('volume.py', { level: level }, { timeout: 9000 }).then(function (data) {
         if (data && typeof data.level === 'number') setVolumeUI(data.level);
         if (data && data.method) log('volume', 'method', data.method);
+        if (State.tab === 'sound') refreshPlayer(true);
       }).catch(function (err) {
         toast('Громкость: ' + err.message, 'bad');
       });
@@ -2996,7 +3054,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       busyEnd();
       if (wasPlaying !== null) {
         setTimeout(function () {
-          refreshPlayer().then(function () {
+          refreshPlayer(true).then(function () {
             if (typeof State.playing === 'boolean' && State.playing !== wasPlaying) {
               cgi('media.py', { action: wasPlaying ? 'play' : 'pause' },
                 { timeout: 9000, silent: true }).catch(function () {});
@@ -3574,7 +3632,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
         markRadioChip();
         el.radioStatus.textContent = (data.playing ? 'играет: ' : 'загружено: ') +
           (data.title || 'радио');
-        refreshPlayer();
+        refreshPlayer(true);
       }).catch(function (err) {
         el.radioStatus.textContent = 'не включилось';
         toast('Радио: ' + err.message, 'bad');
@@ -3588,7 +3646,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
         if (State.radio) State.radio.index = null;
         markRadioChip();
         el.radioStatus.textContent = 'остановлено';
-        refreshPlayer();
+        refreshPlayer(true);
       }).catch(function (err) {
         toast('Радио: ' + err.message, 'bad');
       });
@@ -3798,6 +3856,8 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     setTimeout(refreshDropdowns, 80);
     if (name === 'sound') startVolumePoll();
     else stopVolumePoll();
+    if (name === 'sound') startPlayerPoll();
+    else stopPlayerPoll();
     scheduleStateRefresh();
     if (save !== false) {
       store.set(TAB_KEY, name);
@@ -4134,7 +4194,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       return cgi('zigbee.py', { text: text }, { timeout: 30000 }).then(function () {
         el.zbCommand.value = '';
         toast('Передано Алисе', 'ok');
-        refreshPlayer();
+        refreshPlayer(true);
       }).catch(function (err) {
         toast('Zigbee: ' + err.message, 'bad');
       });
@@ -4400,7 +4460,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       var result = data.result || {};
       toast(result.ok ? ('Выполнено: ' + name) : ('Ошибки: ' + (result.errors || []).join('; ')),
         result.ok ? 'ok' : 'bad');
-      refreshPlayer();
+      refreshPlayer(true);
     }).catch(function (err) {
       toast('Сценарий: ' + err.message, 'bad');
     });

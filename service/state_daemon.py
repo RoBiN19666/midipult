@@ -34,11 +34,21 @@ except ImportError:
 
 PORT = int(os.environ.get("MYPULT_STATE_PORT") or "8057")
 LOCK = threading.Lock()
+PLAYER_LOCK = threading.Lock()
 STATE = {"ok": True, "status": {}, "player": {}}
 SYSTEM_STATE = {}
 SOUNDS_STATE = {}
 PLAYER_STATE = {}
 PLAYER_INTERVAL = 10.0
+
+
+def player_now():
+    """Свежий снимок Glagol, не ожидая 10-секундного фонового цикла."""
+    with PLAYER_LOCK:
+        try:
+            return player.snapshot()
+        except Exception as exc:  # noqa: BLE001
+            return {"error": str(exc)[:200]}
 
 
 def cookie_ok(headers):
@@ -65,10 +75,7 @@ def refresh_loop():
         except Exception as exc:  # noqa: BLE001
             payload["status"] = {"ok": False, "error": str(exc)[:200]}
         if time.time() - last_player >= PLAYER_INTERVAL:
-            try:
-                PLAYER_STATE = player.snapshot()
-            except Exception as exc:  # noqa: BLE001
-                PLAYER_STATE = {"error": str(exc)[:200]}
+            PLAYER_STATE = player_now()
             last_player = time.time()
         payload["player"] = PLAYER_STATE
         with LOCK:
@@ -114,7 +121,13 @@ class Handler(BaseHTTPRequestHandler):
             body = b'{"ok":false,"error":"\xd0\x9d\xd1\x83\xd0\xb6\xd0\xb5\xd0\xbd PIN","auth":true}'
             self.send_response(401)
         else:
-            full = "full" in urllib.parse.parse_qs(parsed.query)
+            query = urllib.parse.parse_qs(parsed.query)
+            full = "full" in query
+            if "player" in query:
+                fresh = player_now()
+                with LOCK:
+                    PLAYER_STATE = fresh
+                    STATE["player"] = fresh
             with LOCK:
                 value = STATE if full else {
                     "ok": STATE.get("ok", True),

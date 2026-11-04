@@ -411,6 +411,11 @@ def test_p2_hardening():
           and "location.protocol === 'http:'" in html)
     check("P3: автояркость manual показывает паузу",
           "пауза (ручной режим)" in html and "data.mode || {}" in html)
+    check("player: свежий снимок и 3с/10с poll",
+          "?player=1" in html and "active ? 3000 : 10000" in html
+          and "refreshPlayer(true)" in html
+          and '"player" in query' in read(
+              os.path.join(ROOT, "service", "state_daemon.py")))
 
 
 def main():

@@ -29,6 +29,7 @@ import glagol  # noqa: E402
 import llm  # noqa: E402
 import media  # noqa: E402
 import speak  # noqa: E402
+import state_daemon  # noqa: E402
 import update  # noqa: E402
 import voice_daemon  # noqa: E402
 import volume  # noqa: E402
@@ -326,6 +327,22 @@ def test_update_assets():
 
     check("update: http-архив запрещён", bad("http://github.com/x.tar.gz"))
     check("update: чужой хост запрещён", bad("https://evil.example/x.tar.gz"))
+
+
+def test_state_player_fresh():
+    old = state_daemon.player.snapshot
+    try:
+        state_daemon.player.snapshot = lambda: {"playing": True, "title": "Трек"}
+        check("state: player=1 берёт свежий snapshot",
+              state_daemon.player_now().get("title") == "Трек")
+
+        def boom():
+            raise RuntimeError("glagol down")
+        state_daemon.player.snapshot = boom
+        check("state: ошибка snapshot не валит state",
+              state_daemon.player_now().get("error", "").startswith("glagol down"))
+    finally:
+        state_daemon.player.snapshot = old
 
 
 def test_vpn_parsing():
@@ -755,6 +772,7 @@ def main():
         test_auth_guard,
         test_url_guard,
         test_update_assets,
+        test_state_player_fresh,
         test_vpn_parsing,
         test_discovery_payload,
         test_update_release_filter,
