@@ -16,7 +16,7 @@
 Работает на самой колонке: `lighttpd` на порту **8055** + CGI на Python.
 Интерфейс — один `index.html` на чистом HTML/CSS/JS, без React, Node и внешних CDN.
 
-[Репозиторий панели](https://github.com/RoBiN19666/midipult) · [Репозиторий приложения Android](https://github.com/RoBiN19666/midipult-android)
+[Репозиторий приложения Android](https://github.com/RoBiN19666/midipult-android)
 
 ## Скриншоты
 
