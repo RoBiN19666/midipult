@@ -20,6 +20,16 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# Локальное время панели при ручном запуске демона.
+if not os.environ.get("TZ"):
+    _tz = "/opt/share/zoneinfo/Asia/Yekaterinburg"
+    if os.path.exists(_tz):
+        os.environ["TZ"] = ":" + _tz
+        try:
+            time.tzset()
+        except AttributeError:
+            pass
+
 sys.path.insert(0, "/data/myweb/cgi-bin")
 import common  # noqa: E402
 import player  # noqa: E402

@@ -20,6 +20,17 @@ import threading
 import time
 import urllib.request
 
+# Даже если демон запущен вручную (не через init), часы дисплея должны
+# использовать местное время Екатеринбурга, а не UTC станции.
+if not os.environ.get("TZ"):
+    _tz = "/opt/share/zoneinfo/Asia/Yekaterinburg"
+    if os.path.exists(_tz):
+        os.environ["TZ"] = ":" + _tz
+        try:
+            time.tzset()
+        except AttributeError:
+            pass
+
 BASE = "http://127.0.0.1:8055"
 LUNA = "http://127.0.0.1:8099"
 
