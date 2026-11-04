@@ -329,7 +329,7 @@ def test_discovery_payload():
     old_hostname = discovery.socket.gethostname
     payload = {}
     try:
-        discovery.version = lambda: "0.4.51"
+        discovery.version = lambda: expected or "0.0.0"
         discovery.model = lambda: "Yandex Station Midi"
         discovery.local_ip = lambda: "192.168.31.220"
         discovery.socket.gethostname = lambda: "mypult-kitchen"
@@ -344,7 +344,7 @@ def test_discovery_payload():
     check("discovery: api=1", payload.get("api") == 1, repr(payload))
     check("discovery: имя станции", payload.get("name") == "mypult-kitchen", repr(payload))
     check("discovery: модель", payload.get("model") == "Yandex Station Midi", repr(payload))
-    check("discovery: версия", payload.get("version") == "0.4.51", repr(payload))
+    check("discovery: версия", payload.get("version") == expected, repr(payload))
     check("discovery: ip", payload.get("ip") == "192.168.31.220", repr(payload))
     check("discovery: port=8055", payload.get("port") == 8055, repr(payload))
 
