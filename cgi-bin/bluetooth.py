@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
@@ -80,6 +81,16 @@ def devices():
     return result
 
 
+def wait_connected(mac, seconds=8):
+    """bluetoothctl возвращает управление раньше, чем A2DP реально поднялся."""
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        if device_info(mac)["connected"]:
+            return True
+        time.sleep(0.7)
+    return False
+
+
 def bluealsa_running():
     code, out, _ = common.run(["/bin/sh", "-c", "ps | grep '[b]luealsa-aplay'"], timeout=6)
     return code == 0 and bool(out.strip())
@@ -125,6 +136,9 @@ def main():
             if not device_info(mac)["paired"]:
                 bt("pair", mac, timeout=25)
             bt("connect", mac, timeout=25)
+            if not wait_connected(mac):
+                bt("connect", mac, timeout=25)
+                wait_connected(mac, seconds=5)
         elif action == "disconnect":
             bt("disconnect", mac, timeout=15)
         else:
