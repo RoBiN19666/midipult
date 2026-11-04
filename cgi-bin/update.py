@@ -155,12 +155,18 @@ def check(force=False):
         cached = dict(cache)
         cached["current"] = current
         cached["cached"] = True
-        cached["update_available"] = newer(cached.get("version"), current)
+        has_assets = bool(cached.get("archive") and cached.get("sha"))
+        cached["update_available"] = newer(cached.get("version"), current) and has_assets
+        if newer(cached.get("version"), current) and not has_assets:
+            cached["error"] = "В релизе панели нет архива обновления"
+        elif has_assets:
+            cached["error"] = ""
         return cached
 
     try:
         release = fetch_release()
         archive, sha = release_assets(release, release["version"])
+        has_assets = bool(archive and sha)
         data = {
             "ok": True,
             "checked_at": now,
@@ -173,7 +179,9 @@ def check(force=False):
             "html_url": release["html_url"],
             "archive": archive,
             "sha": sha,
-            "update_available": newer(release["version"], current),
+            "update_available": newer(release["version"], current) and has_assets,
+            "error": "" if has_assets or not newer(release["version"], current)
+                     else "В релизе панели нет архива обновления",
             "cached": False,
         }
         common.write_json(CACHE_PATH, data, mode=0o600)

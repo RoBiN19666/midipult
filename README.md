@@ -16,20 +16,7 @@
 Работает на самой колонке: `lighttpd` на порту **8055** + CGI на Python.
 Интерфейс — один `index.html` на чистом HTML/CSS/JS, без React, Node и внешних CDN.
 
-Для телефона и планшета есть отдельная Android-оболочка:
-**https://github.com/RoBiN19666/midipult-android**
-
-## Версии и каналы
-
-![Панель](https://img.shields.io/badge/panel-0.4.51-7c5cff)
-
-| Компонент | Версия | Канал |
-|---|---|---|
-| Панель (станция / `main`) | **0.4.51** | теги `v0.4.*` |
-
-Панель и APK — разные репозитории и независимые каналы. Обновление панели
-не требует пересборки APK; Android-приложение и его релизы живут в
-`midipult-android`.
+[Репозиторий панели](https://github.com/RoBiN19666/midipult) · [Репозиторий приложения Android](https://github.com/RoBiN19666/midipult-android)
 
 ## Скриншоты
 

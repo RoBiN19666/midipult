@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, ".."))
@@ -84,7 +85,8 @@ def test_js_syntax():
         return
     js = scripts[-1]
 
-    tmp = os.path.join(HERE, "_tmp_index.js")
+    tmpdir = tempfile.mkdtemp(prefix="mypult-js-")
+    tmp = os.path.join(tmpdir, "index.js")
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.write(js)
     try:
@@ -94,10 +96,7 @@ def test_js_syntax():
     except FileNotFoundError:
         check("JS проходит node --check", True, "node не найден — пропущено")
     finally:
-        try:
-            os.remove(tmp)
-        except OSError:
-            pass
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
     match = re.search(r"\[\s*('pill'.*?)\]\.forEach", js, re.S)
     check("найден список id в init()", bool(match))
