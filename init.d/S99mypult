@@ -24,6 +24,17 @@ LIGHTTPD="/opt/sbin/lighttpd"
 LIGHTTPD_CONF="/opt/etc/lighttpd/myweb.conf"
 WEBROOT="/data/myweb"
 
+# Панель показывает местное время Екатеринбурга, хотя системные часы станции
+# остаются в UTC. Это же окружение наследуют voice/state и CGI.
+if [ -n "$MYPULT_TZ" ]; then
+    export TZ="$MYPULT_TZ"
+elif [ -f /opt/share/zoneinfo/Asia/Yekaterinburg ]; then
+    export TZ=":/opt/share/zoneinfo/Asia/Yekaterinburg"
+else
+    export TZ="UTC-5"
+fi
+
+
 # Мост к IPC aliced для озвучки. Если на колонке порт 9875 уже слушает
 # socat/aliced — оставьте пустым. Иначе укажите unix-сокет aliced, например:
 # IPC_SOCK="/var/run/aliced.sock"
