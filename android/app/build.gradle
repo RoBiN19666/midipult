@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.application'
+}
+
+def versionProps = new Properties()
+file('../version.properties').withInputStream { versionProps.load(it) }
+
+android {
+    namespace 'com.midipult.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.midipult.app'
+        minSdk 23
+        targetSdk 35
+        versionCode versionProps.getProperty('versionCode').toInteger()
+        versionName versionProps.getProperty('versionName')
+    }
+
+    signingConfigs {
+        release {
+            def keyStorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+            if (keyStorePath) {
+                storeFile file(keyStorePath)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            if (System.getenv('ANDROID_KEYSTORE_PATH')) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -27,6 +27,11 @@ import sounds  # noqa: E402
 import status  # noqa: E402
 import system  # noqa: E402
 
+try:
+    import discovery  # noqa: E402
+except ImportError:
+    discovery = None
+
 PORT = int(os.environ.get("MYPULT_STATE_PORT") or "8057")
 LOCK = threading.Lock()
 STATE = {"ok": True, "status": {}, "player": {}}
@@ -132,6 +137,11 @@ def main():
     threading.Thread(target=refresh_loop, daemon=True).start()
     threading.Thread(target=system_loop, daemon=True).start()
     threading.Thread(target=sounds_loop, daemon=True).start()
+    if discovery is not None:
+        try:
+            discovery.start()
+        except OSError:
+            pass
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     server.serve_forever()
 

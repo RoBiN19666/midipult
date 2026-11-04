@@ -88,6 +88,7 @@ cgi-bin/                   CGI-скрипты
   status.py                сводка сервисов
   state.py                 объединённый статус + плеер (CGI-резерв)
   system.py                CPU/RAM/температура/диск/свет
+  discovery.py             UDP-discovery для Android (порт 8056)
   voicecfg.py              устаревший API потолка громкости (UI удалён)
   voicectl.py              старт/стоп голосового демона
   volume.py                громкость, mute, сохранение уровня
@@ -124,6 +125,7 @@ tests/                     статические, юнит- и CGI-тесты
 | `speak.py` | озвучка текста (IPC 9875) |
 | `command.py` | `sendText` в Glagol, в т.ч. «стоп» |
 | `update.py` | проверка GitHub Releases, self-update, статус |
+| `discovery.py` | UDP-ответ для Android-приложения на порту 8056 |
 | `vpn.py` | подписка, серверы, старт/стоп, статус |
 | `network.py` | Wi-Fi, скан, подключение, DNS |
 | `bluetooth.py` | питание, скан, сопряжение |

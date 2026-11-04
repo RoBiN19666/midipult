@@ -45,3 +45,10 @@ screenshots/
 tmp/
 dist/
 .release/
+android/.gradle/
+android/local.properties
+android/app/build/
+android/app/release.keystore
+android/*.keystore
+*.apk
+*.apk.sha256
