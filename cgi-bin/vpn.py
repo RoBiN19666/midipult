@@ -15,6 +15,7 @@ sing-box качается один раз с GitHub в /data/mypult/bin. Кон�
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import re
@@ -34,6 +35,8 @@ BASE = "/data/mypult"
 VPN_DIR = os.path.join(BASE, "vpn")
 SETTINGS = os.path.join(BASE, "vpn.json")
 BINARY = os.path.join(BASE, "bin", "sing-box")
+BINARY_HASH = os.path.join(BASE, "sing-box.sha256")
+MAX_BINARY = 30 * 1024 * 1024
 CONFIG = os.path.join(VPN_DIR, "config.json")
 PIDFILE = os.path.join(VPN_DIR, "sing-box.pid")
 LOG = os.path.join(VPN_DIR, "sing-box.log")
@@ -77,6 +80,7 @@ def mask_url(url):
 # --------------------------------------------------------------------------- #
 
 def fetch(url, timeout=20):
+    url = common.url_guard(url, allow_http=False, allow_private=False, allow_loopback=False)
     request = urllib.request.Request(url, headers={"User-Agent": "mypult/1.0"})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         raw = response.read(2_000_000)
@@ -274,9 +278,30 @@ def ensure_binary():
     archive = "/tmp/sing-box.tar.gz"
     url = ("https://github.com/SagerNet/sing-box/releases/download/v%s/"
            "sing-box-%s-linux-arm64.tar.gz" % (VERSION, VERSION))
-    code, _, err = common.run(["/opt/bin/curl", "-L", "-s", "-m", "180", "-o", archive, url], timeout=200)
+    url = common.url_guard(url, allow_http=False, allow_private=False,
+                           allow_loopback=False)
+    code, _, err = common.run(["/opt/bin/curl", "-L", "-f", "-s", "-m", "180",
+                               "-o", archive, url], timeout=200)
     if code != 0 or not os.path.exists(archive):
         raise RuntimeError("не скачался sing-box: %s" % (err or code))
+    size = os.path.getsize(archive)
+    if size <= 0 or size > MAX_BINARY:
+        raise RuntimeError("sing-box: недопустимый размер архива (%d байт)" % size)
+
+    expected = str(os.environ.get("MYPULT_SINGBOX_SHA256") or "").strip().lower()
+    if not expected:
+        try:
+            with open(BINARY_HASH, "r", encoding="utf-8") as fh:
+                expected = fh.read(64).strip().split()[0].lower()
+        except (OSError, IndexError):
+            expected = ""
+    if expected:
+        digest = hashlib.sha256()
+        with open(archive, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != expected:
+            raise RuntimeError("sing-box: SHA-256 не совпал")
 
     extract = "/tmp/sing-box-extract"
     if os.path.isdir(extract):
@@ -492,6 +517,9 @@ def main():
             return
         try:
             text = fetch(url)
+        except ValueError as exc:
+            common.fail(400, "Некорректный адрес подписки: %s" % exc)
+            return
         except Exception as exc:  # noqa: BLE001
             common.fail(502, "Не удалось скачать подписку: %s" % exc)
             return

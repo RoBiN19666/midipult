@@ -305,8 +305,110 @@ def llm_profile_target(text):
     return None
 
 
+CHAT_NAME_LIMIT = 40
+
+
+def clean_chat_name(raw):
+    """Имя чата из произнесённой фразы: без кавычек, хвостов и лишних пробелов."""
+    name = " ".join(str(raw or "").split()).strip()
+    name = name.strip("\"'«»“”").strip()
+    for tail in ("пожалуйста", "пожалйста", "пжлст", "плиз"):
+        if name.casefold().endswith(" " + tail):
+            name = name[: -len(tail) - 1].strip(" ,.")
+    return name[:CHAT_NAME_LIMIT]
+
+
+def parse_chat_command(text):
+    """("create"|"switch", имя) или None. Имя может быть пустым."""
+    raw = str(text or "")
+    create = re.search(
+        r"(?:созда[йт]|сдела[йт]|добав[ьи]|нов(?:ый|ая|ое))\s+"
+        r"(?:нов(?:ый|ая|ое)\s+)?чат\b\s*(.*)$", raw, re.IGNORECASE | re.DOTALL)
+    if create:
+        return ("create", clean_chat_name(create.group(1)))
+    switch = re.search(
+        r"(?:переключ(?:и|ись|ите)|перейд(?:и|ите)|открой(?:те)?)\s+"
+        r"(?:на\s+)?чат\b\s*(.*)$", raw, re.IGNORECASE | re.DOTALL)
+    if switch:
+        return ("switch", clean_chat_name(switch.group(1)))
+    return None
+
+
+def _chat_key(name):
+    return clean_chat_name(name).casefold().replace("ё", "е")
+
+
+def chat_by_name(items, name):
+    """Чат по имени без учёта регистра; частичное совпадение — если оно одно."""
+    query = _chat_key(name)
+    if not query:
+        return None
+    for item in items or []:
+        if isinstance(item, dict) and _chat_key(item.get("name")) == query:
+            return item
+    partial = [item for item in items or []
+               if isinstance(item, dict) and query in _chat_key(item.get("name"))]
+    return partial[0] if len(partial) == 1 else None
+
+
+def chat_create(name):
+    payload = {"chat_new": 1}
+    if name:
+        payload["chat_name"] = name
+    try:
+        data = post(BASE + "/cgi-bin/llm.py", payload, timeout=15) or {}
+    except Exception as exc:  # noqa: BLE001
+        log("chat create error: %s" % exc)
+        announce("Не удалось создать чат")
+        return True
+    if not data.get("ok") or not data.get("active_chat_name"):
+        log("chat create failed: %s" % str(data.get("error") or data)[:200])
+        announce("Не удалось создать чат")
+        return True
+    created = clean_chat_name(data.get("active_chat_name")) or name or "чат"
+    announce("Создан чат " + created)
+    log("чат создан: %s" % created)
+    return True
+
+
+def chat_select_by_name(name):
+    info = llm_info()
+    chat = chat_by_name(info.get("chats") or [], name)
+    if chat is None:
+        names = [clean_chat_name(item.get("name")) for item in info.get("chats") or []
+                 if isinstance(item, dict) and item.get("name")]
+        hint = (" Есть: " + ", ".join(names[:5]) + ".") if names else ""
+        announce("Чат " + name + " не найден." + hint)
+        log("чат не найден: %r (есть: %s)" % (name, ", ".join(names)))
+        return True
+    try:
+        data = post(BASE + "/cgi-bin/llm.py", {"chat_select": chat.get("id")}, timeout=15) or {}
+    except Exception as exc:  # noqa: BLE001
+        log("chat select error: %s" % exc)
+        announce("Не удалось переключить чат")
+        return True
+    if not data.get("ok") or not data.get("active_chat_name"):
+        log("chat select failed: %s" % str(data.get("error") or data)[:200])
+        announce("Не удалось переключить чат")
+        return True
+    current = clean_chat_name(data.get("active_chat_name")) or name
+    announce("Переключился на чат " + current)
+    log("чат: %s" % current)
+    return True
+
+
 def llm_switch(text):
     low = normalize(text)
+
+    command = parse_chat_command(text)
+    if command:
+        kind, name = command
+        if kind == "create":
+            return chat_create(name)
+        if not name:
+            announce("Назовите чат: например, переключись на чат Работа")
+            return True
+        return chat_select_by_name(name)
 
     if "чат" in low:
         info = llm_info()
@@ -547,6 +649,16 @@ def autobright_loop():
         time.sleep(60)
 
 
+def clock_loop():
+    """Часы на станции: обновляем дисплей временем колонки, не браузера."""
+    while True:
+        try:
+            post(BASE + "/cgi-bin/display.py", {"clock_tick": 1}, timeout=20)
+        except Exception:
+            pass
+        time.sleep(45)
+
+
 def volume_sync_loop():
     """Сохранять громкость, выставленную физическими кнопками."""
     time.sleep(30)
@@ -596,6 +708,7 @@ def main():
     log("голосовой пульт запущен")
     threading.Thread(target=scheduler_loop, daemon=True).start()
     threading.Thread(target=autobright_loop, daemon=True).start()
+    threading.Thread(target=clock_loop, daemon=True).start()
     threading.Thread(target=volume_sync_loop, daemon=True).start()
     threading.Thread(target=disk_cleanup_loop, daemon=True).start()
     last_text = ""

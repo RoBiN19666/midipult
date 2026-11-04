@@ -210,6 +210,12 @@ def ask(prompt, system=None):
     if not base_url:
         common.fail(400, "Не задан base_url для своего провайдера")
         return
+    try:
+        base_url = common.url_guard(base_url, allow_http=True, allow_private=True,
+                                    allow_loopback=True)
+    except ValueError as exc:
+        common.fail(400, "Некорректный base_url: %s" % exc)
+        return
 
     chats = load_chats()
     chat = active_chat(chats)
@@ -327,6 +333,26 @@ def save_profile(config, data):
     return profile
 
 
+CHAT_NAME_LIMIT = 40
+
+
+def clean_chat_name(raw):
+    """Имя чата: без лишних пробелов, кавычек и управляющих символов."""
+    name = " ".join(str(raw or "").split()).strip()
+    return name.strip("\"'«»“”").strip()
+
+
+def unique_chat_name(items, name):
+    """Не давать двум чатам одинаковое имя: «Работа», «Работа 2», …"""
+    base = name
+    taken = {clean_chat_name(item.get("name")).casefold() for item in items}
+    index = 2
+    while name.casefold() in taken:
+        name = "%s %d" % (base, index)
+        index += 1
+    return name
+
+
 def chat_switch(data):
     chats = load_chats()
     items = chats.get("chats") or []
@@ -334,13 +360,34 @@ def chat_switch(data):
     index = next((i for i, item in enumerate(items) if item.get("id") == current), 0)
 
     if common.truthy(data.get("chat_new")):
+        name = clean_chat_name(data.get("chat_name"))
+        if len(name) > CHAT_NAME_LIMIT:
+            common.fail(413, "Имя чата длиннее %d символов" % CHAT_NAME_LIMIT)
+            return None
         number = len(items) + 1
-        chat = {"id": "chat-%d" % number, "name": "Чат %d" % number, "messages": []}
-        while any(item.get("id") == chat["id"] for item in items):
+        chat_id = "chat-%d" % number
+        while any(item.get("id") == chat_id for item in items):
             number += 1
-            chat = {"id": "chat-%d" % number, "name": "Чат %d" % number, "messages": []}
+            chat_id = "chat-%d" % number
+        chat = {"id": chat_id, "name": name or ("Чат %d" % number), "messages": []}
+        chat["name"] = unique_chat_name(items, chat["name"])
         items.append(chat)
         chats["active"] = chat["id"]
+    elif data.get("chat_rename") is not None:
+        target = str(data.get("chat_rename") or current)
+        chat = next((item for item in items if item.get("id") == target), None)
+        if chat is None:
+            common.fail(404, "Чат не найден: %s" % target)
+            return None
+        name = clean_chat_name(data.get("chat_name"))
+        if not name:
+            common.fail(400, "Пустое имя чата")
+            return None
+        if len(name) > CHAT_NAME_LIMIT:
+            common.fail(413, "Имя чата длиннее %d символов" % CHAT_NAME_LIMIT)
+            return None
+        others = [item for item in items if item.get("id") != target]
+        chat["name"] = unique_chat_name(others, name)
     elif data.get("chat_delete") is not None:
         target = str(data.get("chat_delete") or current)
         items = [item for item in items if item.get("id") != target]
@@ -366,7 +413,8 @@ def chat_switch(data):
 def main():
     data = common.params()
     action_keys = ("prompt", "enabled", "activate", "delete", "provider", "name", "profile_id",
-                   "max_tokens", "system_prompt", "chat_next", "chat_prev", "chat_new", "chat_select", "chat_delete")
+                   "max_tokens", "system_prompt", "chat_next", "chat_prev", "chat_new", "chat_select",
+                   "chat_delete", "chat_rename")
     if common.truthy(data.get("info")) or not any(key in data for key in action_keys):
         common.respond(200, info())
         return
@@ -389,7 +437,8 @@ def main():
         common.respond(200, info(config))
         return
 
-    if any(key in data for key in ("chat_next", "chat_prev", "chat_new", "chat_select", "chat_delete")):
+    if any(key in data for key in ("chat_next", "chat_prev", "chat_new", "chat_select",
+                                   "chat_delete", "chat_rename")):
         if chat_switch(data) is None:
             return
         common.respond(200, info(config))

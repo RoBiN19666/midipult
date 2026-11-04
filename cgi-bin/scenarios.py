@@ -143,6 +143,11 @@ def run_action(action):
         url = str(action.get("url") or "").strip()
         if not url.startswith(("http://", "https://")):
             raise RuntimeError("нужен http(s)-адрес")
+        try:
+            url = common.url_guard(url, allow_http=True, allow_private=True,
+                                   allow_loopback=False)
+        except ValueError as exc:
+            raise RuntimeError("адрес запрещён: %s" % exc)
         request = urllib.request.Request(url, method="GET",
                                          headers={"User-Agent": "mypult-scenario"})
         with urllib.request.urlopen(request, timeout=10) as response:

@@ -19,7 +19,7 @@
 ### END INIT INFO
 
 DAEMON_LUNA="/data/quazar/luna/bin/luna"
-LUNA_ARGS="--listen 0.0.0.0:8099 --data-dir /data/quazar/luna/data"
+LUNA_ARGS="--listen 127.0.0.1:8099 --data-dir /data/quazar/luna/data"
 LIGHTTPD="/opt/sbin/lighttpd"
 LIGHTTPD_CONF="/opt/etc/lighttpd/myweb.conf"
 WEBROOT="/data/myweb"
@@ -44,6 +44,18 @@ is_listening() {
         /proc/net/tcp 2>/dev/null
 }
 
+# true, если порт 8099 слушает не loopback (0.0.0.0/::).
+luna_on_lan() {
+    _hex=$(printf '%04X' 8099)
+    awk -v p=":$_hex" '
+        $4 == "0A" && index($2, p) > 0 {
+            split($2, a, ":");
+            if (a[1] != "0100007F" &&
+                a[1] != "00000000000000000000000001000000") found = 1
+        }
+        END { exit found ? 0 : 1 }' /proc/net/tcp /proc/net/tcp6 2>/dev/null
+}
+
 wait_root() {
     i=0
     while [ ! -d "$WEBROOT" ] && [ "$i" -lt 30 ]; do
@@ -60,8 +72,20 @@ wait_root() {
 # ------------------------------------------------------------------ Luna ----
 start_luna() {
     if is_listening 8099; then
-        log "luna: уже слушает 8099"
-        return 0
+        if luna_on_lan; then
+            if [ -f "$RUNDIR/luna.pid" ]; then
+                log "luna: слушает LAN — перезапускаю только на 127.0.0.1"
+                stop_pidfile "$RUNDIR/luna.pid" "luna"
+                sleep 1
+            else
+                log "luna: 8099 занят не-loopback процессом — нужен ручной перезапуск"
+                return 1
+            fi
+        fi
+        if is_listening 8099; then
+            log "luna: уже слушает 8099"
+            return 0
+        fi
     fi
     if [ ! -x "$DAEMON_LUNA" ]; then
         log "luna: НЕТ исполняемого $DAEMON_LUNA"
@@ -191,7 +215,7 @@ start_ipc() {
         log "ipc: НЕТ сокета $IPC_SOCK"
         return 0
     fi
-    nohup "$SOCAT" TCP-LISTEN:9875,fork,reuseaddr UNIX-CONNECT:"$IPC_SOCK" >>"$LOG" 2>&1 &
+    nohup "$SOCAT" TCP-LISTEN:9875,bind=127.0.0.1,fork,reuseaddr UNIX-CONNECT:"$IPC_SOCK" >>"$LOG" 2>&1 &
     echo $! >"$RUNDIR/socat.pid"
     log "ipc: socat слушает 9875 -> $IPC_SOCK"
     return 0
@@ -373,6 +397,7 @@ case "$1" in
         stop_state
         stop_web
         sleep 1
+        start_luna
         start_web
         restore_volume
         start_voice

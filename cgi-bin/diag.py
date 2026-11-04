@@ -231,15 +231,18 @@ def glagol_probes():
 
 
 def glagol_token():
-    """Токен устройства, если пользователь положил его в secrets.json."""
-    path = "/data/mypult/secrets.json"
-    try:
-        with open(path, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        token = data.get("glagol_token")
-        return token if isinstance(token, str) else None
-    except (OSError, ValueError):
-        return None
+    """Токен из кэша glagol.json (или старого secrets.json)."""
+    for path, key in (("/data/mypult/glagol.json", "token"),
+                      ("/data/mypult/secrets.json", "glagol_token")):
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+            token = data.get(key)
+            if isinstance(token, str) and token:
+                return token
+        except (OSError, ValueError):
+            continue
+    return None
 
 
 def wss_probe(url: str, token: str, timeout: float = 4.0):

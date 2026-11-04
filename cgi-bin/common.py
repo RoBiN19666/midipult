@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 import socket
@@ -38,13 +39,14 @@ REASONS = {
     204: "No Content",
     400: "Bad Request",
     401: "Unauthorized",
+    403: "Forbidden",
     404: "Not Found",
     405: "Method Not Allowed",
     409: "Conflict",
     413: "Payload Too Large",
     415: "Unsupported Media Type",
     422: "Unprocessable Entity",
-    422: "Unprocessable Entity",
+    429: "Too Many Requests",
     500: "Internal Server Error",
     501: "Not Implemented",
     502: "Bad Gateway",
@@ -81,7 +83,6 @@ def respond(status: int, payload: dict, headers=None) -> None:
         "Status: %d %s\r\n"
         "Content-Type: application/json; charset=utf-8\r\n"
         "Content-Length: %d\r\n"
-        "Cache-Control: no-store, max-age=0\r\n"
         "X-Content-Type-Options: nosniff\r\n"
         "%s"
         "\r\n" % (status, REASONS.get(status, "OK"), len(body), extra)
@@ -122,7 +123,7 @@ def _read_stdin() -> bytes:
         return b""
 
 
-AUTH_PATH = "/data/mypult/auth.json"
+AUTH_PATH = os.environ.get("MYPULT_AUTH_PATH") or "/data/mypult/auth.json"
 
 
 def write_json(path, data, mode=0o600, **kwargs):
@@ -145,9 +146,16 @@ def write_json(path, data, mode=0o600, **kwargs):
 def auth_config():
     try:
         with open(AUTH_PATH, "r", encoding="utf-8") as fh:
-            return json.load(fh)
-    except (OSError, ValueError):
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            return {"enabled": True, "broken": True}
+        return data
+    except FileNotFoundError:
         return {}
+    except (OSError, ValueError):
+        # Файл есть, но не читается/испорчен: fail-closed, иначе PIN
+        # молча отключается. Восстановление — локально через auth.py.
+        return {"enabled": True, "broken": True}
 
 
 def auth_cookie_ok(config):
@@ -168,9 +176,12 @@ def require_auth():
     if script == "auth.py":
         return
     config = auth_config()
-    if not config.get("enabled"):
-        return
     if os.environ.get("REMOTE_ADDR") in ("127.0.0.1", "::1"):
+        return
+    if config.get("broken"):
+        fail(503, "auth.json повреждён — нужен локальный доступ")
+        sys.exit(0)
+    if not config.get("enabled"):
         return
     if auth_cookie_ok(config):
         return
@@ -178,14 +189,75 @@ def require_auth():
     sys.exit(0)
 
 
+# Действия, которые нельзя запускать GET-запросом/ссылкой. Читающие ключи
+# (status/info/download/…) сюда не входят.
+WRITE_KEYS = frozenset({
+    "off", "on", "restore", "save", "auto_tick", "clock_tick", "auto_brightness",
+    "display_auto_brightness", "segments_brightness", "manual", "sync_clock",
+    "brightness", "ring_brightness", "backlight", "cleanup", "reboot",
+    "poweroff", "disable", "logout", "logout_all", "login", "pin", "enabled",
+    "disabled", "delete", "delete_custom", "rename_custom", "play_custom",
+    "replace", "custom", "add", "remove", "start", "stop", "play", "pause",
+    "next", "prev", "seek", "volume", "mute", "unmute", "pair", "scan",
+    "connect", "disconnect", "dns", "dns_apply_saved", "command", "url",
+    "profiles", "scenarios", "actions", "conditions", "phrases", "schedule",
+    "tz_offset", "apply", "run", "tick", "data", "autostart", "draw",
+    "append", "control", "ssid", "bssid", "psk", "max_volume", "delta",
+    "chat_new", "chat_delete", "chat_rename", "chat_select", "chat_next",
+    "chat_prev", "chat_name", "max_tokens", "system_prompt", "prompt",
+    "provider", "key", "base_url", "model", "profile_id", "text", "color",
+})
+WRITE_ACTIONS = frozenset({
+    "play", "pause", "stop", "next", "prev", "seek", "rewind", "setvolume",
+    "volume", "mute", "unmute", "connect", "disconnect", "scan", "pair",
+    "unpair", "power", "on", "off", "restart", "start", "add", "remove",
+    "delete", "rename", "apply", "set", "toggle", "run", "draw", "send",
+    "clear", "launch", "wake", "dns_apply_saved",
+})
+
+
+def _method() -> str:
+    return (os.environ.get("REQUEST_METHOD") or "GET").upper()
+
+
+def same_origin_ok() -> bool:
+    """POST с другого сайта не должен проходить даже с Lax-Cookie."""
+    if os.environ.get("REMOTE_ADDR") in ("127.0.0.1", "::1"):
+        return True
+    origin = (os.environ.get("HTTP_ORIGIN") or os.environ.get("HTTP_REFERER") or "").strip()
+    host = (os.environ.get("HTTP_HOST") or "").strip().lower()
+    if origin:
+        try:
+            parsed = urllib.parse.urlsplit(origin)
+        except ValueError:
+            return False
+        if parsed.scheme not in ("http", "https"):
+            return False
+        return bool(host) and parsed.netloc.lower() == host
+    # Android WebView/старые движки иногда не шлют Origin; свой заголовок
+    # нельзя поставить cross-site формой без CORS-preflight.
+    return os.environ.get("HTTP_X_REQUESTED_WITH") == "MidiPult"
+
+
 def params() -> dict:
-    """Параметры запроса: query string + JSON/form/plain тело (в этом порядке)."""
+    method = _method()
     require_auth()
+    if method not in ("GET", "HEAD") and not same_origin_ok():
+        fail(403, "Запрос с другого сайта запрещён")
+        sys.exit(0)
     data: dict = {}
     query = os.environ.get("QUERY_STRING") or ""
     if query:
         for key, values in urllib.parse.parse_qs(query, keep_blank_values=True).items():
             data[key] = values[-1]
+        if method in ("GET", "HEAD"):
+            if any(key in WRITE_KEYS for key in data):
+                fail(405, "Действие требует POST")
+                sys.exit(0)
+            action = str(data.get("action") or "").strip().lower()
+            if action in WRITE_ACTIONS:
+                fail(405, "Действие требует POST")
+                sys.exit(0)
 
     raw = _read_stdin()
     if not raw:
@@ -361,6 +433,62 @@ def load_glagol_conf() -> dict:
     except (OSError, ValueError):
         conf = {}
     return conf
+
+
+# --------------------------------------------------------------------------- #
+#  URL guard: SSRF / приватные адреса
+# --------------------------------------------------------------------------- #
+
+URL_ALLOW_PATH = "/data/mypult/url_allow.json"
+
+
+def _url_allow_hosts() -> set:
+    try:
+        with open(URL_ALLOW_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError, TypeError):
+        return set()
+    hosts = data.get("hosts") if isinstance(data, dict) else data
+    if not isinstance(hosts, list):
+        return set()
+    return {str(item).strip().lower() for item in hosts if str(item).strip()}
+
+
+def url_guard(url, allow_http=False, allow_private=False, allow_loopback=False):
+    """Проверить URL для исходящего запроса и вернуть его.
+
+    Приватные/loopback-адреса запрещены, если явно не разрешены или хост
+    не внесён в /data/mypult/url_allow.json ({"hosts": ["192.168.1.10"]}).
+    Link-local/метаданные запрещены всегда.
+    """
+    raw = str(url or "").strip()
+    parsed = urllib.parse.urlsplit(raw)
+    if parsed.scheme not in ("https", "http") or (parsed.scheme == "http" and not allow_http):
+        raise ValueError("нужен https-адрес" if not allow_http else "нужен http(s)-адрес")
+    if parsed.username or parsed.password:
+        raise ValueError("учётные данные в URL запрещены")
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise ValueError("в URL нет хоста")
+    allowed = _url_allow_hosts()
+    allowed_host = host in allowed
+    try:
+        infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80),
+                                   proto=socket.IPPROTO_TCP)
+    except OSError as exc:
+        raise ValueError("хост не разрешается: %s" % exc) from exc
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_link_local or ip.is_unspecified or ip.is_multicast:
+            raise ValueError("link-local/метаданные запрещены")
+        allowed_ip = str(ip) in allowed
+        if ip.is_loopback and not allow_loopback and not (allowed_host or allowed_ip):
+            raise ValueError("loopback-адрес запрещён")
+        if ip.is_private and not ip.is_loopback and not allow_private and not (allowed_host or allowed_ip):
+            raise ValueError("приватный адрес запрещён")
+        if not ip.is_global and not (allow_private or allow_loopback or allowed_host or allowed_ip):
+            raise ValueError("непубличный адрес запрещён")
+    return raw
 
 
 # --------------------------------------------------------------------------- #

@@ -16,6 +16,7 @@ import socket
 import struct
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 
@@ -348,6 +349,57 @@ def test_status():
     check("status: luna bool", isinstance(data.get("luna"), bool))
 
 
+def test_csrf_guard():
+    status, data, _, _ = run_cgi("maintenance.py", query="reboot=yes")
+    check("csrf: GET reboot запрещён", status == 405, str(data))
+    status, data, _, _ = run_cgi("auth.py", query="disable=1")
+    check("csrf: GET disable PIN запрещён", status == 405, str(data))
+
+    body = json.dumps({}).encode("utf-8")
+    env = {"REMOTE_ADDR": "192.168.1.50", "HTTP_HOST": "station:8055",
+           "HTTP_ORIGIN": "http://evil.example"}
+    status, data, _, _ = run_cgi("auth.py", body=body, env_extra=env)
+    check("csrf: cross-origin POST запрещён", status == 403, str(data))
+
+    env_ok = {"REMOTE_ADDR": "192.168.1.50", "HTTP_HOST": "station:8055",
+              "HTTP_ORIGIN": "http://station:8055"}
+    status, data, _, _ = run_cgi("auth.py", body=body, env_extra=env_ok)
+    check("csrf: same-origin POST разрешён", status == 200, str(data))
+
+
+def test_auth_and_luna_guard():
+    fd, path = tempfile.mkstemp(prefix="mypult-auth-", suffix=".json")
+    os.close(fd)
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump({"enabled": True, "salt": "s", "pin_hash": "x",
+                       "token": "tok"}, fh)
+        base = {"REMOTE_ADDR": "192.168.1.50", "HTTP_HOST": "station:8055",
+                "MYPULT_AUTH_PATH": path}
+        status, data, _, _ = run_cgi("status.py", env_extra=base)
+        check("auth: CGI без cookie — 401", status == 401, str(data))
+
+        status, data, _, _ = run_cgi("status.py", env_extra=dict(
+            base, HTTP_COOKIE="mypult_token=tok"))
+        check("auth: CGI с cookie — 200", status == 200, str(data))
+
+        status, data, _, _ = run_cgi(
+            "display.py", query="off=1",
+            env_extra=dict(base, HTTP_COOKIE="mypult_token=tok"))
+        check("auth: GET display off с cookie — 405", status == 405, str(data))
+
+        status, data, _, _ = run_cgi("luna.py", env_extra=base)
+        check("luna: без cookie — 401", status == 401, str(data))
+        status, data, _, _ = run_cgi(
+            "luna.py", env_extra=dict(base, HTTP_COOKIE="mypult_token=tok"))
+        check("luna: с cookie без path — 400", status == 400, str(data))
+    finally:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
 def main():
     tests = [
         test_frames,
@@ -358,6 +410,8 @@ def main():
         test_media_fake_ws,
         test_volume,
         test_status,
+        test_csrf_guard,
+        test_auth_and_luna_guard,
     ]
     for test in tests:
         print("\n— %s" % test.__name__)

@@ -30,6 +30,8 @@ FILES = {
     "chats": "chats.json",
     "voice": "voice.json",
     "auto_brightness": "auto_brightness.json",
+    "display": "display.json",
+    "display_mode": "display_mode.json",
     "tz": "tz.json",
 }
 

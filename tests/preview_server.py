@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import urllib.parse
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -42,6 +43,13 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _luna(self):
+        query = urllib.parse.parse_qs(self.path.split("?", 1)[1] if "?" in self.path else "")
+        target = (query.get("path") or [""])[-1]
+        if target.startswith("/api/alice/recognize"):
+            return self._json({"transcript": "Алиса, включи свет в гостиной"})
+        return self._json({"ok": True, "available": True, "text_available": True})
+
     def do_POST(self):
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b""
@@ -51,7 +59,9 @@ class Handler(SimpleHTTPRequestHandler):
             body = {}
         path = self.path.split("?")[0]
 
-        if path == "/cgi-bin/status.py":
+        if path == "/cgi-bin/luna.py":
+            self._luna()
+        elif path == "/cgi-bin/status.py":
             self._json(STATUS)
         elif path == "/cgi-bin/speak.py":
             self._json({"ok": True, "started": True, "completed": False, "transport": "tcp:9875"})
@@ -70,6 +80,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
+        if path == "/cgi-bin/luna.py":
+            return self._luna()
         if path == "/cgi-bin/status.py":
             return self._json(STATUS)
         if path.endswith(".py") and path.startswith("/cgi-bin/"):

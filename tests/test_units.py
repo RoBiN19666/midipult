@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Юнит-проверки чистой логики volume.py, media.py, discovery.py и update.py.
+"""Юнит-проверки чистой логики CGI и сервисов (volume, media, discovery, update, чаты).
 
   python3 tests/test_units.py
 """
@@ -22,11 +22,15 @@ except Exception:
     pass
 
 import common  # noqa: E402
+import auth  # noqa: E402
 import discovery  # noqa: E402
+import display  # noqa: E402
 import glagol  # noqa: E402
+import llm  # noqa: E402
 import media  # noqa: E402
 import speak  # noqa: E402
 import update  # noqa: E402
+import voice_daemon  # noqa: E402
 import volume  # noqa: E402
 import vpn  # noqa: E402
 
@@ -205,6 +209,123 @@ def test_speak_frames():
           speak.fields(inner.get(13, b"")).get(1) == "тест".encode("utf-8"))
 
     check("speak: varint 300 корректен", speak.varint(300) == b"\xac\x02")
+
+
+def test_display_auto():
+    import json
+    from unittest import mock
+
+    saved = (display.luna_clock, display.ambient_lux, display.save_state, display.read_all)
+    config = {"enabled": True, "min": 20, "max": 60,
+              "display_enabled": True, "display_min": 30, "display_max": 200}
+    try:
+        calls = []
+        display.luna_clock = lambda level, time_text=None: calls.append(level) or {
+            "brightness": level, "time": "12:00"}
+        display.save_state = lambda values: None
+        display.read_all = lambda: {}
+        with mock.patch("builtins.open", mock.mock_open(read_data=json.dumps(config))):
+            auto = display.load_auto()
+            check("display: конфиг автояркости читается",
+                  auto["display_enabled"] and auto["display_min"] == 30
+                  and auto["display_max"] == 200)
+
+            display.ambient_lux = lambda: 0.0
+            dark = display.display_auto_apply()
+            display.ambient_lux = lambda: 200.0
+            light = display.display_auto_apply()
+        check("display: автояркость берёт min/max дисплея",
+              dark["level"] == 30 and light["level"] == 200 and calls == [30, 200])
+
+        display.sync_display(111)
+        check("display: синхронизация шлёт яркость станции в Luna", calls[-1] == 111)
+    finally:
+        (display.luna_clock, display.ambient_lux,
+         display.save_state, display.read_all) = saved
+
+
+def test_display_segment_guard():
+    saved = (display.read_all, display.save_state, display.save_display_brightness)
+    try:
+        flags = {"saved": 0, "brightness": None}
+        display.save_state = lambda values: flags.__setitem__("saved", flags["saved"] + 1)
+        display.save_display_brightness = lambda value: flags.__setitem__("brightness", value)
+        display.read_all = lambda: {"/fake/a": 0, "/fake/b": 0}
+        changed = display.segment_brightness(80)
+        check("display: яркость погашенного экрана не затирает рисунок",
+              changed == 0 and flags["saved"] == 0 and flags["brightness"] == 80)
+        display.read_all = lambda: {"/fake/a": 40}
+        from unittest import mock
+        with mock.patch("builtins.open", mock.mock_open()):
+            changed = display.segment_brightness(90)
+        check("display: яркость горящего экрана сохраняет рисунок",
+              changed == 1 and flags["saved"] == 1 and flags["brightness"] == 90)
+    finally:
+        display.read_all, display.save_state, display.save_display_brightness = saved
+
+
+def test_auth_guard():
+    from unittest import mock
+
+    old = (auth._guard_load, auth._guard_save, auth.time.time)
+    state = {}
+    try:
+        auth._guard_load = lambda: dict(state)
+        auth._guard_save = lambda data: (state.clear(), state.update(data))
+        auth.time.time = lambda: 1000.0
+        retry = 0
+        for _ in range(auth.MAX_FAILS):
+            retry = auth.guard_fail()
+        check("auth: после 5 ошибок включена блокировка", retry > 0, str(retry))
+        auth.time.time = lambda: 1000.0 + auth.LOCK_SECONDS + 1
+        check("auth: блокировка истекает", auth.guard_retry() == 0)
+        auth.guard_success()
+        check("auth: успешный вход сбрасывает счётчик", auth.guard_retry() == 0 and not state)
+
+        with mock.patch("builtins.open", side_effect=OSError("denied")):
+            check("auth: битый файл — fail-closed",
+                  common.auth_config().get("broken") is True
+                  and auth.load().get("broken") is True)
+    finally:
+        auth._guard_load, auth._guard_save, auth.time.time = old
+
+
+def test_url_guard():
+    def bad(url, **kwargs):
+        try:
+            common.url_guard(url, **kwargs)
+            return False
+        except ValueError:
+            return True
+
+    check("ssrf: публичный https разрешён",
+          common.url_guard("https://8.8.8.8") == "https://8.8.8.8")
+    check("ssrf: http для подписки запрещён",
+          bad("http://8.8.8.8", allow_http=False))
+    check("ssrf: loopback запрещён по умолчанию",
+          bad("http://127.0.0.1", allow_http=True, allow_private=True))
+    check("ssrf: loopback разрешён явно",
+          common.url_guard("http://127.0.0.1", allow_http=True,
+                           allow_private=True, allow_loopback=True))
+    check("ssrf: приватный адрес сценария разрешён",
+          common.url_guard("http://192.168.1.10", allow_http=True,
+                           allow_private=True) == "http://192.168.1.10")
+    check("ssrf: метаданные запрещены",
+          bad("http://169.254.169.254", allow_http=True, allow_private=True,
+              allow_loopback=True))
+    check("ssrf: неверная схема запрещена", bad("ftp://8.8.8.8"))
+
+
+def test_update_assets():
+    def bad(url):
+        try:
+            update.asset_guard(url)
+            return False
+        except ValueError:
+            return True
+
+    check("update: http-архив запрещён", bad("http://github.com/x.tar.gz"))
+    check("update: чужой хост запрещён", bad("https://evil.example/x.tar.gz"))
 
 
 def test_vpn_parsing():
@@ -501,6 +622,124 @@ def test_update_fetch_release():
     check("update: fetch_release возвращает архив и sha", bool(archive and sha))
 
 
+def test_llm_chat_names():
+    import json
+    import tempfile
+
+    old_path = llm.CHATS_PATH
+    fd, path = tempfile.mkstemp(prefix="mypult-chats-", suffix=".json")
+    os.close(fd)
+    try:
+        llm.CHATS_PATH = path
+        data = llm.chat_switch({"chat_new": 1, "chat_name": "  Работа  "})
+        active = llm.active_chat(data)
+        check("чат: имя из запроса", active.get("name") == "Работа", str(active))
+        first = active.get("id")
+
+        data = llm.chat_switch({"chat_rename": first, "chat_name": "«Дела»"})
+        check("чат: переименование", llm.active_chat(data).get("name") == "Дела",
+              str(llm.active_chat(data)))
+        with open(path, "r", encoding="utf-8") as fh:
+            saved = json.load(fh)
+        check("чат: имя сохранено в файле", llm.active_chat(saved).get("name") == "Дела")
+
+        data = llm.chat_switch({"chat_new": 1, "chat_name": "дела"})
+        check("чат: одинаковые имена разведены",
+              llm.active_chat(data).get("name") == "дела 2", str(llm.active_chat(data)))
+
+        data = llm.chat_switch({"chat_new": 1, "chat_name": "Отчёты"})
+        second = llm.active_chat(data).get("id")
+        data = llm.chat_switch({"chat_rename": second, "chat_name": "Дела"})
+        check("чат: rename не создаёт дубль",
+              llm.active_chat(data).get("name") == "Дела 3", str(llm.active_chat(data)))
+
+        data = llm.chat_switch({"chat_new": 1})
+        check("чат: без имени получает «Чат N»",
+              str(llm.active_chat(data).get("name")).startswith("Чат "),
+              str(llm.active_chat(data)))
+        check("чат: имя чистится",
+              llm.clean_chat_name("  «Мой   чат»  ") == "Мой чат",
+              llm.clean_chat_name("  «Мой   чат»  "))
+    finally:
+        llm.CHATS_PATH = old_path
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def test_voice_chat_commands():
+    check("голос: создай чат",
+          voice_daemon.parse_chat_command("Алиса, создай чат Работа") == ("create", "Работа"),
+          str(voice_daemon.parse_chat_command("Алиса, создай чат Работа")))
+    check("голос: новый чат",
+          voice_daemon.parse_chat_command("новый чат Дела") == ("create", "Дела"))
+    check("голос: создай новый чат",
+          voice_daemon.parse_chat_command("создай новый чат Идеи") == ("create", "Идеи"))
+    check("голос: переключись на чат",
+          voice_daemon.parse_chat_command("переключись на чат Работа") == ("switch", "Работа"))
+    check("голос: открой чат без регистра",
+          voice_daemon.parse_chat_command("Открой чат дела") == ("switch", "дела"))
+    check("голос: имя без слова «пожалуйста»",
+          voice_daemon.parse_chat_command("создай чат Отпуск пожалуйста") == ("create", "Отпуск"))
+    check("голос: без имени — пустая строка",
+          voice_daemon.parse_chat_command("создай чат") == ("create", ""))
+    check("голос: переключение без имени",
+          voice_daemon.parse_chat_command("переключись на чат") == ("switch", ""))
+    check("голос: обычная фраза не команда",
+          voice_daemon.parse_chat_command("включи музыку") is None)
+    check("голос: включение нейросети не команда",
+          voice_daemon.parse_chat_command("включи нейросеть") is None)
+    check("голос: вопрос про чат не команда",
+          voice_daemon.parse_chat_command("какой чат сейчас") is None)
+    check("голос: «включи чат гпт» не перехватываем",
+          voice_daemon.parse_chat_command("включи чат гпт") is None)
+
+    items = [{"id": "chat-1", "name": "Чат 1"}, {"id": "chat-2", "name": "Работа"}]
+    found = voice_daemon.chat_by_name(items, "РАБОТА")
+    check("голос: поиск без учёта регистра", found and found.get("id") == "chat-2", str(found))
+    found = voice_daemon.chat_by_name(items, "  работа ")
+    check("голос: поиск с пробелами", found and found.get("id") == "chat-2", str(found))
+    check("голос: несуществующий чат", voice_daemon.chat_by_name(items, "Отпуск") is None)
+    yolo = voice_daemon.chat_by_name([{"id": "c3", "name": "Ёлка"}], "елка")
+    check("голос: «ё» и «е» не различаются", yolo and yolo.get("id") == "c3", str(yolo))
+
+
+def test_voice_chat_actions():
+    old_post = voice_daemon.post
+    old_announce = voice_daemon.announce
+    old_info = voice_daemon.llm_info
+    calls = []
+    try:
+        voice_daemon.post = lambda url, payload, timeout=None: calls.append(payload) or {
+            "ok": True, "active_chat_name": "Работа"}
+        voice_daemon.announce = lambda text, pause=False: calls.append(text)
+        ok = voice_daemon.chat_create("Работа")
+        check("голос: создание шлёт chat_new с именем",
+              ok and calls[0] == {"chat_new": 1, "chat_name": "Работа"}, str(calls[0]))
+        check("голос: подтверждение создания", calls[1] == "Создан чат Работа", str(calls[1]))
+
+        calls[:] = []
+        voice_daemon.llm_info = lambda: {"chats": [{"id": "chat-2", "name": "Работа"},
+                                                   {"id": "chat-1", "name": "Чат 1"}]}
+        ok = voice_daemon.chat_select_by_name("работа")
+        check("голос: переключение шлёт chat_select",
+              ok and calls[0] == {"chat_select": "chat-2"}, str(calls[0]))
+        check("голос: подтверждение переключения",
+              calls[1] == "Переключился на чат Работа", str(calls[1]))
+
+        calls[:] = []
+        ok = voice_daemon.chat_select_by_name("Отпуск")
+        check("голос: ошибка при неизвестном чате",
+              ok and str(calls[0]).startswith("Чат Отпуск не найден"), str(calls[0]))
+        check("голос: ошибка перечисляет доступные чаты",
+              "Есть: Работа, Чат 1" in str(calls[0]), str(calls[0]))
+    finally:
+        voice_daemon.post = old_post
+        voice_daemon.announce = old_announce
+        voice_daemon.llm_info = old_info
+
+
 def main():
     for test in (
         test_generic_helpers,
@@ -511,11 +750,19 @@ def main():
         test_glagol_device_selection,
         test_media_config_override,
         test_speak_frames,
+        test_display_auto,
+        test_display_segment_guard,
+        test_auth_guard,
+        test_url_guard,
+        test_update_assets,
         test_vpn_parsing,
         test_discovery_payload,
         test_update_release_filter,
         test_update_check_guard,
         test_update_fetch_release,
+        test_llm_chat_names,
+        test_voice_chat_commands,
+        test_voice_chat_actions,
     ):
         try:
             test()

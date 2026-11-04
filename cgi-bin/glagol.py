@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -133,21 +134,47 @@ def _fetch_token(device_id=None, platform=None):
     raise GlagolError("Яндекс не выдал glagol-токен")
 
 
+def _jwt_exp(value):
+    """Вернуть exp JWT без проверки подписи (нам нужен только срок)."""
+    try:
+        part = str(value).split(".")[1]
+        part += "=" * (-len(part) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(part).decode("utf-8"))
+        exp = payload.get("exp")
+        return float(exp) if exp else 0.0
+    except (ValueError, TypeError, KeyError, IndexError, UnicodeDecodeError):
+        return 0.0
+
+
 def token(force=False):
     device_id, platform = _device()
+    cached_token = None
     if not force:
         try:
             with open(CACHE_PATH, "r", encoding="utf-8") as fh:
                 cached = json.load(fh)
             if (cached.get("token")
                     and cached.get("device_id") == device_id
-                    and cached.get("platform") == platform
-                    and time.time() - cached.get("ts", 0) < TTL):
-                return cached["token"]
-        except (OSError, ValueError):
+                    and cached.get("platform") == platform):
+                cached_token = cached["token"]
+                exp = _jwt_exp(cached_token)
+                fresh = exp > time.time() + 300
+                try:
+                    cached_ts = float(cached.get("ts") or 0)
+                except (TypeError, ValueError):
+                    cached_ts = 0.0
+                # Старый TTL в час заставлял обновлять ещё живой токен.
+                if fresh or (not exp and time.time() - cached_ts < TTL):
+                    return cached_token
+        except (OSError, ValueError, TypeError):
             pass
 
-    value = _fetch_token(device_id, platform)
+    try:
+        value = _fetch_token(device_id, platform)
+    except GlagolError:
+        if cached_token and _jwt_exp(cached_token) > time.time():
+            return cached_token
+        raise
     try:
         os.makedirs(CACHE_DIR, exist_ok=True)
         os.chmod(CACHE_DIR, 0o700)

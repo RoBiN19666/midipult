@@ -23,6 +23,10 @@ ring.json
 volume.json
 voice.json
 auto_brightness.json
+display.json
+display_mode.json
+auth_guard.json
+url_allow.json
 tz.json
 glagol.json
 *.pem

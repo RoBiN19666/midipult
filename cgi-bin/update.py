@@ -25,6 +25,7 @@ import tarfile
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -42,6 +43,20 @@ WORKER_LOG = os.path.join(DATA_ROOT, "update-worker.log")
 LOCK_PATH = os.path.join(DATA_ROOT, "update.lock")
 CACHE_TTL = 24 * 60 * 60
 MAX_ARCHIVE = 50 * 1024 * 1024
+ASSET_HOSTS = frozenset({
+    "github.com",
+    "objects.githubusercontent.com",
+    "codeload.github.com",
+})
+
+
+def asset_guard(url):
+    """Только https и только хосты GitHub для архива/SHA."""
+    parsed = urllib.parse.urlsplit(str(url or "").strip())
+    if parsed.scheme != "https" or parsed.hostname not in ASSET_HOSTS:
+        raise ValueError("недопустимый хост обновления")
+    return common.url_guard(url, allow_http=False, allow_private=False,
+                           allow_loopback=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -258,6 +273,7 @@ def public_release(cache):
 # --------------------------------------------------------------------------- #
 
 def download(url, path, expected_sha=None):
+    url = asset_guard(url)
     request = urllib.request.Request(url, headers={"User-Agent": "MidiPult-Updater/1.0"})
     digest = hashlib.sha256()
     total = 0
@@ -277,6 +293,7 @@ def download(url, path, expected_sha=None):
 
 
 def fetch_sha(url):
+    url = asset_guard(url)
     request = urllib.request.Request(url, headers={"User-Agent": "MidiPult-Updater/1.0"})
     with urllib.request.urlopen(request, timeout=15) as response:
         text = response.read(4096).decode("utf-8", "replace")

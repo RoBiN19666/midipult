@@ -116,6 +116,31 @@ def test_js_syntax():
           ", ".join(sorted(clicks - present)))
 
 
+def test_vpn_toggle():
+    html = read(os.path.join(ROOT, "index.html"))
+    check("VPN: один тумблер вместо двух кнопок",
+          'id="btnVpnToggle"' in html
+          and 'id="btnVpnStart"' not in html
+          and 'id="btnVpnStop"' not in html)
+    check("VPN: подписи состояний и занятости",
+          all(text in html for text in ("Включить", "Выключить", "Включаю…", "Выключаю…")))
+    check("VPN: подписка, сервер и автозапуск не задеты",
+          all(token in html for token in ('id="vpnUrl"', 'id="vpnServer"', 'id="vpnAutostart"')))
+
+
+def test_custom_select():
+    html = read(os.path.join(ROOT, "index.html"))
+    check("select: кастомный комбобокс поверх нативного",
+          "function enhanceSelects" in html and "dd-btn" in html and "dd-native" in html)
+    check("select: доступность и клавиатура",
+          all(token in html for token in ("combobox", "listbox", "aria-expanded",
+                                          "ArrowDown", "Escape", "Home", "End")))
+    check("select: панель рендерится вне карточки",
+          "document.body.appendChild(panel)" in html)
+    check("select: синхронизация опций и disabled",
+          "MutationObserver" in html and "ResizeObserver" in html and "select.disabled" in html)
+
+
 def test_css():
     html = read(os.path.join(ROOT, "index.html"))
     css = re.search(r"<style>(.*?)</style>", html, re.S).group(1)
@@ -150,7 +175,9 @@ def test_lighttpd_config():
     check("lighttpd: document-root", 'server.document-root = "/data/myweb"' in active)
     check("lighttpd: mod_cgi подключён", '"mod_cgi"' in active)
     check("lighttpd: cgi.assign на python3", '".py" => "/opt/bin/python3"' in active)
-    check("lighttpd: прокси /luna/", '"/luna/"' in active and "8099" in active)
+    check("lighttpd: /luna не проксируется напрямую", '"/luna/"' not in active)
+    check("luna: отдельный auth-прокси", os.path.isfile(os.path.join(ROOT, "cgi-bin", "luna.py"))
+          and "common.require_auth()" in read(os.path.join(ROOT, "cgi-bin", "luna.py")))
     check("lighttpd: .py исключён из статики",
           "static-file.exclude-extensions" in active and '".py"' in active)
     check("lighttpd: нет директив connect-timeout/read-timeout вне бэкенда",
@@ -215,12 +242,192 @@ def test_version():
     check("install.sh копирует version.json", "version.json" in install)
 
 
+def test_sound_rows_mobile():
+    html = read(os.path.join(ROOT, "index.html"))
+    check("звуки: список не даёт горизонтальный скролл",
+          "grid-template-columns:minmax(0,1fr)" in html and "overflow-x:hidden" in html)
+    check("звуки: карточный вид строк на мобиле",
+          ".sound-row{flex-wrap:wrap" in html
+          and ".sound-main{flex:1 1 100%" in html
+          and ".sound-actions{flex:1 1 100%" in html)
+    check("звуки: имя и мета переносятся на мобиле",
+          "overflow-wrap:anywhere" in html and "white-space:normal" in html)
+
+
+def test_ui_polish():
+    html = read(os.path.join(ROOT, "index.html"))
+    check("мобильный статус-пилл не растягивается",
+          ".topbar-right .pill{flex:0 1 auto" in html)
+    check("нет tap-highlight на тач-устройствах",
+          "-webkit-tap-highlight-color:transparent" in html)
+    check("↑↓ в шапке карточки, не absolute",
+          ".card-head{display:flex" in html
+          and "card.insertBefore(header, head)" in html
+          and ".card-move{position:absolute" not in html)
+    check("шаблоны сценариев убраны",
+          "btnTplMorning" not in html and "applyScenarioTemplate" not in html)
+    check("нет мигания вкладки при загрузке",
+          '<body class="booting">' in html
+          and "body.booting main.grid" in html and "body.booting .tabs" in html
+          and "classList.remove('booting')" in html)
+
+
+def test_control_heights():
+    html = read(os.path.join(ROOT, "index.html"))
+    check("высоты: обычные контролы 42", "--ctl-h:42px" in html
+          and "input[type=\"text\"]{height:var(--ctl-h);padding:0 12px}" in html)
+    check("высоты: кнопки в строке с полем — как поле",
+          ".row:has(.net-input) .btn" in html and ".row:has(select) .btn" in html)
+    check("высоты: чипы и пиллы 30px",
+          "height:30px;padding:0 12px;border-radius:var(--r-pill)" in html
+          and "height:30px;padding:0 14px;border-radius:var(--r-pill)" in html)
+    check("высоты: компактные списки звуков и громкость",
+          ".sound-actions .btn{height:30px" in html
+          and ".vol-row .btn{height:var(--ctl-h-sm)" in html)
+    check("гуттер: без scrollbar-gutter, с компенсацией --sbw",
+          "scrollbar-gutter" not in html
+          and "padding-left:var(--sbw,0px)" in html
+          and "syncScrollbarPad" in html)
+
+
+def test_display_auto_api():
+    html = read(os.path.join(ROOT, "index.html"))
+    py = read(os.path.join(ROOT, "cgi-bin", "display.py"))
+    check("дисплей: галочка автояркости на вкладке",
+          'id="displayAuto"' in html and 'id="displayAutoStatus"' in html
+          and "loadDisplayState" in html and "display_auto_brightness" in html)
+    check("дисплей: яркость/время считает станция, не браузер",
+          "sync_clock" in py and "time.strftime(\"%H:%M\")" in py
+          and "display_brightness=load_display_brightness()" in py
+          and "autoSyncClock" not in html and "clockPayload" not in html)
+    check("дисплей: автояркость дисплея хранится и применяется на станции",
+          "display_auto_apply" in py and "display_enabled" in py
+          and "DISPLAY_STATE" in py)
+    check("дисплей: ручной режим/яркость сегментов не ломают авто",
+          "MODE_PATH" in py and "segment_brightness" in py
+          and 'load_mode().get("manual")' in py)
+
+
+def test_button_grids():
+    html = read(os.path.join(ROOT, "index.html"))
+    check("вкладки: одинаковая ширина и сетка на планшете",
+          ".tab{" in html and "width:128px;height:var(--ctl-h-sm)" in html
+          and "grid-template-columns:repeat(auto-fit,minmax(104px,1fr))" in html)
+    check("обслуживание: сетка равных кнопок",
+          'class="row maint-actions"' in html
+          and ".maint-actions{display:grid" in html
+          and ".maint-actions .btn{width:100%" in html)
+    check("дисплей: чипы цветов и режимов — сетка",
+          "#presets{display:grid" in html and ".bright-chips{display:grid" in html)
+    check("автояркость перенесена в «Дисплей», не в «Обслуживание»",
+          html.index('id="presets"') < html.index('id="autoBright"') < html.index('id="h-maint"')
+          and "autoBrightStatus" in html
+          and "el.autoBright.addEventListener" in html)
+    check("аудит рядов: Bluetooth, дни, сценарии, звуки, PIN",
+          all(cls in html for cls in (".bt-actions{display:grid", ".sc-days{display:grid",
+                                     ".sc-edit-actions", ".sound-top-actions",
+                                     ".pin-actions")))
+    check("широкие экраны: сетки кнопок с разумным max-width",
+          "max-width:940px" in html and "max-width:368px" in html
+          and "max-width:556px" in html)
+    check("ряды действий: одна высота кнопок",
+          ".action-row .btn{height:var(--ctl-h)" in html)
+    check("Нейросеть: лишняя кнопка «Голосом» убрана",
+          "btnLlmVoice" not in html and "askLlmVoice" not in html)
+    check("радио: auto-fit без пустоты, 2 на планшете, узкий плеер",
+          "repeat(auto-fit,minmax(130px,1fr))" in html
+          and ".radio-controls{max-width:100%" in html
+          and "repeat(2,minmax(0,1fr));max-width:400px" in html
+          and ".radio-player .btn{flex:0 0 120px}" in html)
+
+
+def test_p1_guards():
+    html = read(os.path.join(ROOT, "index.html"))
+    common_py = read(os.path.join(ROOT, "cgi-bin", "common.py"))
+    auth_py = read(os.path.join(ROOT, "cgi-bin", "auth.py"))
+    display_py = read(os.path.join(ROOT, "cgi-bin", "display.py"))
+    voice_py = read(os.path.join(ROOT, "service", "voice_daemon.py"))
+    check("P1: cookie SameSite=Strict", "SameSite=Strict" in auth_py)
+    check("P1: GET-действия и cross-origin POST запрещены",
+          "WRITE_KEYS" in common_py and "same_origin_ok" in common_py
+          and "Действие требует POST" in common_py
+          and "'X-Requested-With': 'MidiPult'" in html)
+    check("P1: Luna через auth-прокси",
+          os.path.isfile(os.path.join(ROOT, "cgi-bin", "luna.py"))
+          and "require_auth" in read(os.path.join(ROOT, "cgi-bin", "luna.py"))
+          and "/cgi-bin/luna.py?path=" in html)
+    init = read(os.path.join(ROOT, "init.d", "S99mypult"))
+    check("P1: Luna только на localhost",
+          "--listen 127.0.0.1:8099" in init and "luna_on_lan" in init)
+    check("P1: station-side clock_loop и clock_tick",
+          "def clock_loop" in voice_py and "clock_tick" in display_py
+          and "clock_loop" in voice_py.split("def main()", 1)[0])
+    check("P1: ползунок не сохраняет нулевой рисунок",
+          "if changed:" in display_py and "save_state(read_all())" in display_py)
+
+
+def test_p2_hardening():
+    html = read(os.path.join(ROOT, "index.html"))
+    light = read(os.path.join(ROOT, "lighttpd", "myweb.conf"))
+    index_py = read(os.path.join(ROOT, "index.py"))
+    backup_py = read(os.path.join(ROOT, "cgi-bin", "backup.py"))
+    diag_py = read(os.path.join(ROOT, "cgi-bin", "diag.py"))
+    init = read(os.path.join(ROOT, "init.d", "S99mypult"))
+    ignore = read(os.path.join(ROOT, ".gitignore"))
+    common_py = read(os.path.join(ROOT, "cgi-bin", "common.py"))
+    update_py = read(os.path.join(ROOT, "cgi-bin", "update.py"))
+    vpn_py = read(os.path.join(ROOT, "cgi-bin", "vpn.py"))
+    check("P2: CSP и anti-clickjacking без дублей",
+          "Content-Security-Policy" in light and "X-Frame-Options" in light
+          and "frame-ancestors 'none'" in light
+          and light.count("Content-Security-Policy") == 1
+          and "Content-Security-Policy" not in index_py
+          and "X-Frame-Options" not in index_py
+          and "X-Frame-Options" not in common_py)
+    check("P2: backup включает состояние дисплея",
+          '"display": "display.json"' in backup_py
+          and '"display_mode": "display_mode.json"' in backup_py)
+    check("P2: diag читает glagol.json", "/data/mypult/glagol.json" in diag_py)
+    check("P2: socat только на loopback", "bind=127.0.0.1" in init)
+    check("P2: runtime display-файлы в .gitignore",
+          "display.json" in ignore and "display_mode.json" in ignore)
+    check("P2: нет innerHTML с err.message",
+          "scList.innerHTML = '<div class=\"seg-note\">сценарии" not in html
+          and "note.textContent = 'сценарии: ' + err.message" in html)
+    check("P2: ошибки display не показываются успехом",
+          "synced === false" in html and "data.display.applied === false" in html)
+    check("P2: автояркость не залипает после включения экрана",
+          'save_mode(not load_auto()["display_enabled"]' in read(
+              os.path.join(ROOT, "cgi-bin", "display.py")))
+    check("P3: update только GitHub HTTPS + размер",
+          "def asset_guard" in update_py and "ASSET_HOSTS" in update_py
+          and "MAX_ARCHIVE" in update_py and 'ASSET_HOSTS = frozenset' in update_py
+          and "common.url_guard" in update_py)
+    check("P3: sing-box SHA/size/HTTPS",
+          "BINARY_HASH" in vpn_py and "MAX_BINARY" in vpn_py
+          and "size > MAX_BINARY" in vpn_py
+          and "SHA-256 не совпал" in vpn_py)
+    check("P3: PIN HTTP warning", 'id="pinInsecure"' in html
+          and "location.protocol === 'http:'" in html)
+    check("P3: автояркость manual показывает паузу",
+          "пауза (ручной режим)" in html and "data.mode || {}" in html)
+
+
 def main():
     for test in (
         test_encoding,
         test_html_structure,
         test_js_syntax,
         test_css,
+        test_vpn_toggle,
+        test_sound_rows_mobile,
+        test_custom_select,
+        test_ui_polish,
+        test_control_heights,
+        test_display_auto_api,
+        test_p1_guards,
+        test_p2_hardening,
+        test_button_grids,
         test_lighttpd_config,
         test_init_script,
         test_python_headers,

@@ -47,6 +47,7 @@ button{margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;curso
   <img class="logo" src="/icon-circle.png?v=3" alt="MidiPult" width="64" height="64">
   <h1>Пульт защищён PIN</h1>
   <p>Введите код, чтобы открыть панель</p>
+  <p style="color:#ffb86b;font-size:12px">HTTP: PIN передаётся без шифрования — только доверенная сеть или VPN.</p>
   <input id="pin" type="password" inputmode="numeric" maxlength="8" autocomplete="current-password" autofocus>
   <button type="submit">Войти</button>
   <div id="err"></div>
@@ -60,7 +61,7 @@ f.addEventListener('submit', function (e) {
   fetch('/cgi-bin/auth.py', {
     method: 'POST',
     credentials: 'same-origin',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'X-Requested-With': 'MidiPult'},
     body: JSON.stringify({login: 1, pin: pin})
   }).then(function (r) { return r.json().then(function (d) { return {ok: r.ok, d: d}; }); })
     .then(function (res) {
@@ -72,14 +73,17 @@ f.addEventListener('submit', function (e) {
 </script></body></html>"""
 
 
+def page_headers(length):
+    # Заголовки безопасности добавляет lighttpd глобально; здесь не дублируем.
+    return ("Status: 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
+            "Content-Length: %d\r\n\r\n" % length).encode("latin-1")
+
+
 def main():
     config = common.auth_config()
     if config.get("enabled") and not common.auth_cookie_ok(config):
         body = LOGIN.encode("utf-8")
-        sys.stdout.buffer.write(
-            ("Status: 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
-             "Cache-Control: no-store, max-age=0\r\nContent-Length: %d\r\n\r\n"
-             % len(body)).encode("latin-1") + body)
+        sys.stdout.buffer.write(page_headers(len(body)) + body)
         sys.stdout.buffer.flush()
         return
 
@@ -90,10 +94,7 @@ def main():
         common.fail(500, "index.html не найден")
         return
 
-    sys.stdout.buffer.write(
-        ("Status: 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
-         "Cache-Control: no-store, max-age=0\r\nContent-Length: %d\r\n\r\n"
-         % len(body)).encode("latin-1") + body)
+    sys.stdout.buffer.write(page_headers(len(body)) + body)
     sys.stdout.buffer.flush()
 
 

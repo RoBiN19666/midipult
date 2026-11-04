@@ -18,6 +18,7 @@ import glob
 import json
 import os
 import sys
+import time
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -31,7 +32,10 @@ RING_CURRENT = (
 )
 SAVE = "/tmp/mypult-clock.json"
 RING_STATE = "/data/mypult/ring.json"
+DISPLAY_STATE = "/data/mypult/display.json"
+MODE_PATH = "/data/mypult/display_mode.json"
 AUTO_PATH = "/data/mypult/auto_brightness.json"
+LUNA_CLOCK = common.LUNA_BASE + "/api/clock"
 
 
 def paths():
@@ -108,6 +112,87 @@ def save_ring_brightness(value):
         pass
 
 
+def load_display_brightness(default=170):
+    try:
+        with open(DISPLAY_STATE, "r", encoding="utf-8") as fh:
+            value = int(json.load(fh).get("brightness"))
+        return max(10, min(value, 255))
+    except (OSError, ValueError, TypeError):
+        return default
+
+
+def save_display_brightness(value):
+    try:
+        common.write_json(DISPLAY_STATE, {"brightness": max(10, min(int(value), 255))})
+    except (OSError, ValueError, TypeError):
+        pass
+
+
+def load_mode():
+    try:
+        with open(MODE_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return {"manual": bool(data.get("manual")), "kind": str(data.get("kind") or "clock")}
+    except (OSError, ValueError, TypeError):
+        return {"manual": False, "kind": "clock"}
+
+
+def save_mode(manual, kind="clock"):
+    try:
+        common.write_json(MODE_PATH, {"manual": bool(manual), "kind": str(kind)})
+    except OSError:
+        pass
+
+
+def segment_brightness(value):
+    """Яркость уже нарисованного содержимого: 0 остаётся 0, горящие — value."""
+    value = max(10, min(int(value), 255))
+    changed = 0
+    for path, current in read_all().items():
+        if current <= 0:
+            continue
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(str(value))
+            changed += 1
+        except OSError:
+            pass
+    if changed:
+        # При погашенном экране все сегменты = 0; не затираем сохранённый
+        # рисунок, иначе «включить экран» вернёт чёрный дисплей.
+        save_state(read_all())
+    save_display_brightness(value)
+    return changed
+
+
+def luna_clock(brightness, time_text=None):
+    """Нарисовать часы временем станции (не браузера). None — Luna недоступна."""
+    payload = {
+        "time": time_text or time.strftime("%H:%M"),
+        "brightness": max(10, min(int(brightness), 255)),
+    }
+    try:
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(LUNA_CLOCK, data=body,
+                                     headers={"Content-Type": "application/json"}, method="POST")
+        urllib.request.urlopen(req, timeout=6).read()
+        return payload
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def sync_display(brightness=None):
+    """Синхронизация часов/яркости дисплея временем колонки."""
+    value = load_display_brightness() if brightness is None else int(brightness)
+    value = max(10, min(value, 255))
+    payload = luna_clock(value)
+    if payload:
+        save_display_brightness(value)
+        save_state(read_all())
+        save_mode(False, "clock")
+    return payload
+
+
 RING_CURRENT_LEVEL = 80
 
 def ring_current_on(level=RING_CURRENT_LEVEL):
@@ -160,16 +245,21 @@ def ring_current():
 
 
 def load_auto():
-    defaults = {"enabled": False, "min": 10, "max": 150}
+    defaults = {"enabled": False, "min": 10, "max": 150,
+                "display_enabled": False, "display_min": 10, "display_max": 170}
     try:
         with open(AUTO_PATH, "r", encoding="utf-8") as fh:
             data = json.load(fh)
-        defaults.update({key: data[key] for key in ("enabled", "min", "max") if key in data})
+        defaults.update({key: data[key] for key in defaults if key in data})
     except (OSError, ValueError, TypeError):
         pass
     defaults["enabled"] = bool(defaults.get("enabled"))
     defaults["min"] = max(0, min(int(defaults.get("min", 10)), 255))
     defaults["max"] = max(defaults["min"], min(int(defaults.get("max", 150)), 255))
+    defaults["display_enabled"] = bool(defaults.get("display_enabled"))
+    defaults["display_min"] = max(10, min(int(defaults.get("display_min", 10)), 255))
+    defaults["display_max"] = max(defaults["display_min"],
+                                  min(int(defaults.get("display_max", 170)), 255))
     return defaults
 
 
@@ -182,7 +272,7 @@ def save_auto(config):
 
 def ambient_lux():
     try:
-        with urllib.request.urlopen("http://127.0.0.1:8099/api/sensors", timeout=4) as response:
+        with urllib.request.urlopen(common.LUNA_BASE + "/api/sensors", timeout=4) as response:
             sensors = json.loads(response.read().decode("utf-8"))
         for item in sensors:
             if isinstance(item, dict) and item.get("kind") == "ambient_light":
@@ -205,6 +295,24 @@ def auto_apply():
     return {"lux": lux, "level": level}
 
 
+def display_auto_apply():
+    """Автояркость дисплея: тот же датчик lux, яркость уходит в Luna."""
+    config = load_auto()
+    if not config["display_enabled"]:
+        return {"applied": False, "reason": "disabled"}
+    if load_mode().get("manual"):
+        return {"applied": False, "reason": "manual"}
+    lux = ambient_lux()
+    if lux is None:
+        return {"applied": False, "reason": "sensor"}
+    ratio = max(0.0, min(lux / 200.0, 1.0)) ** 0.6
+    level = int(round(config["display_min"] + (config["display_max"] - config["display_min"]) * ratio))
+    payload = luna_clock(level)
+    if payload:
+        save_state(read_all())
+    return {"lux": lux, "level": level, "applied": bool(payload)}
+
+
 def main():
     data = common.params()
 
@@ -225,6 +333,29 @@ def main():
         common.ok(backlight=value)
         return
 
+    if data.get("segments_brightness") is not None:
+        value = common.to_int(data.get("segments_brightness"), load_display_brightness(), 10, 255)
+        changed = segment_brightness(value)
+        common.ok(brightness=value, segments=changed)
+        return
+
+    if data.get("manual") is not None:
+        save_mode(common.truthy(data.get("manual")), str(data.get("kind") or "manual"))
+        common.ok(manual=load_mode())
+        return
+
+    if data.get("brightness") is not None:
+        value = common.to_int(data.get("brightness"), load_display_brightness(), 10, 255)
+        payload = sync_display(value)
+        common.ok(brightness=value, time=(payload or {}).get("time"), synced=bool(payload))
+        return
+
+    if common.truthy(data.get("sync_clock")):
+        value = common.to_int(data.get("brightness"), load_display_brightness(), 10, 255)
+        payload = sync_display(value)
+        common.ok(brightness=value, time=(payload or {}).get("time"), synced=bool(payload))
+        return
+
     if common.truthy(data.get("save")):
         # Запомнить текущий рисунок (после синхронизации времени Luna),
         # чтобы «включить экран» не вернуло старое время.
@@ -243,11 +374,38 @@ def main():
         common.ok(auto=load_auto())
         return
 
+    if data.get("display_auto_brightness") is not None:
+        config = load_auto()
+        config["display_enabled"] = common.truthy(data.get("display_auto_brightness"))
+        if data.get("display_min") is not None:
+            config["display_min"] = common.to_int(data.get("display_min"), config["display_min"], 10, 255)
+        if data.get("display_max") is not None:
+            config["display_max"] = common.to_int(data.get("display_max"), config["display_max"], 10, 255)
+        save_auto(config)
+        applied = display_auto_apply() if config["display_enabled"] else None
+        common.ok(auto=load_auto(), display=applied, mode=load_mode())
+        return
+
+    if common.truthy(data.get("clock_tick")):
+        if load_mode().get("manual"):
+            common.ok(clock=False, manual=True)
+            return
+        if load_auto()["display_enabled"]:
+            applied = display_auto_apply()
+            common.ok(clock=bool(applied and applied.get("applied")), display=applied)
+            return
+        payload = sync_display(load_display_brightness())
+        common.ok(clock=bool(payload), time=(payload or {}).get("time"))
+        return
+
     if common.truthy(data.get("auto_tick")):
-        common.ok(auto=auto_apply())
+        ring = auto_apply()
+        display = display_auto_apply()
+        common.ok(auto=load_auto(), ring=ring, display=display)
         return
 
     if common.truthy(data.get("off")):
+        save_mode(True, "off")
         values = read_all()
         # Если часы уже погашены, не затираем сохранённый «живой» рисунок нулями.
         if any(value > 0 for value in values.values()):
@@ -265,6 +423,9 @@ def main():
                       note="нет сохранённого рисунка")
             return
         written = write_all(saved)
+        # Если автояркость включена, после включения экрана не залипаем в
+        # manual: clock_tick/auto_tick снова начнут управлять яркостью.
+        save_mode(not load_auto()["display_enabled"], "restore")
         lit = lit_count()
         time_text = str(data.get("time") or "").strip()
         if lit == 0 and time_text:
@@ -273,7 +434,7 @@ def main():
                 import json as _json
                 import urllib.request as _ur
                 body = _json.dumps({"time": time_text, "brightness": 170}).encode()
-                req = _ur.Request("http://127.0.0.1:8099/api/clock", data=body,
+                req = _ur.Request(common.LUNA_BASE + "/api/clock", data=body,
                                   headers={"Content-Type": "application/json"}, method="POST")
                 _ur.urlopen(req, timeout=6).read()
                 lit = lit_count()
@@ -289,8 +450,10 @@ def main():
         available=bool(paths()),
         backlight=ring_backlight(),
         ring_brightness=load_ring_brightness(),
+        display_brightness=load_display_brightness(),
         current=ring_current(),
         auto=load_auto(),
+        mode=load_mode(),
     )
 
 
