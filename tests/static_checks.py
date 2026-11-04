@@ -41,7 +41,7 @@ def read(path):
 def test_encoding():
     bad = []
     for folder, dirs, files in os.walk(ROOT):
-        dirs[:] = [d for d in dirs if d not in (".git", "__pycache__")]
+        dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", ".tmp", ".release")]
         for name in files:
             if not (name.endswith(TEXT_EXT) or name == "S99mypult"):
                 continue
