@@ -20,7 +20,7 @@
 станции по UDP, хранит несколько адресов и открывает панель в WebView; APK
 не нужно пересобирать при изменениях интерфейса.
 
-Готовый APK: https://github.com/RoBiN19666/midipult/releases/tag/android-v1.0.0
+Готовый APK: https://github.com/RoBiN19666/midipult/releases/tag/android-v1.0.1
 (подпись и SHA-256 приложены).
 
 ## Скриншоты

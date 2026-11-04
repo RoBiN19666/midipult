@@ -398,7 +398,7 @@ Luna записывает фразу и отдаёт распознанный т
 Интерфейс загружается с колонки, поэтому изменения панели не требуют
 пересборки APK.
 
-Скачать: https://github.com/RoBiN19666/midipult/releases/tag/android-v1.0.0
+Скачать: https://github.com/RoBiN19666/midipult/releases/tag/android-v1.0.1
 
 ### Как подключить телефон как колонку?
 
