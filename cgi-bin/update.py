@@ -33,7 +33,7 @@ import common  # noqa: E402
 
 REPO = "RoBiN19666/midipult"
 API_URL = os.environ.get("MYPULT_UPDATE_API") or (
-    "https://api.github.com/repos/%s/releases/latest" % REPO)
+    "https://api.github.com/repos/%s/releases?per_page=30" % REPO)
 WEB_ROOT = "/data/myweb"
 DATA_ROOT = "/data/mypult"
 CACHE_PATH = os.path.join(DATA_ROOT, "update-cache.json")
@@ -94,15 +94,27 @@ def fetch_release():
     )
     with urllib.request.urlopen(request, timeout=15) as response:
         data = json.loads(response.read().decode("utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError("GitHub вернул не объект")
-    tag = str(data.get("tag_name") or "").strip()
+    items = data if isinstance(data, list) else [data]
+    release = None
+    for item in items:
+        if not isinstance(item, dict) or item.get("draft") or item.get("prerelease"):
+            continue
+        tag = str(item.get("tag_name") or "").strip()
+        if tag.lower().startswith("android-"):
+            continue
+        if not re.match(r"^v?\d", tag):
+            continue
+        release = item
+        break
+    if release is None:
+        raise ValueError("Не найден релиз панели")
+    tag = str(release.get("tag_name") or "").strip()
     version = tag[1:] if tag.lower().startswith("v") else tag
     if not version:
         raise ValueError("В релизе нет tag_name")
 
     assets = []
-    for item in data.get("assets") or []:
+    for item in release.get("assets") or []:
         if isinstance(item, dict) and item.get("name") and item.get("browser_download_url"):
             assets.append({
                 "name": str(item["name"]),
@@ -112,10 +124,10 @@ def fetch_release():
     return {
         "tag": tag,
         "version": version,
-        "name": str(data.get("name") or tag),
-        "body": str(data.get("body") or "")[:50000],
-        "published_at": str(data.get("published_at") or ""),
-        "html_url": str(data.get("html_url") or ""),
+        "name": str(release.get("name") or tag),
+        "body": str(release.get("body") or "")[:50000],
+        "published_at": str(release.get("published_at") or ""),
+        "html_url": str(release.get("html_url") or ""),
         "assets": assets,
     }
 

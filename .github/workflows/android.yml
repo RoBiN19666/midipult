@@ -51,6 +51,9 @@ jobs:
             export ANDROID_KEYSTORE_PATH=release.keystore
             gradle --no-daemon assembleRelease
             APK=app/build/outputs/apk/release/app-release.apk
+          elif [[ "$GITHUB_REF" == refs/tags/android-v* ]]; then
+            echo "Signing secrets are required for an APK release" >&2
+            exit 1
           else
             echo "No signing secrets: building debug APK"
             gradle --no-daemon assembleDebug
