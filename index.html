@@ -224,9 +224,9 @@ main.grid{
   .scan-skeleton .sk-state{width:18%;margin-left:auto}
   .scan-skeleton .sk-btn{width:74px;height:28px;border-radius:8px}
   body.light .scan-skeleton span{background:linear-gradient(90deg,rgba(76,62,48,.08),rgba(76,62,48,.18),rgba(76,62,48,.08));background-size:220% 100%}
-  .btn.is-scanning{position:relative;padding-left:31px}
+  .btn.is-scanning{position:relative}
   .btn.is-scanning::before{
-    content:"";position:absolute;left:11px;top:50%;width:12px;height:12px;margin-top:-6px;
+    content:"";position:static;flex:0 0 12px;width:12px;height:12px;
     border:2px solid currentColor;border-right-color:transparent;border-radius:50%;
     animation:spin .7s linear infinite;
   }
