@@ -85,9 +85,8 @@ def test_js_syntax():
         return
     js = scripts[-1]
 
-    tmpdir = tempfile.mkdtemp(prefix="mypult-js-")
-    tmp = os.path.join(tmpdir, "index.js")
-    with open(tmp, "w", encoding="utf-8") as fh:
+    fd, tmp = tempfile.mkstemp(prefix="mypult-js-", suffix=".js")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(js)
     try:
         proc = subprocess.run([NODE, "--check", tmp], capture_output=True, text=True)
@@ -96,7 +95,10 @@ def test_js_syntax():
     except FileNotFoundError:
         check("JS проходит node --check", True, "node не найден — пропущено")
     finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
     match = re.search(r"\[\s*('pill'.*?)\]\.forEach", js, re.S)
     check("найден список id в init()", bool(match))

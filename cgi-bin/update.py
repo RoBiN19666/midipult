@@ -84,6 +84,27 @@ def load_cache():
         return {}
 
 
+def release_version(item):
+    """Версия панели из tag_name; пусто для Android-релизов и не-версий."""
+    tag = str(item.get("tag_name") or "").strip()
+    if tag.lower().startswith("android-"):
+        return ""
+    if not re.match(r"^v?\d", tag):
+        return ""
+    return tag[1:] if tag.lower().startswith("v") else tag
+
+
+def pick_panel_release(items):
+    """Первый опубликованный релиз панели; draft, prerelease и Android пропускаются."""
+    for item in items:
+        if not isinstance(item, dict) or item.get("draft") or item.get("prerelease"):
+            continue
+        if not release_version(item):
+            continue
+        return item
+    raise ValueError("Не найден релиз панели")
+
+
 def fetch_release():
     request = urllib.request.Request(
         API_URL,
@@ -95,23 +116,9 @@ def fetch_release():
     with urllib.request.urlopen(request, timeout=15) as response:
         data = json.loads(response.read().decode("utf-8"))
     items = data if isinstance(data, list) else [data]
-    release = None
-    for item in items:
-        if not isinstance(item, dict) or item.get("draft") or item.get("prerelease"):
-            continue
-        tag = str(item.get("tag_name") or "").strip()
-        if tag.lower().startswith("android-"):
-            continue
-        if not re.match(r"^v?\d", tag):
-            continue
-        release = item
-        break
-    if release is None:
-        raise ValueError("Не найден релиз панели")
+    release = pick_panel_release(items)
     tag = str(release.get("tag_name") or "").strip()
-    version = tag[1:] if tag.lower().startswith("v") else tag
-    if not version:
-        raise ValueError("В релизе нет tag_name")
+    version = release_version(release)
 
     assets = []
     for item in release.get("assets") or []:

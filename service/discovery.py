@@ -18,8 +18,8 @@ PORT = 8056
 DISCOVER = b"MYPULT_DISCOVER"
 
 
-def version():
-    for path in ("/data/myweb/version.json", "/data/mypult/version.json"):
+def version(paths=("/data/myweb/version.json", "/data/mypult/version.json")):
+    for path in paths:
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 return str(json.load(fh).get("version") or "")

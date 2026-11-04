@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Юнит-проверки чистой логики volume.py и media.py (без колонки).
+"""Юнит-проверки чистой логики volume.py, media.py, discovery.py и update.py.
 
   python3 tests/test_units.py
 """
@@ -12,7 +12,9 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CGI_DIR = os.path.normpath(os.path.join(HERE, "..", "cgi-bin"))
+SERVICE_DIR = os.path.normpath(os.path.join(HERE, "..", "service"))
 sys.path.insert(0, CGI_DIR)
+sys.path.insert(0, SERVICE_DIR)
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -20,9 +22,11 @@ except Exception:
     pass
 
 import common  # noqa: E402
+import discovery  # noqa: E402
 import glagol  # noqa: E402
 import media  # noqa: E402
 import speak  # noqa: E402
+import update  # noqa: E402
 import volume  # noqa: E402
 import vpn  # noqa: E402
 
@@ -302,6 +306,201 @@ def test_glagol_device_selection():
                 pass
 
 
+# --------------------------------------------------------------------------- #
+#  discovery.py: ответ UDP-discovery
+# --------------------------------------------------------------------------- #
+
+def test_discovery_payload():
+    import json
+
+    expected = ""
+    try:
+        with open(os.path.join(HERE, "..", "version.json"), "r", encoding="utf-8") as fh:
+            expected = str(json.load(fh).get("version") or "")
+    except (OSError, ValueError, TypeError):
+        pass
+
+    check("discovery: порт 8056", discovery.PORT == 8056, str(discovery.PORT))
+    check("discovery: запрос MYPULT_DISCOVER", discovery.DISCOVER == b"MYPULT_DISCOVER")
+
+    old_version = discovery.version
+    old_model = discovery.model
+    old_ip = discovery.local_ip
+    old_hostname = discovery.socket.gethostname
+    payload = {}
+    try:
+        discovery.version = lambda: "0.4.51"
+        discovery.model = lambda: "Yandex Station Midi"
+        discovery.local_ip = lambda: "192.168.31.220"
+        discovery.socket.gethostname = lambda: "mypult-kitchen"
+        payload = discovery.payload()
+    finally:
+        discovery.version = old_version
+        discovery.model = old_model
+        discovery.local_ip = old_ip
+        discovery.socket.gethostname = old_hostname
+
+    check("discovery: service=midipult", payload.get("service") == "midipult", repr(payload))
+    check("discovery: api=1", payload.get("api") == 1, repr(payload))
+    check("discovery: имя станции", payload.get("name") == "mypult-kitchen", repr(payload))
+    check("discovery: модель", payload.get("model") == "Yandex Station Midi", repr(payload))
+    check("discovery: версия", payload.get("version") == "0.4.51", repr(payload))
+    check("discovery: ip", payload.get("ip") == "192.168.31.220", repr(payload))
+    check("discovery: port=8055", payload.get("port") == 8055, repr(payload))
+
+    from_json = discovery.version(paths=(os.path.join(HERE, "..", "version.json"),))
+    check("discovery: version() читает version.json", from_json == expected,
+          "%r != %r" % (from_json, expected))
+    missing = discovery.version(paths=(os.path.join(HERE, "no-such-version.json"),))
+    check("discovery: version() без файла -> ''", missing == "", repr(missing))
+
+
+# --------------------------------------------------------------------------- #
+#  update.py: релизы панели, Android-фильтр и защита от релизов без архива
+# --------------------------------------------------------------------------- #
+
+def make_release(tag, *assets, **flags):
+    """Минимальный объект GitHub Release: tag_name, assets и флаги."""
+    item = {
+        "tag_name": tag,
+        "name": "release " + tag,
+        "assets": [
+            {"name": name,
+             "browser_download_url": "https://example.invalid/" + name,
+             "size": 1}
+            for name in assets
+        ],
+    }
+    item.update(flags)
+    return item
+
+
+def test_update_release_filter():
+    android = make_release("android-v1.0.2", "midipult-android-1.0.2.apk")
+    no_archive = make_release("v0.4.60")
+    panel = make_release("v0.4.52", "midipult-0.4.52.tar.gz",
+                         "midipult-0.4.52.tar.gz.sha256")
+    draft = make_release("v0.4.99", "midipult-0.4.99.tar.gz", draft=True)
+    prerelease = make_release("v0.4.98", "midipult-0.4.98.tar.gz", prerelease=True)
+
+    check("update: android-v1.0.2 не версия панели",
+          update.release_version(android) == "", update.release_version(android))
+    check("update: версия панели из тега v0.4.52",
+          update.release_version(panel) == "0.4.52", update.release_version(panel))
+
+    picked = update.pick_panel_release([draft, prerelease, android, no_archive, panel])
+    check("update: draft, prerelease и android пропущены",
+          picked is no_archive, str(picked.get("tag_name")))
+
+    picked = update.pick_panel_release([android, panel])
+    check("update: после Android выбирается релиз панели",
+          picked is panel and update.release_version(picked) == "0.4.52")
+
+    try:
+        update.pick_panel_release([android])
+        rejected = False
+    except ValueError:
+        rejected = True
+    check("update: только Android -> ошибка", rejected)
+
+    archive, sha = update.release_assets(panel, "0.4.52")
+    check("update: архив и sha релиза панели найдены", bool(archive and sha))
+
+
+def test_update_check_guard():
+    import time
+
+    def release(version, with_archive):
+        names = (("midipult-%s.tar.gz" % version, "midipult-%s.tar.gz.sha256" % version)
+                 if with_archive else ())
+        return {
+            "tag": "v" + version,
+            "version": version,
+            "name": "MidiPult " + version,
+            "body": "",
+            "published_at": "",
+            "html_url": "",
+            "assets": [{"name": name, "url": "https://example.invalid/" + name,
+                        "size": 1} for name in names],
+        }
+
+    old_fetch = update.fetch_release
+    old_cache = update.load_cache
+    old_current = update.current_version
+    old_write = common.write_json
+    try:
+        update.current_version = lambda: "0.4.51"
+        update.load_cache = lambda: {}
+        common.write_json = lambda *args, **kwargs: None
+
+        update.fetch_release = lambda: release("0.4.99", False)
+        data = update.check(force=True)
+        check("update: релиз без архива не считается обновлением",
+              data.get("update_available") is False, repr(data.get("update_available")))
+        check("update: есть ошибка про архив",
+              "архив" in str(data.get("error") or "").lower(), repr(data.get("error")))
+
+        update.fetch_release = lambda: release("0.4.52", True)
+        data = update.check(force=True)
+        check("update: v0.4.x с архивом — обновление",
+              data.get("update_available") is True, repr(data.get("update_available")))
+        check("update: архив попал в ответ", bool(data.get("archive")))
+
+        update.load_cache = lambda: {"checked_at": int(time.time()), "version": "0.4.60",
+                                     "ok": True, "archive": None, "sha": None}
+        data = update.check()
+        check("update: кэш без архива не обновление",
+              data.get("update_available") is False, repr(data.get("update_available")))
+
+        update.load_cache = lambda: {"checked_at": int(time.time()), "version": "0.4.60",
+                                     "ok": True,
+                                     "archive": {"name": "midipult-0.4.60.tar.gz"},
+                                     "sha": {"name": "midipult-0.4.60.tar.gz.sha256"}}
+        data = update.check()
+        check("update: кэш с архивом — обновление",
+              data.get("update_available") is True, repr(data.get("update_available")))
+    finally:
+        update.fetch_release = old_fetch
+        update.load_cache = old_cache
+        update.current_version = old_current
+        common.write_json = old_write
+
+
+def test_update_fetch_release():
+    import json
+
+    class FakeResponse:
+        def __init__(self, body):
+            self._body = body
+
+        def read(self):
+            return self._body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    android = make_release("android-v1.0.2", "midipult-android-1.0.2.apk")
+    draft = make_release("v0.4.99", "midipult-0.4.99.tar.gz", draft=True)
+    panel = make_release("v0.4.52", "midipult-0.4.52.tar.gz",
+                         "midipult-0.4.52.tar.gz.sha256")
+    body = json.dumps([android, draft, panel]).encode("utf-8")
+
+    old_urlopen = update.urllib.request.urlopen
+    try:
+        update.urllib.request.urlopen = lambda request, timeout=None: FakeResponse(body)
+        fetched = update.fetch_release()
+    finally:
+        update.urllib.request.urlopen = old_urlopen
+
+    check("update: fetch_release пропускает Android и draft",
+          fetched["tag"] == "v0.4.52" and fetched["version"] == "0.4.52", str(fetched))
+    archive, sha = update.release_assets(fetched, fetched["version"])
+    check("update: fetch_release возвращает архив и sha", bool(archive and sha))
+
+
 def main():
     for test in (
         test_generic_helpers,
@@ -313,6 +512,10 @@ def main():
         test_media_config_override,
         test_speak_frames,
         test_vpn_parsing,
+        test_discovery_payload,
+        test_update_release_filter,
+        test_update_check_guard,
+        test_update_fetch_release,
     ):
         try:
             test()
