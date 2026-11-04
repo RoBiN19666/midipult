@@ -24,14 +24,17 @@ LIGHTTPD="/opt/sbin/lighttpd"
 LIGHTTPD_CONF="/opt/etc/lighttpd/myweb.conf"
 WEBROOT="/data/myweb"
 
-# Панель показывает местное время Екатеринбурга, хотя системные часы станции
-# остаются в UTC. Это же окружение наследуют voice/state и CGI.
+# Часовой пояс: /data/mypult/timezone (одна зона, пусто/station — как на
+# станции). Без конфига TZ не навязываем; системные часы не меняем.
+TIMEZONE_FILE="/data/mypult/timezone"
 if [ -n "$MYPULT_TZ" ]; then
     export TZ="$MYPULT_TZ"
-elif [ -f /opt/share/zoneinfo/Asia/Yekaterinburg ]; then
-    export TZ=":/opt/share/zoneinfo/Asia/Yekaterinburg"
-else
-    export TZ="UTC-5"
+elif [ -r "$TIMEZONE_FILE" ]; then
+    _zone=$(head -n 1 "$TIMEZONE_FILE" 2>/dev/null | tr -d '\r')
+    if [ -n "$_zone" ] && [ "$_zone" != "station" ] && \
+       [ -f "/opt/share/zoneinfo/$_zone" ]; then
+        export TZ=":/opt/share/zoneinfo/$_zone"
+    fi
 fi
 
 

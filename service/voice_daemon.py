@@ -20,16 +20,13 @@ import threading
 import time
 import urllib.request
 
-# Даже если демон запущен вручную (не через init), часы дисплея должны
-# использовать местное время Екатеринбурга, а не UTC станции.
-if not os.environ.get("TZ"):
-    _tz = "/opt/share/zoneinfo/Asia/Yekaterinburg"
-    if os.path.exists(_tz):
-        os.environ["TZ"] = ":" + _tz
-        try:
-            time.tzset()
-        except AttributeError:
-            pass
+# Часовой пояс берём из /data/mypult/timezone; без конфига — системный TZ.
+sys.path.insert(0, "/data/myweb/cgi-bin")
+try:
+    import common
+    common.apply_timezone()
+except Exception:  # noqa: BLE001 — запуск вне станции/без cgi-bin
+    pass
 
 BASE = "http://127.0.0.1:8055"
 LUNA = "http://127.0.0.1:8099"

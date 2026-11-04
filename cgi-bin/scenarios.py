@@ -193,7 +193,9 @@ def save_tz(offset):
 
 
 def local_now():
-    return datetime.datetime.utcnow() + datetime.timedelta(hours=load_tz())
+    # Расписание идёт по выбранной зоне станции; tz_offset оставлен только
+    # для старых данных и больше не перебивает системную зону.
+    return common.now_local()
 
 
 def parse_days(value):

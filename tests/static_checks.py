@@ -386,7 +386,9 @@ def test_p2_hardening():
           and "X-Frame-Options" not in common_py)
     check("P2: backup включает состояние дисплея",
           '"display": "display.json"' in backup_py
-          and '"display_mode": "display_mode.json"' in backup_py)
+          and '"display_mode": "display_mode.json"' in backup_py
+          and 'TEXT_FILES = {"timezone": "timezone"}' in read(
+              os.path.join(ROOT, "cgi-bin", "backup.py")))
     check("P2: diag читает glagol.json", "/data/mypult/glagol.json" in diag_py)
     check("P2: socat только на loopback", "bind=127.0.0.1" in init)
     check("P2: runtime display-файлы в .gitignore",
@@ -416,6 +418,28 @@ def test_p2_hardening():
           and "refreshPlayer(true)" in html
           and '"player" in query' in read(
               os.path.join(ROOT, "service", "state_daemon.py")))
+    init_py = read(os.path.join(ROOT, "init.d", "S99mypult"))
+    voice_py = read(os.path.join(ROOT, "service", "voice_daemon.py"))
+    state_py = read(os.path.join(ROOT, "service", "state_daemon.py"))
+    common_py = read(os.path.join(ROOT, "cgi-bin", "common.py"))
+    check("timezone: конфиг и системный TZ по умолчанию",
+          "/data/mypult/timezone" in common_py and "TIMEZONE_PATH" in common_py
+          and "def configured_timezone" in common_py
+          and "TIMEZONE_FILE" in init_py and "/data/mypult/timezone" in init_py
+          and "UTC-5" not in init_py)
+    check("timezone: без хардкода Екатеринбурга в коде",
+          "Yekaterinburg" not in init_py and "Yekaterinburg" not in voice_py
+          and "Yekaterinburg" not in state_py)
+    check("timezone: UI и CGI",
+          'id="tzSelect"' in html and "timezone.py" in html
+          and os.path.isfile(os.path.join(ROOT, "cgi-bin", "timezone.py")))
+    install_sh = read(os.path.join(ROOT, "deploy", "install.sh"))
+    check("timezone: установщик не навязывает зону",
+          "deploy/timezone" not in install_sh and "TZ_FILE" in install_sh)
+    check("ring: плавная свеча без random и busy-guard",
+          "Math.random" not in html and
+          "i * 0.55 + frame * 0.22" in html and
+          "if (document.hidden || busy) return;" in html)
 
 
 def main():

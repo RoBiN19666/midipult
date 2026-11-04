@@ -345,6 +345,27 @@ def test_state_player_fresh():
         state_daemon.player.snapshot = old
 
 
+def test_timezone_config():
+    from unittest import mock
+    old_tz = os.environ.get("TZ")
+    try:
+        with mock.patch.object(common, "_timezone_file_value", return_value="station"):
+            check("timezone: station = системный TZ",
+                  common.configured_timezone() == "")
+        with mock.patch.object(common, "_timezone_file_value", return_value="Asia/Test"), \
+                mock.patch.object(common, "timezone_path", return_value="/opt/share/zoneinfo/Asia/Test"):
+            check("timezone: зона из конфига",
+                  common.configured_timezone() == "Asia/Test")
+        check("timezone: пустой путь запрещён", common.timezone_path("") is None)
+        check("timezone: path traversal запрещён",
+              common.timezone_path("../etc/passwd") is None)
+    finally:
+        if old_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = old_tz
+
+
 def test_vpn_parsing():
     import base64
     import json
@@ -773,6 +794,7 @@ def main():
         test_url_guard,
         test_update_assets,
         test_state_player_fresh,
+        test_timezone_config,
         test_vpn_parsing,
         test_discovery_payload,
         test_update_release_filter,

@@ -367,6 +367,15 @@ def test_csrf_guard():
     check("csrf: same-origin POST разрешён", status == 200, str(data))
 
 
+def test_timezone_cgi():
+    body = json.dumps({}).encode("utf-8")
+    env = {"REMOTE_ADDR": "127.0.0.1",
+           "MYPULT_TIMEZONE": "/tmp/mypult-timezone-missing"}
+    status, data, _, _ = run_cgi("timezone.py", body=body, env_extra=env)
+    check("timezone: без конфига = станция", status == 200
+          and data.get("zone") == "station", str(data))
+
+
 def test_auth_and_luna_guard():
     fd, path = tempfile.mkstemp(prefix="mypult-auth-", suffix=".json")
     os.close(fd)
@@ -411,6 +420,7 @@ def main():
         test_volume,
         test_status,
         test_csrf_guard,
+        test_timezone_cgi,
         test_auth_and_luna_guard,
     ]
     for test in tests:

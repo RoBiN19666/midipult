@@ -428,6 +428,9 @@ def main():
         save_mode(not load_auto()["display_enabled"], "restore")
         lit = lit_count()
         time_text = str(data.get("time") or "").strip()
+        if not time_text:
+            # Не доверяем времени браузера: берём выбранную зону станции.
+            time_text = time.strftime("%H:%M")
         if lit == 0 and time_text:
             # Рисунок не восстановился — просим Luna нарисовать время заново.
             try:

@@ -1236,6 +1236,18 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     </div>
   </section>
 
+  <!-- ───────── часовой пояс ───────── -->
+  <section class="card c-sys" data-group="system" aria-labelledby="h-tz">
+    <h2 id="h-tz"><span class="dot"></span>Часовой пояс</h2>
+    <div class="row">
+      <select id="tzSelect" class="net-input" style="flex:1;min-width:0" aria-label="Часовой пояс панели">
+        <option value="station">Как на станции</option>
+      </select>
+      <button class="btn sm" id="btnTzSave">Сохранить</button>
+    </div>
+    <div class="seg-note" id="tzStatus">Как на станции</div>
+  </section>
+
   <!-- ───────── характеристики ───────── -->
   <section class="card c-sys" data-group="system" aria-labelledby="h-hw">
     <h2 id="h-hw"><span class="dot"></span>Характеристики</h2>
@@ -1724,6 +1736,8 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     brightness: 170,
     displayAuto: false,
     displayManual: false,
+    timezone: null,
+    tzOffset: null,
     volume: 40,
     playing: false,
     busy: 0,
@@ -2150,8 +2164,12 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
   function candleColors(frame) {
     var out = [];
     for (var i = 0; i < 24; i++) {
-      var flicker = 8 * Math.sin(i * 0.7 + frame * 0.5) + (Math.random() * 8 - 4);
-      out.push(hslToHex(28 + (i % 4) * 2, 95, clamp(48 + flicker, 32, 68)));
+      // Две медленные волны вместо random: мерцание остаётся живым, но
+      // без ступенчатого «шума» на каждом кадре.
+      var flicker = 7 * Math.sin(i * 0.55 + frame * 0.22)
+        + 3.5 * Math.sin(i * 1.27 - frame * 0.11);
+      var hue = 28 + 2.5 * Math.sin(i * 0.3 + frame * 0.05);
+      out.push(hslToHex(hue, 95, clamp(50 + flicker, 36, 66)));
     }
     return out;
   }
@@ -2282,19 +2300,22 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     stopRingBlink();
     if (State.ledMode !== 'solid' || !State.ringSpeed) return;
     var phase = 0;
+    var busy = false;
     State.blinkTimer = setInterval(function () {
       if (State.ledMode !== 'solid' || !State.ringSpeed) {
         stopRingBlink();
         return;
       }
-      if (document.hidden) return;
+      if (document.hidden || busy) return;
       // Плавное «дыхание»: 15% → 100% → 15%, без резкого вкл/выкл.
       phase += 0.17 * State.ringSpeed;
       var factor = 0.15 + 0.85 * (0.5 - 0.5 * Math.cos(phase));
       var color = scaleHex(State.color, factor);
       var colors = new Array(24).fill(color);
+      busy = true;
       request('/cgi-bin/luna.py?path=%2Fapi%2Fled%2Fring', { body: { colors: colors }, timeout: 5000 })
-        .catch(function () { stopRingBlink(); });
+        .catch(function () { stopRingBlink(); })
+        .finally(function () { busy = false; });
     }, 100);
   }
 
@@ -2329,7 +2350,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
         .finally(function () { anim.busy = false; });
     };
 
-    anim.timer = setInterval(tick, Math.max(50, 170 / (State.ringSpeed || 1)));
+    anim.timer = setInterval(tick, Math.max(70, 150 / (State.ringSpeed || 1)));
     tick();
   }
 
@@ -2510,13 +2531,31 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
   function tickClock() {
     var d = new Date();
     var text = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    var dateText = d.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long'
+    });
+    if (State.timezone) {
+      try {
+        text = new Intl.DateTimeFormat('ru-RU', {
+          timeZone: State.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }).format(d);
+        dateText = new Intl.DateTimeFormat('ru-RU', {
+          timeZone: State.timezone, weekday: 'long', day: 'numeric', month: 'long'
+        }).format(d);
+      } catch (e) { /* старый WebView без Intl timeZone */ }
+    } else if (typeof State.tzOffset === 'number') {
+      // «Как на станции»: фиксированное смещение, полученное от timezone.py.
+      var station = new Date(d.getTime() + State.tzOffset * 60000);
+      text = pad(station.getUTCHours()) + ':' + pad(station.getUTCMinutes());
+      dateText = station.toLocaleDateString('ru-RU', {
+        timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long'
+      });
+    }
     el.clockTime.textContent = text;
     if (!State.drawing) {
       renderTime(text);
     }
-    el.clockSub.textContent = d.toLocaleDateString('ru-RU', {
-      weekday: 'long', day: 'numeric', month: 'long'
-    });
+    el.clockSub.textContent = dateText;
   }
 
   /* ─────────── дисплей: рисование палочками ─────────── */
@@ -3836,6 +3875,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     } else if (name === 'system') {
       loadLogs();
       loadSounds();
+      loadTimezone();
       refreshSystem();
     } else if (name === 'scenarios') {
       loadScenarios();
@@ -4483,6 +4523,58 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
   }
 
   /* ─────────── логи ─────────── */
+  function loadTimezone() {
+    return cgi('timezone.py', {}, { timeout: 10000, silent: true }).then(function (data) {
+      var select = el.tzSelect;
+      select.innerHTML = '';
+      var station = document.createElement('option');
+      station.value = 'station';
+      station.textContent = 'Как на станции';
+      select.appendChild(station);
+      (data.zones || []).forEach(function (zone) {
+        var option = document.createElement('option');
+        option.value = zone;
+        option.textContent = zone;
+        select.appendChild(option);
+      });
+      var current = data.zone === 'station' || !data.zone ? 'station' : data.zone;
+      if (current !== 'station' && !select.querySelector('option[value="' + current + '"]')) {
+        var extra = document.createElement('option');
+        extra.value = current;
+        extra.textContent = current;
+        select.appendChild(extra);
+      }
+      select.value = current;
+      State.timezone = current === 'station' ? null : current;
+      State.tzOffset = typeof data.offset === 'number' ? data.offset : null;
+      el.tzStatus.textContent = current === 'station'
+        ? 'Как на станции' + (data.system ? ' · ' + data.system : '')
+        : 'Зона: ' + current + ' · системные часы не меняются';
+      tickClock();
+    }).catch(function (err) {
+      el.tzStatus.textContent = 'Часовой пояс: ' + err.message;
+    });
+  }
+
+  function saveTimezone() {
+    var zone = el.tzSelect.value;
+    return withBusy(el.btnTzSave, function () {
+      return cgi('timezone.py', { zone: zone }, { timeout: 10000 }).then(function (data) {
+        State.timezone = data.zone === 'station' ? null : data.zone;
+        State.tzOffset = typeof data.offset === 'number' ? data.offset : null;
+        el.tzStatus.textContent = data.zone === 'station'
+          ? 'Как на станции · перезапустите демоны для голоса'
+          : 'Зона: ' + data.zone + ' · системные часы не меняются';
+        tickClock();
+        toast('Часовой пояс сохранён', 'ok');
+        if (data.restart_required) {
+          toast('Для голосового/state демонов нужен перезапуск пульта', 'warn');
+        }
+        return loadTimezone();
+      }).catch(function (err) { toast('Часовой пояс: ' + err.message, 'bad'); });
+    });
+  }
+
   function loadLogs() {
     return cgi('logs.py', { name: el.logName.value, lines: 200 }, { timeout: 10000, silent: true })
       .then(function (data) {
@@ -6042,6 +6134,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     el.btnPinEnable.addEventListener('click', enablePin);
     el.btnPinDisable.addEventListener('click', disablePin);
     el.btnPinLock.addEventListener('click', lockPanel);
+    el.btnTzSave.addEventListener('click', saveTimezone);
     el.btnPinLogin.addEventListener('click', loginPin);
     el.pinInput.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') loginPin();
@@ -6195,6 +6288,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       'customSoundName', 'btnCustomSound', 'customSoundFile', 'customSoundList',
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus', 'pinInsecure',
+      'tzSelect', 'btnTzSave', 'tzStatus',
       'sysCpu', 'sysCpuBar', 'sysLoad', 'sysRam', 'sysRamBar', 'sysRamSub', 'sysTemp', 'sysTempSub',
       'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'hwList', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
@@ -6215,6 +6309,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     addScRow('speak');
     enhanceSelects();
     loadAuth();
+    loadTimezone();
     initCardDrag();
     loadRingSpeed();
     syncVolumeFromDevice();

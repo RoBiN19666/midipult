@@ -42,6 +42,10 @@ say "версия: ${VERSION:-неизвестна}"
 if [ -n "$OLD_VERSION" ] && [ -n "$VERSION" ] && [ "$OLD_VERSION" != "$VERSION" ]; then
     say "обновление: $OLD_VERSION -> $VERSION"
 fi
+
+# Часовой пояс панели хранится в /data/mypult/timezone и задаётся
+# пользователем через интерфейс. Установщик не навязывает зону.
+TZ_FILE="/data/mypult/timezone"
 say "резервная копия: $BACKUP"
 mkdir -p "$BACKUP" || die "не могу создать $BACKUP"
 [ -f "$WEB/index.html" ] && cp -f "$WEB/index.html" "$BACKUP/index.html"

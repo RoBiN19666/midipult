@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import ipaddress
+import datetime
 import json
 import os
 import socket
@@ -124,6 +125,87 @@ def _read_stdin() -> bytes:
 
 
 AUTH_PATH = os.environ.get("MYPULT_AUTH_PATH") or "/data/mypult/auth.json"
+TIMEZONE_PATH = os.environ.get("MYPULT_TIMEZONE") or "/data/mypult/timezone"
+ZONEINFO_ROOT = "/opt/share/zoneinfo"
+
+
+def _timezone_file_value():
+    try:
+        with open(TIMEZONE_PATH, "r", encoding="utf-8") as fh:
+            return fh.readline().strip()
+    except OSError:
+        return ""
+
+
+def timezone_path(zone):
+    """Путь к зоне внутри /opt/share/zoneinfo или None для «как на станции»."""
+    zone = str(zone or "").strip()
+    if not zone or zone.lower() in ("station", "system", "local"):
+        return None
+    if ".." in zone.split("/") or zone.startswith("/") or "\\" in zone:
+        return None
+    path = os.path.realpath(os.path.join(ZONEINFO_ROOT, zone))
+    root = os.path.realpath(ZONEINFO_ROOT)
+    if not path.startswith(root + os.sep) or not os.path.isfile(path):
+        return None
+    return path
+
+
+def configured_timezone():
+    zone = _timezone_file_value()
+    return zone if timezone_path(zone) else ""
+
+
+def apply_timezone():
+    """Применить TZ из конфига к текущему процессу; без конфига — системный TZ."""
+    zone = configured_timezone()
+    if not zone:
+        # Если процесс унаследовал старый TZ пульта, возвращаем системный.
+        old = os.environ.get("TZ", "")
+        if "/opt/share/zoneinfo" in old:
+            os.environ.pop("TZ", None)
+            try:
+                time.tzset()
+            except AttributeError:
+                pass
+        return False
+    os.environ["TZ"] = ":" + timezone_path(zone)
+    try:
+        time.tzset()
+    except AttributeError:
+        pass
+    return True
+
+
+def now_local():
+    """Время станции в выбранной зоне; при отсутствии — системное."""
+    zone = configured_timezone()
+    if zone:
+        try:
+            from zoneinfo import ZoneInfo
+            return datetime.datetime.now(ZoneInfo(zone))
+        except Exception:  # noqa: BLE001 — нет zoneinfo/tzdata
+            pass
+    return datetime.datetime.now()
+
+
+def set_timezone(zone):
+    zone = str(zone or "").strip()
+    if zone.lower() in ("station", "system", "local", ""):
+        zone = ""
+    elif not timezone_path(zone):
+        raise ValueError("неизвестная зона")
+    os.makedirs(os.path.dirname(TIMEZONE_PATH), exist_ok=True)
+    tmp = TIMEZONE_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(zone + "\n")
+    os.replace(tmp, TIMEZONE_PATH)
+    try:
+        os.chmod(TIMEZONE_PATH, 0o600)
+    except OSError:
+        pass
+    apply_timezone()
+    return zone
 
 
 def write_json(path, data, mode=0o600, **kwargs):
@@ -527,3 +609,11 @@ def which(name: str):
             if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                 return candidate
     return None
+
+
+# Каждый CGI — новый процесс: применяем TZ из /data/mypult/timezone до
+# любых time.strftime(). Без конфига остаётся системный TZ станции.
+try:
+    apply_timezone()
+except Exception:  # noqa: BLE001
+    pass
