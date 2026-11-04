@@ -90,6 +90,13 @@ public class MainActivity extends Activity {
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         bar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
+        Button rename = new Button(this);
+        rename.setText("✎");
+        rename.setTextSize(14);
+        rename.setContentDescription("Переименовать станцию");
+        rename.setOnClickListener(v -> renameCurrent());
+        bar.addView(rename);
+
         Button stations = new Button(this);
         stations.setText("Станции");
         stations.setAllCaps(false);
@@ -285,6 +292,30 @@ public class MainActivity extends Activity {
                         startActivity(new Intent(this, SetupActivity.class)
                                 .putExtra(SetupActivity.EXTRA_MANAGE, true)))
                 .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    private void renameCurrent() {
+        if (station == null) return;
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        input.setText(station.name == null ? "" : station.name);
+        input.setHint("Например, «Кухня»");
+        input.setSelectAllOnFocus(true);
+        new AlertDialog.Builder(this)
+                .setTitle("Название станции")
+                .setView(input)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Сохранить", (dialog, which) -> {
+                    StationStore.rename(this, station, input.getText().toString());
+                    Station updated = StationStore.active(this);
+                    if (updated != null) {
+                        station = updated;
+                        title.setText(updated.name == null || updated.name.isEmpty()
+                                ? updated.ip : updated.name);
+                    }
+                    Toast.makeText(this, "Название сохранено", Toast.LENGTH_SHORT).show();
+                })
                 .show();
     }
 

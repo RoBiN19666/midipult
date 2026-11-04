@@ -163,7 +163,13 @@ public class SetupActivity extends Activity {
             Map<String, Station> map = new LinkedHashMap<>();
             for (Station station : all) map.put(station.url, station);
             for (Station station : StationStore.load(this)) {
-                if (!map.containsKey(station.url)) map.put(station.url, station);
+                Station found = map.get(station.url);
+                if (found == null) {
+                    map.put(station.url, station);
+                } else {
+                    map.put(station.url, new Station(
+                            station.name, station.url, found.ip, found.model, found.version));
+                }
             }
             all = new ArrayList<>(map.values());
             render(all);
@@ -216,14 +222,46 @@ public class SetupActivity extends Activity {
         meta.setPadding(0, dp(3), 0, dp(8));
         box.addView(meta);
 
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+
         Button open = new Button(this);
         open.setText("Открыть");
         open.setAllCaps(false);
         open.setOnClickListener(v -> open(station));
-        box.addView(open);
+        actions.addView(open, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        Button rename = new Button(this);
+        rename.setText("✎");
+        rename.setContentDescription("Переименовать станцию");
+        rename.setOnClickListener(v -> rename(station));
+        LinearLayout.LayoutParams renameParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        renameParams.setMargins(dp(8), 0, 0, 0);
+        actions.addView(rename, renameParams);
+        box.addView(actions);
 
         box.setOnClickListener(v -> open(station));
         return box;
+    }
+
+    private void rename(Station station) {
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        input.setText(station.name == null ? "" : station.name);
+        input.setHint("Например, «Кухня»");
+        input.setSelectAllOnFocus(true);
+        new AlertDialog.Builder(this)
+                .setTitle("Название станции")
+                .setView(input)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Сохранить", (dialog, which) -> {
+                    StationStore.rename(this, station, input.getText().toString());
+                    render(StationStore.load(this));
+                    Toast.makeText(this, "Название сохранено", Toast.LENGTH_SHORT).show();
+                })
+                .show();
     }
 
     private void open(Station station) {
