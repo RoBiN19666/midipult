@@ -226,6 +226,8 @@ def recognize():
 def llm_enabled():
     try:
         info = get(BASE + "/cgi-bin/llm.py?info=1")
+        if "voice_enabled" in info:
+            return bool(info.get("voice_enabled"))
         if "enabled" in info:
             return bool(info.get("enabled"))
         return bool((info.get("config") or {}).get("enabled"))

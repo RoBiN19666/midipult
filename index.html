@@ -1150,14 +1150,14 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       <label class="llm-field"><span>API-ключ</span>
         <input type="password" id="llmKey" placeholder="хранится на колонке" autocomplete="off">
       </label>
-      <label class="llm-toggle"><input type="checkbox" id="llmEnabled"><span>Включено</span></label>
+      <label class="llm-toggle"><input type="checkbox" id="llmEnabled"><span>Голосовые вопросы</span></label>
     </div>
     <div class="row" style="margin-top:10px">
       <button class="btn sm" id="btnLlmSave">Сохранить</button>
       <span class="seg-note" id="llmStatus"></span>
     </div>
     <div class="field" style="margin-top:12px">
-      <textarea id="llmPrompt" placeholder="Спросите что-нибудь…"></textarea>
+      <textarea id="llmPrompt" placeholder="Спросите что-нибудь… Текстовые вопросы работают без голосового тумблера."></textarea>
     </div>
     <div class="row between" style="margin-top:10px">
       <span class="counter" id="llmMeta"></span>
@@ -3229,7 +3229,9 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     el.llmActive.textContent = active
       ? ('активный: ' + active.name + (active.key_set ? ', ключ есть' : ', ключа нет'))
       : 'профиль не выбран';
-    el.llmStatus.textContent = State.llm.enabled ? 'LLM включена' : 'LLM выключена';
+    el.llmStatus.textContent = State.llm.enabled
+      ? 'Голосовые вопросы: вкл · текст работает всегда'
+      : 'Голосовые вопросы: выкл · текст работает всегда';
   }
 
   function applyProfile(profile) {
@@ -3270,12 +3272,12 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       providers: data.providers || [],
       profiles: data.profiles || [],
       active: data.active || null,
-      enabled: !!data.enabled,
+      enabled: !!(data.voice_enabled !== undefined ? data.voice_enabled : data.enabled),
       provider: 'openai',
       chats: data.chats || [],
       activeChat: data.active_chat || null
     };
-    el.llmEnabled.checked = !!data.enabled;
+    el.llmEnabled.checked = !!(data.voice_enabled !== undefined ? data.voice_enabled : data.enabled);
     if (el.llmLength) {
       var length = String(data.max_tokens || 260);
       el.llmLength.value = length;
@@ -3292,6 +3294,9 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
     }
     applyProfile(findProfile(data.active));
     updateLlmStatus();
+    // Кастомный dropdown мог отрисоваться до ответа llm.py — синхронизируем
+    // подпись с только что установленными значениями (длина ответа и т.п.).
+    refreshDropdowns();
   }
 
   function switchChat(payload) {
@@ -3351,12 +3356,12 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
 
   function toggleLlmEnabled() {
     var on = el.llmEnabled.checked ? 1 : 0;
-    return cgi('llm.py', { enabled: on }, { timeout: 15000 }).then(function (data) {
+    return cgi('llm.py', { voice_enabled: on }, { timeout: 15000 }).then(function (data) {
       applyLlmInfo(data);
-      toast(on ? 'Нейросеть включена' : 'Нейросеть выключена', 'ok');
+      toast(on ? 'Голосовые вопросы включены' : 'Голосовые вопросы выключены', 'ok');
     }).catch(function (err) {
       el.llmEnabled.checked = !el.llmEnabled.checked;
-      toast('LLM: ' + err.message, 'bad');
+      toast('Голосовые вопросы: ' + err.message, 'bad');
     });
   }
 
@@ -3374,7 +3379,7 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
       provider: (State.llm && State.llm.provider) || 'openai',
       model: model,
       base_url: el.llmBase.value.trim(),
-      enabled: el.llmEnabled.checked ? 1 : 0
+      voice_enabled: el.llmEnabled.checked ? 1 : 0
     };
     if (State.llm && State.llm.active) payload.profile_id = State.llm.active;
     var key = el.llmKey.value.trim();

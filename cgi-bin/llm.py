@@ -144,7 +144,9 @@ def info(config=None):
         "profiles": [public_profile(item) for item in profiles],
         "active": active.get("id") if active else None,
         "active_name": active.get("name") if active else None,
-        "enabled": bool(config.get("enabled")),
+        "voice_enabled": voice_enabled(config),
+        # Совместимость со старым API: enabled теперь означает голосовой тумблер.
+        "enabled": voice_enabled(config),
         "system_prompt": str(config.get("system_prompt") or ""),
         "config": public_profile(active),
         "max_tokens": int(config.get("max_tokens") or 260),
@@ -192,11 +194,15 @@ def chat_public(chat):
     }
 
 
+def voice_enabled(config):
+    """Тумблер относится только к голосовым вопросам, не к текстовому API."""
+    if "voice_enabled" in config:
+        return bool(config.get("voice_enabled"))
+    return bool(config.get("enabled"))
+
+
 def ask(prompt, system=None):
     config = load_config()
-    if not config.get("enabled"):
-        common.fail(400, "LLM выключена", hint="Включите тумблер в карточке «Нейросеть»")
-        return
     profile = active_profile(config)
     if not profile:
         common.fail(400, "Нет профиля LLM", hint="Добавьте профиль и ключ")
@@ -328,8 +334,10 @@ def save_profile(config, data):
 
     config["profiles"] = profiles
     config["active"] = profile["id"]
-    if "enabled" in data:
-        config["enabled"] = common.truthy(data.get("enabled"))
+    if "voice_enabled" in data or "enabled" in data:
+        value = common.truthy(data.get("voice_enabled", data.get("enabled")))
+        config["voice_enabled"] = value
+        config["enabled"] = value
     return profile
 
 
@@ -412,7 +420,7 @@ def chat_switch(data):
 
 def main():
     data = common.params()
-    action_keys = ("prompt", "enabled", "activate", "delete", "provider", "name", "profile_id",
+    action_keys = ("prompt", "enabled", "voice_enabled", "activate", "delete", "provider", "name", "profile_id",
                    "max_tokens", "system_prompt", "chat_next", "chat_prev", "chat_new", "chat_select",
                    "chat_delete", "chat_rename")
     if common.truthy(data.get("info")) or not any(key in data for key in action_keys):
@@ -450,8 +458,10 @@ def main():
             common.fail(404, "Профиль не найден: %s" % pid)
             return
         config["active"] = pid
-        if "enabled" in data:
-            config["enabled"] = common.truthy(data.get("enabled"))
+        if "voice_enabled" in data or "enabled" in data:
+            value = common.truthy(data.get("voice_enabled", data.get("enabled")))
+            config["voice_enabled"] = value
+            config["enabled"] = value
         save_config(config)
         common.respond(200, info(config))
         return
@@ -476,9 +486,12 @@ def main():
         ask(prompt, data.get("system"))
         return
 
-    # только тумблер, без правки профиля
-    if "enabled" in data and not any(key in data for key in ("provider", "name", "profile_id")):
-        config["enabled"] = common.truthy(data.get("enabled"))
+    # только тумблер голосовых вопросов, без правки профиля
+    if ("voice_enabled" in data or "enabled" in data) and not any(
+            key in data for key in ("provider", "name", "profile_id")):
+        value = common.truthy(data.get("voice_enabled", data.get("enabled")))
+        config["voice_enabled"] = value
+        config["enabled"] = value
         save_config(config)
         common.respond(200, info(config))
         return
