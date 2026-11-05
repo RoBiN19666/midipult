@@ -2544,8 +2544,10 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
         }).format(d);
       } catch (e) { /* старый WebView без Intl timeZone */ }
     } else if (typeof State.tzOffset === 'number') {
-      // «Как на станции»: фиксированное смещение, полученное от timezone.py.
-      var station = new Date(d.getTime() + State.tzOffset * 60000);
+      // «Как на станции»: offset — минуты от UTC. Сначала приводим Date
+      // к UTC, иначе локальный пояс браузера прибавится второй раз.
+      var station = new Date(d.getTime() + d.getTimezoneOffset() * 60000 +
+        State.tzOffset * 60000);
       text = pad(station.getUTCHours()) + ':' + pad(station.getUTCMinutes());
       dateText = station.toLocaleDateString('ru-RU', {
         timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long'
