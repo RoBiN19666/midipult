@@ -265,6 +265,43 @@ def test_display_segment_guard():
         display.read_all, display.save_state, display.save_display_brightness = saved
 
 
+def test_display_reset():
+    from unittest import mock
+    auto = {"enabled": True, "min": 10, "max": 150,
+            "display_enabled": True, "display_min": 10, "display_max": 170}
+    flags = {}
+
+    def save_auto(value):
+        flags["auto"] = dict(value)
+
+    with mock.patch.object(display, "save_display_brightness",
+                           side_effect=lambda value: flags.__setitem__("brightness", value)), \
+            mock.patch.object(display, "segment_brightness"), \
+            mock.patch.object(display, "load_auto", return_value=dict(auto)), \
+            mock.patch.object(display, "save_auto", side_effect=save_auto), \
+            mock.patch.object(display, "save_mode",
+                              side_effect=lambda manual, kind: flags.__setitem__("mode", (manual, kind))), \
+            mock.patch.object(display, "load_mode", return_value={"manual": False, "kind": "clock"}), \
+            mock.patch("os.remove"):
+        data = display.reset_display()
+    check("display reset: яркость 170", flags.get("brightness") == 170)
+    check("display reset: только дисплейная автояркость выключена",
+          flags.get("auto", {}).get("display_enabled") is False
+          and flags.get("auto", {}).get("enabled") is True)
+    check("display reset: ручной режим снят", flags.get("mode") == (False, "clock"))
+    check("display reset: ответ", data.get("brightness") == 170)
+
+    flags.clear()
+    with mock.patch.object(display, "set_ring_brightness", return_value=255), \
+            mock.patch.object(display, "load_auto", return_value=dict(auto)), \
+            mock.patch.object(display, "save_auto", side_effect=save_auto):
+        data = display.reset_ring()
+    check("ring reset: яркость 255", data.get("ring_brightness") == 255)
+    check("ring reset: только кольцевая автояркость выключена",
+          flags.get("auto", {}).get("enabled") is False
+          and flags.get("auto", {}).get("display_enabled") is True)
+
+
 def test_auth_guard():
     from unittest import mock
 
@@ -343,27 +380,6 @@ def test_state_player_fresh():
               state_daemon.player_now().get("error", "").startswith("glagol down"))
     finally:
         state_daemon.player.snapshot = old
-
-
-def test_timezone_config():
-    from unittest import mock
-    old_tz = os.environ.get("TZ")
-    try:
-        with mock.patch.object(common, "_timezone_file_value", return_value="station"):
-            check("timezone: station = системный TZ",
-                  common.configured_timezone() == "")
-        with mock.patch.object(common, "_timezone_file_value", return_value="Asia/Test"), \
-                mock.patch.object(common, "timezone_path", return_value="/opt/share/zoneinfo/Asia/Test"):
-            check("timezone: зона из конфига",
-                  common.configured_timezone() == "Asia/Test")
-        check("timezone: пустой путь запрещён", common.timezone_path("") is None)
-        check("timezone: path traversal запрещён",
-              common.timezone_path("../etc/passwd") is None)
-    finally:
-        if old_tz is None:
-            os.environ.pop("TZ", None)
-        else:
-            os.environ["TZ"] = old_tz
 
 
 def test_vpn_parsing():
@@ -790,11 +806,11 @@ def main():
         test_speak_frames,
         test_display_auto,
         test_display_segment_guard,
+        test_display_reset,
         test_auth_guard,
         test_url_guard,
         test_update_assets,
         test_state_player_fresh,
-        test_timezone_config,
         test_vpn_parsing,
         test_discovery_payload,
         test_update_release_filter,

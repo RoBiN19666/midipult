@@ -32,9 +32,7 @@ FILES = {
     "auto_brightness": "auto_brightness.json",
     "display": "display.json",
     "display_mode": "display_mode.json",
-    "tz": "tz.json",
 }
-TEXT_FILES = {"timezone": "timezone"}
 
 
 def export():
@@ -45,14 +43,6 @@ def export():
             with open(path, "r", encoding="utf-8") as fh:
                 data[key] = json.load(fh)
         except (OSError, ValueError):
-            continue
-    for key, name in TEXT_FILES.items():
-        try:
-            with open(os.path.join(BASE, name), "r", encoding="utf-8") as fh:
-                value = fh.readline().strip()
-            if value:
-                data[key] = value
-        except OSError:
             continue
     return {"ok": True, "version": 1, "data": data}
 
@@ -66,9 +56,6 @@ def restore(payload):
         if name and isinstance(value, (dict, list)):
             path = os.path.join(BASE, name)
             common.write_json(path, value, indent=2)
-            written.append(key)
-        elif key in TEXT_FILES and isinstance(value, str):
-            common.set_timezone(value)
             written.append(key)
     return written
 

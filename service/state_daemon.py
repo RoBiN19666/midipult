@@ -20,10 +20,9 @@ import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# Часовой пояс берём из /data/mypult/timezone; без конфига — системный TZ.
+# Используем системное время станции, отдельных настроек нет.
 sys.path.insert(0, "/data/myweb/cgi-bin")
 import common  # noqa: E402
-common.apply_timezone()
 import player  # noqa: E402
 import sounds  # noqa: E402
 import status  # noqa: E402

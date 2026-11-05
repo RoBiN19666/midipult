@@ -296,10 +296,10 @@ def test_display_auto_api():
     check("дисплей: галочка автояркости на вкладке",
           'id="displayAuto"' in html and 'id="displayAutoStatus"' in html
           and "loadDisplayState" in html and "display_auto_brightness" in html)
-    check("дисплей: яркость/время считает станция, не браузер",
-          "sync_clock" in py and "time.strftime(\"%H:%M\")" in py
-          and "display_brightness=load_display_brightness()" in py
-          and "autoSyncClock" not in html and "clockPayload" not in html)
+    check("дисплей: панель не синхронизирует время",
+          "sync_clock" not in py and "clock_tick" not in py
+          and "btnSync" not in html and "syncClock" not in html
+          and "display_brightness=load_display_brightness()" in py)
     check("дисплей: автояркость дисплея хранится и применяется на станции",
           "display_auto_apply" in py and "display_enabled" in py
           and "DISPLAY_STATE" in py)
@@ -359,9 +359,9 @@ def test_p1_guards():
     init = read(os.path.join(ROOT, "init.d", "S99mypult"))
     check("P1: Luna только на localhost",
           "--listen 127.0.0.1:8099" in init and "luna_on_lan" in init)
-    check("P1: station-side clock_loop и clock_tick",
-          "def clock_loop" in voice_py and "clock_tick" in display_py
-          and "clock_loop" in voice_py.split("def main()", 1)[0])
+    check("P1: панель не крутит часы по таймеру",
+          "def clock_loop" not in voice_py and "clock_tick" not in display_py
+          and "clock_loop" not in voice_py)
     check("P1: ползунок не сохраняет нулевой рисунок",
           "if changed:" in display_py and "save_state(read_all())" in display_py)
 
@@ -375,6 +375,9 @@ def test_p2_hardening():
     init = read(os.path.join(ROOT, "init.d", "S99mypult"))
     ignore = read(os.path.join(ROOT, ".gitignore"))
     common_py = read(os.path.join(ROOT, "cgi-bin", "common.py"))
+    display_py = read(os.path.join(ROOT, "cgi-bin", "display.py"))
+    voice_py = read(os.path.join(ROOT, "service", "voice_daemon.py"))
+    state_py = read(os.path.join(ROOT, "service", "state_daemon.py"))
     update_py = read(os.path.join(ROOT, "cgi-bin", "update.py"))
     vpn_py = read(os.path.join(ROOT, "cgi-bin", "vpn.py"))
     check("P2: CSP и anti-clickjacking без дублей",
@@ -387,8 +390,7 @@ def test_p2_hardening():
     check("P2: backup включает состояние дисплея",
           '"display": "display.json"' in backup_py
           and '"display_mode": "display_mode.json"' in backup_py
-          and 'TEXT_FILES = {"timezone": "timezone"}' in read(
-              os.path.join(ROOT, "cgi-bin", "backup.py")))
+          and "timezone" not in read(os.path.join(ROOT, "cgi-bin", "backup.py")))
     check("P2: diag читает glagol.json", "/data/mypult/glagol.json" in diag_py)
     check("P2: socat только на loopback", "bind=127.0.0.1" in init)
     check("P2: runtime display-файлы в .gitignore",
@@ -396,8 +398,6 @@ def test_p2_hardening():
     check("P2: нет innerHTML с err.message",
           "scList.innerHTML = '<div class=\"seg-note\">сценарии" not in html
           and "note.textContent = 'сценарии: ' + err.message" in html)
-    check("P2: ошибки display не показываются успехом",
-          "synced === false" in html and "data.display.applied === false" in html)
     check("P2: автояркость не залипает после включения экрана",
           'save_mode(not load_auto()["display_enabled"]' in read(
               os.path.join(ROOT, "cgi-bin", "display.py")))
@@ -418,24 +418,26 @@ def test_p2_hardening():
           and "refreshPlayer(true)" in html
           and '"player" in query' in read(
               os.path.join(ROOT, "service", "state_daemon.py")))
-    init_py = read(os.path.join(ROOT, "init.d", "S99mypult"))
-    voice_py = read(os.path.join(ROOT, "service", "voice_daemon.py"))
-    state_py = read(os.path.join(ROOT, "service", "state_daemon.py"))
-    common_py = read(os.path.join(ROOT, "cgi-bin", "common.py"))
-    check("timezone: конфиг и системный TZ по умолчанию",
-          "/data/mypult/timezone" in common_py and "TIMEZONE_PATH" in common_py
-          and "def configured_timezone" in common_py
-          and "TIMEZONE_FILE" in init_py and "/data/mypult/timezone" in init_py
-          and "UTC-5" not in init_py)
-    check("timezone: без хардкода Екатеринбурга в коде",
-          "Yekaterinburg" not in init_py and "Yekaterinburg" not in voice_py
-          and "Yekaterinburg" not in state_py)
-    check("timezone: UI и CGI",
-          'id="tzSelect"' in html and "timezone.py" in html
-          and os.path.isfile(os.path.join(ROOT, "cgi-bin", "timezone.py")))
+    init_py = init
     install_sh = read(os.path.join(ROOT, "deploy", "install.sh"))
-    check("timezone: установщик не навязывает зону",
-          "deploy/timezone" not in install_sh and "TZ_FILE" in install_sh)
+    docs = "\n".join(read(os.path.join(ROOT, name)) for name in
+                     ("README.md", "FAQ.md", "CHANGELOG.md", "docs/ARCHITECTURE.md"))
+    check("timezone: управление удалено",
+          "TIMEZONE_PATH" not in common_py and "configured_timezone" not in common_py
+          and "apply_timezone" not in common_py
+          and "TIMEZONE_FILE" not in init_py and "TZ_FILE" not in install_sh
+          and "tzSelect" not in html and "timezone.py" not in html)
+    check("timezone: нет города в коде/доках",
+          all("Yekaterinburg" not in text and "Екатеринбург" not in text
+              for text in (common_py, init_py, voice_py, state_py, html, docs)))
+    check("reset: отдельные кнопки/эндпоинты",
+          'id="btnDisplayReset"' in html and 'id="btnRingReset"' in html
+          and "reset_display" in display_py and "reset_ring" in display_py
+          and "askConfirm('Сбросить настройки дисплея" in html
+          and "askConfirm('Сбросить кольцо" in html)
+    check("время: панель его не переставляет",
+          "sync_clock" not in display_py and "clock_tick" not in display_py
+          and "time.strftime" not in display_py and "clock_loop" not in voice_py)
     check("ring: плавная свеча без random и busy-guard",
           "Math.random" not in html and
           "i * 0.55 + frame * 0.22" in html and

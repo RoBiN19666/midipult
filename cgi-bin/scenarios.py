@@ -42,7 +42,6 @@ except Exception:  # noqa: BLE001
     radio = None
 
 STORE = "/data/mypult/scenarios.json"
-TZ_PATH = "/data/mypult/tz.json"
 LUNA = "http://127.0.0.1:8099"
 BASE = "http://127.0.0.1:8055"
 ACTION_TYPES = ("speak", "led", "led_off", "radio", "play_sound", "volume",
@@ -177,25 +176,9 @@ def find_by_phrase(text):
     return None
 
 
-def load_tz():
-    try:
-        with open(TZ_PATH, "r", encoding="utf-8") as fh:
-            return max(-12, min(int(json.load(fh).get("offset")), 14))
-    except (OSError, ValueError, TypeError):
-        return 0
-
-
-def save_tz(offset):
-    try:
-        common.write_json(TZ_PATH, {"offset": max(-12, min(int(offset), 14))})
-    except OSError:
-        pass
-
-
 def local_now():
-    # Расписание идёт по выбранной зоне станции; tz_offset оставлен только
-    # для старых данных и больше не перебивает системную зону.
-    return common.now_local()
+    # Обычное локальное время станции; отдельной настройки пояса нет.
+    return datetime.datetime.now()
 
 
 def parse_days(value):
@@ -353,9 +336,6 @@ def validate(data, existing=None):
         for key in ("vpn", "music"):
             if raw_cond.get(key) in ("on", "off", "playing", "paused"):
                 conditions[key] = raw_cond.get(key)
-
-    if data.get("tz_offset") is not None:
-        save_tz(common.to_int(data.get("tz_offset"), 0, -12, 14))
 
     return {"name": name, "phrases": phrases, "actions": clean,
             "schedule": schedule, "conditions": conditions}

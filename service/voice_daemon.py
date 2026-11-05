@@ -20,14 +20,6 @@ import threading
 import time
 import urllib.request
 
-# Часовой пояс берём из /data/mypult/timezone; без конфига — системный TZ.
-sys.path.insert(0, "/data/myweb/cgi-bin")
-try:
-    import common
-    common.apply_timezone()
-except Exception:  # noqa: BLE001 — запуск вне станции/без cgi-bin
-    pass
-
 BASE = "http://127.0.0.1:8055"
 LUNA = "http://127.0.0.1:8099"
 
@@ -657,16 +649,6 @@ def autobright_loop():
         time.sleep(60)
 
 
-def clock_loop():
-    """Часы на станции: обновляем дисплей временем колонки, не браузера."""
-    while True:
-        try:
-            post(BASE + "/cgi-bin/display.py", {"clock_tick": 1}, timeout=20)
-        except Exception:
-            pass
-        time.sleep(45)
-
-
 def volume_sync_loop():
     """Сохранять громкость, выставленную физическими кнопками."""
     time.sleep(30)
@@ -716,7 +698,6 @@ def main():
     log("голосовой пульт запущен")
     threading.Thread(target=scheduler_loop, daemon=True).start()
     threading.Thread(target=autobright_loop, daemon=True).start()
-    threading.Thread(target=clock_loop, daemon=True).start()
     threading.Thread(target=volume_sync_loop, daemon=True).start()
     threading.Thread(target=disk_cleanup_loop, daemon=True).start()
     last_text = ""

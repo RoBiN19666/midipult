@@ -43,9 +43,6 @@ if [ -n "$OLD_VERSION" ] && [ -n "$VERSION" ] && [ "$OLD_VERSION" != "$VERSION" 
     say "обновление: $OLD_VERSION -> $VERSION"
 fi
 
-# Часовой пояс панели хранится в /data/mypult/timezone и задаётся
-# пользователем через интерфейс. Установщик не навязывает зону.
-TZ_FILE="/data/mypult/timezone"
 say "резервная копия: $BACKUP"
 mkdir -p "$BACKUP" || die "не могу создать $BACKUP"
 [ -f "$WEB/index.html" ] && cp -f "$WEB/index.html" "$BACKUP/index.html"
@@ -71,6 +68,7 @@ for f in "$SRC"/cgi-bin/*.py; do
 done
 # Устаревший CGI звука отклика: удаляем, чтобы не оставался после обновления.
 rm -f "$WEB/cgi-bin/soundcfg.py"
+rm -f "$WEB/cgi-bin/timezone.py"
 [ -f "$SRC/cgi-bin/glagol.conf" ] && [ ! -f "$WEB/cgi-bin/glagol.conf" ] && \
     cp -f "$SRC/cgi-bin/glagol.conf" "$WEB/cgi-bin/glagol.conf"
 

@@ -18,7 +18,6 @@ import glob
 import json
 import os
 import sys
-import time
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -36,6 +35,8 @@ DISPLAY_STATE = "/data/mypult/display.json"
 MODE_PATH = "/data/mypult/display_mode.json"
 AUTO_PATH = "/data/mypult/auto_brightness.json"
 LUNA_CLOCK = common.LUNA_BASE + "/api/clock"
+DEFAULT_DISPLAY_BRIGHTNESS = 170
+DEFAULT_RING_BRIGHTNESS = 255
 
 
 def paths():
@@ -166,11 +167,10 @@ def segment_brightness(value):
 
 
 def luna_clock(brightness, time_text=None):
-    """Нарисовать часы временем станции (не браузера). None — Luna недоступна."""
-    payload = {
-        "time": time_text or time.strftime("%H:%M"),
-        "brightness": max(10, min(int(brightness), 255)),
-    }
+    """Яркость дисплея без установки времени (время ставит Алиса/Luna)."""
+    payload = {"brightness": max(10, min(int(brightness), 255))}
+    if time_text:
+        payload["time"] = time_text
     try:
         body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(LUNA_CLOCK, data=body,
@@ -182,7 +182,7 @@ def luna_clock(brightness, time_text=None):
 
 
 def sync_display(brightness=None):
-    """Синхронизация часов/яркости дисплея временем колонки."""
+    """Яркость/рисунок дисплея; время панель не переставляет."""
     value = load_display_brightness() if brightness is None else int(brightness)
     value = max(10, min(value, 255))
     payload = luna_clock(value)
@@ -313,8 +313,45 @@ def display_auto_apply():
     return {"lux": lux, "level": level, "applied": bool(payload)}
 
 
+def reset_display():
+    """Сброс только настроек дисплея; часы/время и кольцо не трогаем."""
+    save_display_brightness(DEFAULT_DISPLAY_BRIGHTNESS)
+    segment_brightness(DEFAULT_DISPLAY_BRIGHTNESS)
+    config = load_auto()
+    config["display_enabled"] = False
+    config["display_min"] = 10
+    config["display_max"] = 170
+    save_auto(config)
+    save_mode(False, "clock")
+    try:
+        os.remove(SAVE)
+    except OSError:
+        pass
+    return {"brightness": DEFAULT_DISPLAY_BRIGHTNESS,
+            "mode": load_mode(), "auto": load_auto()}
+
+
+def reset_ring():
+    """Сброс только кольца: яркость/автояркость кольца; дисплей не трогаем."""
+    value = set_ring_brightness(DEFAULT_RING_BRIGHTNESS)
+    config = load_auto()
+    config["enabled"] = False
+    config["min"] = 10
+    config["max"] = 150
+    save_auto(config)
+    return {"ring_brightness": value, "auto": load_auto()}
+
+
 def main():
     data = common.params()
+
+    if common.truthy(data.get("reset_display")):
+        common.ok(reset_display())
+        return
+
+    if common.truthy(data.get("reset_ring")):
+        common.ok(reset_ring())
+        return
 
     if common.truthy(data.get("backlight")):
         value = ring_backlight_on()
@@ -350,15 +387,8 @@ def main():
         common.ok(brightness=value, time=(payload or {}).get("time"), synced=bool(payload))
         return
 
-    if common.truthy(data.get("sync_clock")):
-        value = common.to_int(data.get("brightness"), load_display_brightness(), 10, 255)
-        payload = sync_display(value)
-        common.ok(brightness=value, time=(payload or {}).get("time"), synced=bool(payload))
-        return
-
     if common.truthy(data.get("save")):
-        # Запомнить текущий рисунок (после синхронизации времени Luna),
-        # чтобы «включить экран» не вернуло старое время.
+        # Запомнить текущий рисунок, чтобы «включить экран» не вернул пустоту.
         save_state(read_all())
         common.ok(saved=True, lit=lit_count())
         return
@@ -386,18 +416,6 @@ def main():
         common.ok(auto=load_auto(), display=applied, mode=load_mode())
         return
 
-    if common.truthy(data.get("clock_tick")):
-        if load_mode().get("manual"):
-            common.ok(clock=False, manual=True)
-            return
-        if load_auto()["display_enabled"]:
-            applied = display_auto_apply()
-            common.ok(clock=bool(applied and applied.get("applied")), display=applied)
-            return
-        payload = sync_display(load_display_brightness())
-        common.ok(clock=bool(payload), time=(payload or {}).get("time"))
-        return
-
     if common.truthy(data.get("auto_tick")):
         ring = auto_apply()
         display = display_auto_apply()
@@ -418,31 +436,15 @@ def main():
         saved = load_state()
         if not saved:
             # Не зажигаем все 45 сегментов «на всякий случай»: если рисунка
-            # нет, экран просто остаётся тёмным до синхронизации/рисования.
+            # нет, экран просто остаётся тёмным до рисования.
             common.ok(off=False, segments=len(paths()), lit=lit_count(),
                       note="нет сохранённого рисунка")
             return
         written = write_all(saved)
         # Если автояркость включена, после включения экрана не залипаем в
-        # manual: clock_tick/auto_tick снова начнут управлять яркостью.
+        # manual: auto_tick снова начнёт управлять яркостью.
         save_mode(not load_auto()["display_enabled"], "restore")
         lit = lit_count()
-        time_text = str(data.get("time") or "").strip()
-        if not time_text:
-            # Не доверяем времени браузера: берём выбранную зону станции.
-            time_text = time.strftime("%H:%M")
-        if lit == 0 and time_text:
-            # Рисунок не восстановился — просим Luna нарисовать время заново.
-            try:
-                import json as _json
-                import urllib.request as _ur
-                body = _json.dumps({"time": time_text, "brightness": 170}).encode()
-                req = _ur.Request(common.LUNA_BASE + "/api/clock", data=body,
-                                  headers={"Content-Type": "application/json"}, method="POST")
-                _ur.urlopen(req, timeout=6).read()
-                lit = lit_count()
-            except Exception:  # noqa: BLE001
-                pass
         common.ok(off=False, segments=written, lit=lit)
         return
 
