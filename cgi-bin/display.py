@@ -346,11 +346,13 @@ def main():
     data = common.params()
 
     if common.truthy(data.get("reset_display")):
-        common.ok(reset_display())
+        # Не восстанавливаем сохранённый рисунок/время: дисплей снова
+        # отдаётся Алисе/Luna, панель только сбрасывает свои настройки.
+        common.ok(**reset_display())
         return
 
     if common.truthy(data.get("reset_ring")):
-        common.ok(reset_ring())
+        common.ok(**reset_ring())
         return
 
     if common.truthy(data.get("backlight")):
