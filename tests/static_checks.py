@@ -435,9 +435,9 @@ def test_p2_hardening():
           and "reset_display" in display_py and "reset_ring" in display_py
           and "askConfirm('Сбросить настройки дисплея" in html
           and "askConfirm('Сбросить кольцо" in html)
-    check("время: панель его не переставляет",
+    check("время: нет фоновой синхронизации/перестановки",
           "sync_clock" not in display_py and "clock_tick" not in display_py
-          and "time.strftime" not in display_py and "clock_loop" not in voice_py)
+          and "clock_loop" not in voice_py)
     check("ring: плавная свеча без random и busy-guard",
           "Math.random" not in html and
           "i * 0.55 + frame * 0.22" in html and

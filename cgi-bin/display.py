@@ -314,7 +314,7 @@ def display_auto_apply():
 
 
 def reset_display():
-    """Сброс только настроек дисплея; часы/время и кольцо не трогаем."""
+    """Сброс настроек дисплея и возврат управления Алисе/Luna."""
     save_display_brightness(DEFAULT_DISPLAY_BRIGHTNESS)
     segment_brightness(DEFAULT_DISPLAY_BRIGHTNESS)
     config = load_auto()
