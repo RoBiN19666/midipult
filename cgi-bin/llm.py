@@ -237,10 +237,13 @@ def ask(prompt, system=None):
     payload = {
         "model": profile.get("model") or "gpt-4o-mini",
         "messages": messages,
-        "temperature": 0.7,
         # Длина ответа настраивается в панели (260 / 700 / 1400).
         "max_tokens": max(50, min(int(config.get("max_tokens") or 260), 2000)),
     }
+    # Текущие модели Claude (напрямую или через OpenRouter, «anthropic/claude-…»)
+    # отвечают HTTP 400 на нестандартную temperature — им её не передаём.
+    if "claude" not in payload["model"].lower():
+        payload["temperature"] = 0.7
     if provider == "deepseek":
         # Без «размышлений» deepseek-flash отвечает ~1.5 с вместо 10–15 с.
         payload["thinking"] = {"type": "disabled"}
