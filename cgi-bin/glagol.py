@@ -44,7 +44,9 @@ def _oauth_tokens():
             raw = fh.read()
     except OSError as exc:
         raise GlagolError("нет доступа к %s: %s" % (ACCOUNT, exc))
-    tokens = [m.group(0).decode("ascii") for m in re.finditer(rb"y0__[A-Za-z0-9_\-]{20,}", raw)]
+    # Новый формат OAuth-токена — «y0__…», старый (встречается на тех же
+    # прошивках) — «y0_A…»; принимаем оба.
+    tokens = [m.group(0).decode("ascii") for m in re.finditer(rb"y0_[A-Za-z0-9_\-]{20,}", raw)]
     if not tokens:
         raise GlagolError("в account_storage.dat не найден OAuth-токен")
     return tokens
