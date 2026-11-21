@@ -104,6 +104,9 @@ FOLLOW_UP_STOP = ("хватит", "стоп", "спасибо", "пока", "д�
 # это на секунду раньше, чем делает handle() перед своим ответом.
 WAKE_CONFIG = "/data/mypult/wake.json"
 WAKE_HIT = "/tmp/mypult/wake-hit"
+# Пока сторож ведёт свой диалог, главный цикл не должен открывать recognize —
+# иначе две сессии подерутся за микрофон.
+WAKE_DIALOG = threading.Event()
 
 
 def wake_config():
@@ -130,11 +133,12 @@ def wake_hit_time():
 
 def wake_watch_loop():
     seen = wake_hit_time()
-    if wake_action() == "cancel":
-        log("слово активации: отменяю ответ Алисы (режим cancel)")
+    if wake_action() != "off":
+        log("слово активации: режим %s" % wake_action())
     while True:
         time.sleep(0.2)
-        if wake_action() != "cancel":
+        action = wake_action()
+        if action == "off":
             seen = wake_hit_time()
             continue
         ts = wake_hit_time()
@@ -143,8 +147,37 @@ def wake_watch_loop():
         seen = ts
         if time.time() - ts > 5:
             continue
-        log("слово активации: отменяю ответ Алисы")
-        stop_alice_speech()
+
+        if action == "cancel":
+            log("слово активации: отменяю ответ Алисы")
+            stop_alice_speech()
+            continue
+
+        if action == "listen":
+            if WAKE_DIALOG.is_set():
+                continue
+            WAKE_DIALOG.set()
+            try:
+                log("слово активации: слушаю фразу без Алисы")
+                # Снимаем текущий диалог Алисы и сразу открываем свою сессию:
+                # listen_for_phrase() работает в режиме cancel=true, поэтому
+                # текст приходит, а Алиса не отвечает.
+                stop_alice_speech()
+                time.sleep(0.25)
+                text = listen_for_phrase(8.0)
+                clean = normalize(text).strip(" .!?,") if text else ""
+                if not text:
+                    log("слово активации: фраза не распознана")
+                elif clean in ("джарвис", "jarvis", "джарвиз"):
+                    log("слово активации: только слово")
+                else:
+                    log("слово активации: распознано %r" % text)
+                    handle(text)
+            except Exception as exc:  # noqa: BLE001
+                log("слово активации: ошибка %s" % exc)
+            finally:
+                time.sleep(0.8)
+                WAKE_DIALOG.clear()
 
 
 def follow_up_wanted(text):
@@ -940,6 +973,10 @@ def main():
             idle_reason = ""
         if native_alice_busy():
             time.sleep(0.6)
+            continue
+        if WAKE_DIALOG.is_set():
+            # Сторож ведёт диалог по слову — не открываем вторую сессию.
+            time.sleep(0.3)
             continue
         started = time.time()
         try:
