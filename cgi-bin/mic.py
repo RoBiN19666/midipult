@@ -20,6 +20,7 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -147,16 +148,14 @@ def send_wav(name: str) -> None:
     out.flush()
 
 
-def deploy(action: str) -> dict:
+def deploy(action: str, extra: list | None = None) -> dict:
     import subprocess
 
     if not os.path.isfile(DEPLOY):
         return {"ok": False, "error": "нет %s" % DEPLOY}
+    argv = ["/bin/sh", DEPLOY, action] + list(extra or [])
     try:
-        result = subprocess.run(
-            ["/bin/sh", DEPLOY, action],
-            capture_output=True, timeout=90,
-        )
+        result = subprocess.run(argv, capture_output=True, timeout=150)
     except (OSError, subprocess.SubprocessError) as exc:
         return {"ok": False, "error": str(exc)[:300]}
     output = (result.stdout + result.stderr).decode("utf-8", "replace").strip()
@@ -205,7 +204,15 @@ def main():
         if common._method() != "POST":  # noqa: SLF001 - свой же модуль
             common.fail(405, "Только POST")
             return
-        result = deploy(action)
+        extra = []
+        if action == "apply":
+            channel = str(data.get("channel") or "").strip()
+            if channel:
+                if not re.match(r"^(\d+:\d+|all)$", channel, re.I):
+                    common.fail(400, "Канал: укажите 9:0 или all")
+                    return
+                extra = [channel]
+        result = deploy(action, extra)
         result["status"] = status()
         common.respond(200 if result.get("ok") else 500, result)
         return

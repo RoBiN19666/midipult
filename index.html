@@ -3306,6 +3306,26 @@ body.light dialog.queue-dlg.ym-look{
     <div class="seg-note" style="margin-top:8px">На этой модели диоды поштучно недоступны, но панель целиком можно приглушить или погасить: например, чтобы не светила ночью или не мигала «слушаю».</div>
   </section>
 
+  <!-- ───────── микрофон (tap) ───────── -->
+  <section class="card c-sys" id="cardMic" data-group="system" aria-labelledby="h-mic">
+    <h2 id="h-mic"><span class="dot"></span>Микрофон</h2>
+    <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn sm" id="btnMicToggle" data-on="0">Перехват: —</button>
+      <button class="btn sm ghost" id="btnMicRestart" hidden>Перезапустить Алису</button>
+      <span class="seg-note" id="micState">—</span>
+    </div>
+    <div class="sys-bar" style="margin-top:12px"><i id="micLevelBar" style="width:0%"></i></div>
+    <div class="seg-note" id="micLevel" style="margin-top:6px">—</div>
+    <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
+      <input id="micChannel" class="net-input" placeholder="канал, например 9:0 или all" autocomplete="off">
+      <button class="btn sm ghost" id="btnMicChannel">Сменить канал</button>
+      <button class="btn sm ghost" id="btnMicRecord">Записать 5 с</button>
+      <a class="btn sm ghost" id="micDownload" hidden download>Скачать WAV</a>
+    </div>
+    <div id="micChannels" style="margin-top:10px"></div>
+    <div class="seg-note" style="margin-top:8px">Свой доступ к микрофону: панель берёт звук из шумодава колонки, Алиса продолжает работать. Нужен для своего слова активации и проверки «почему не слышит». Выключение возвращает штатное поведение.</div>
+  </section>
+
   <!-- ───────── характеристики ───────── -->
   <section class="card c-sys" data-group="system" aria-labelledby="h-hw">
     <h2 id="h-hw"><span class="dot"></span>Характеристики</h2>
@@ -10052,6 +10072,127 @@ body.light dialog.queue-dlg.ym-look{
   var TAB_KEY = 'mypult.tab';
   var START_KEY = 'mypult.start-system';
 
+  /* ─────────── микрофон (tap) ─────────── */
+  var micTimer = null;
+  var micBusy = false;
+
+  function micScale(rms) {
+    // 0.0005 — тишина в комнате, 0.05 — громкая речь: логарифмическая шкала,
+    // иначе на линейной всё, кроме крика, выглядит нулём.
+    if (!rms || rms <= 0.0005) return 0;
+    var pct = Math.log10(rms / 0.0005) / 2 * 100;
+    return Math.max(0, Math.min(100, pct));
+  }
+
+  function micChannelNode(ch, selected) {
+    var node = document.createElement('div');
+    node.className = 'seg-note';
+    var key = ch.kind + ':' + ch.index;
+    var parts = [key];
+    if (ch.alive) {
+      parts.push('уровень ' + (ch.rms * 100).toFixed(2) + '%');
+      parts.push('пик ' + (ch.peak * 100).toFixed(1) + '%');
+    } else {
+      parts.push('молчит');
+    }
+    if (ch.clipped) parts.push('клипов ' + ch.clipped);
+    if (key === selected) parts.push('← выбран');
+    node.textContent = parts.join(' · ');
+    return node;
+  }
+
+  function renderMic(data) {
+    if (!data || data.ok === false) {
+      if (el.micState) el.micState.textContent = (data && data.error) || 'Микрофон недоступен';
+      return;
+    }
+    var on = !!(data.enabled && data.mounted);
+    if (el.btnMicToggle) {
+      var label = data.installed || data.enabled ? 'выключен' : 'не установлен';
+      if (on) label = 'включён';
+      el.btnMicToggle.textContent = 'Перехват: ' + label;
+      el.btnMicToggle.dataset.on = on ? '1' : '0';
+    }
+    if (el.micState) {
+      var bits = [data.daemon ? 'приёмник работает' : 'приёмник не запущен'];
+      if (data.selected) bits.push('канал ' + data.selected);
+      if (data.arch) bits.push(data.arch);
+      if (data.listening) bits.push('звук идёт');
+      if (data.enabled && !data.listening) bits.push('нужен перезапуск Алисы');
+      el.micState.textContent = bits.join(' · ');
+    }
+    if (el.btnMicRestart) {
+      el.btnMicRestart.hidden = !(data.enabled && !data.listening);
+    }
+    if (el.micChannel && document.activeElement !== el.micChannel && data.channel) {
+      el.micChannel.value = data.channel;
+    }
+    var sel = null;
+    (data.channels || []).forEach(function (ch) {
+      if (data.selected && (ch.kind + ':' + ch.index) === data.selected) sel = ch;
+    });
+    if (el.micLevelBar) el.micLevelBar.style.width = micScale(sel && sel.rms).toFixed(1) + '%';
+    if (el.micLevel) {
+      el.micLevel.textContent = sel
+        ? ('уровень ' + (sel.rms * 100).toFixed(2) + '% · пик ' + (sel.peak * 100).toFixed(1) + '% · буфер ' + sel.seconds + ' с')
+        : 'нет данных: кадры не приходят';
+    }
+    if (el.micChannels) {
+      el.micChannels.textContent = '';
+      var list = data.channels || [];
+      if (!list.length) {
+        var empty = document.createElement('div');
+        empty.className = 'seg-note';
+        empty.textContent = data.enabled
+          ? 'Кадры не приходят: maind ещё без preload — нажмите «Перезапустить Алису».'
+          : 'Перехват выключен.';
+        el.micChannels.appendChild(empty);
+      } else {
+        list.forEach(function (ch) { el.micChannels.appendChild(micChannelNode(ch, data.selected)); });
+      }
+    }
+  }
+
+  function loadMic() {
+    // /mic — прокси lighttpd прямо в micd: без запуска CGI на каждый тик.
+    // Если прокси нет (старый конфиг), падаем на CGI.
+    return request('/mic', { method: 'GET', timeout: 4000 }).then(renderMic).catch(function () {
+      return cgi('mic.py', {}, { timeout: 6000, silent: true }).then(renderMic);
+    }).catch(function (err) {
+      if (el.micState) el.micState.textContent = 'Не удалось получить состояние: ' + err.message;
+    });
+  }
+
+  function startMicPoll() {
+    if (micTimer) return;
+    loadMic();
+    micTimer = setInterval(loadMic, 1500);
+  }
+
+  function stopMicPoll() {
+    if (micTimer) {
+      clearInterval(micTimer);
+      micTimer = null;
+    }
+  }
+
+  function micAction(payload, message, opts) {
+    if (micBusy) return Promise.resolve();
+    micBusy = true;
+    var options = opts || {};
+    return cgi('mic.py', payload, { timeout: options.timeout || 90000 }).then(function (data) {
+      if (!data || data.ok === false) {
+        throw new Error((data && (data.output || data.error)) || 'не удалось');
+      }
+      if (message) toast(message, 'ok');
+      return loadMic();
+    }).catch(function (err) {
+      toast('Микрофон: ' + err.message, 'bad');
+    }).then(function () {
+      micBusy = false;
+    });
+  }
+
   function loadTabData(name) {
     if (name === 'home') {
       refreshSystem();
@@ -10077,6 +10218,7 @@ body.light dialog.queue-dlg.ym-look{
       loadLogs();
       loadSounds();
       refreshSystem();
+      loadMic();
       loadCharts();
     } else if (name === 'scenarios') {
       loadScenarios();
@@ -10097,6 +10239,8 @@ body.light dialog.queue-dlg.ym-look{
     loadTabData(name);
     if (name === 'network') startBtCardPoll();
     else stopBtCardPoll();
+    if (name === 'system') startMicPoll();
+    else stopMicPoll();
     var activeTab = el.tabs.querySelector('.tab[aria-pressed="true"]');
     var mobileLabel = document.getElementById('mobileTabLabel');
     if (mobileLabel && activeTab) {
@@ -14532,6 +14676,52 @@ body.light dialog.queue-dlg.ym-look{
       el.btnPanelRestore.addEventListener('click', function () { setPanel({ restore: 1 }); });
     }
 
+    /* микрофон (tap) */
+    if (el.btnMicToggle) {
+      el.btnMicToggle.addEventListener('click', function () {
+        var on = el.btnMicToggle.dataset.on === '1';
+        micAction({ action: on ? 'remove' : 'apply' },
+          on ? 'Перехват выключен' : 'Перехват включён: перезапустите Алису',
+          { timeout: 120000 });
+      });
+    }
+    if (el.btnMicRestart) {
+      el.btnMicRestart.addEventListener('click', function () {
+        askConfirm('Перезапустить Quasar? Алиса замолчит примерно на 10 секунд.', { yes: 'Перезапустить' })
+          .then(function (ok) {
+            if (!ok) return;
+            micAction({ action: 'restart' }, 'Алиса перезапущена', { timeout: 180000 });
+          });
+      });
+    }
+    if (el.btnMicChannel) {
+      el.btnMicChannel.addEventListener('click', function () {
+        var value = (el.micChannel.value || '').trim();
+        if (!/^(\d+:\d+|all)$/i.test(value)) {
+          toast('Канал: укажите 9:0 или all', 'bad');
+          return;
+        }
+        micAction({ action: 'apply', channel: value },
+          'Канал ' + value + ': нужен перезапуск Алисы', { timeout: 120000 });
+      });
+    }
+    if (el.btnMicRecord) {
+      el.btnMicRecord.addEventListener('click', function () {
+        el.btnMicRecord.disabled = true;
+        cgi('mic.py', { action: 'record', seconds: 5 }, { timeout: 30000 }).then(function (data) {
+          if (!data || data.ok === false) throw new Error((data && data.error) || 'нет записи');
+          if (el.micDownload) {
+            el.micDownload.hidden = false;
+            el.micDownload.href = 'cgi-bin/mic.py?wav=' + encodeURIComponent(data.file);
+            el.micDownload.setAttribute('download', data.file);
+          }
+          toast('Запись готова: ' + data.file, 'ok');
+        }).catch(function (err) {
+          toast('Запись: ' + err.message, 'bad');
+        }).then(function () { el.btnMicRecord.disabled = false; });
+      });
+    }
+
     /* радио */
     el.btnRadioPick.addEventListener('click', function (ev) {
       ev.stopPropagation();
@@ -16076,7 +16266,9 @@ body.light dialog.queue-dlg.ym-look{
       'pinGate', 'pinInput', 'pinError', 'btnPinLogin',
       'pinNew', 'btnPinEnable', 'btnPinDisable', 'btnPinLock', 'pinStatus', 'pinInsecure',
       'sysCpu', 'sysCpuBar', 'sysLoad', 'sysRam', 'sysRamBar', 'sysRamSub', 'sysTemp', 'sysTempSub',
-      'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'hwList', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard'
+      'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'hwList', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard',
+      'cardMic', 'btnMicToggle', 'btnMicRestart', 'micState', 'micLevelBar', 'micLevel',
+      'micChannel', 'btnMicChannel', 'btnMicRecord', 'micDownload', 'micChannels'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     buildRing();

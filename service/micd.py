@@ -246,6 +246,40 @@ def chosen() -> Channel | None:
         return None
 
 
+STATE_PATH = "/data/mypult/mictap.json"
+TAP_SO = "/data/mypult/mictap/vqe_tap.so"
+
+
+def tap_state() -> dict:
+    """Что знает установка tap-а: включён ли, канал, архитектура, смонтирован ли.
+
+    Панель читает это напрямую через /mic (прокси lighttpd), поэтому все поля
+    должны быть здесь — иначе карточка покажет «не установлен» при рабочем tap.
+    """
+    data = {}
+    try:
+        with open(STATE_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        data = {}
+    launch = data.get("launch") or "/system/vendor/quasar/launch.json"
+    mounted = False
+    try:
+        with open(launch, "r", encoding="utf-8", errors="replace") as fh:
+            mounted = "LD_PRELOAD=" in fh.read(65536)
+    except OSError:
+        mounted = False
+    return {
+        "daemon": True,
+        "enabled": bool(data.get("enabled")),
+        "channel": data.get("channel") or "",
+        "arch": data.get("arch") or "",
+        "installed": os.path.exists(TAP_SO),
+        "mounted": mounted,
+        "launch": launch,
+    }
+
+
 def status_payload() -> dict:
     sel = chosen()
     with LOCK:
@@ -271,6 +305,7 @@ def status_payload() -> dict:
         "channels": channels,
         "seen": seen[-16:],
         "record_dir": RECORD_DIR,
+        **tap_state(),
     }
 
 
@@ -375,14 +410,13 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _allowed(self) -> bool:
-        # Loopback (сам пульт, CGI, curl на колонке) — доверенный, как в common.py.
-        if self.client_address and self.client_address[0] in ("127.0.0.1", "::1"):
-            return True
+        # Через прокси lighttpd все запросы приходят с loopback, поэтому
+        # доверять адресу нельзя — только куке. CGI mic.py передаёт её явно.
         return cookie_ok(self.headers)
 
     def do_GET(self):  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
-        if parsed.path in ("/status", "/status/"):
+        if parsed.path in ("/status", "/status/", "/mic", "/mic/"):
             if not self._allowed():
                 self._json(401, {"ok": False, "error": "Нужен PIN", "auth": True})
                 return
