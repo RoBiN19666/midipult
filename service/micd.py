@@ -38,6 +38,7 @@ import common  # noqa: E402
 PORT = int(os.environ.get("MYPULT_MIC_PORT") or "8058")
 SOCK_PATH = os.environ.get("MYPULT_MIC_SOCKET") or "/tmp/mypult/mic.sock"
 CONFIG_PATH = "/data/mypult/mic.json"
+WAKE_CONFIG = "/data/mypult/wake.json"
 RECORD_DIR = "/data/mypult/micrec"
 RING_SECONDS = 12.0
 LEVEL_WINDOW = 60          # 60 × 100 мс = 6 с истории уровня
@@ -47,6 +48,17 @@ SAMPLE_RATE = 16000
 LOCK = threading.RLock()   # snapshot() вызывается из status_payload() под тем же локом
 CHANNELS = {}              # (kind, index) -> Channel
 CONFIG = {"channel": "", "gain": 1.0, "enabled": True}
+WAKE = {
+    "enabled": False,
+    "sensitivity": 5,
+    "model": "/data/mypult/wake.bin",
+    "prob": 0.0,
+    "peak": 0.0,
+    "hits": 0,
+    "last_hit": 0.0,
+    "error": "",
+}
+WAKE_MODEL = None
 DROPPED = 0
 LAST_FRAME_TS = 0.0
 
@@ -187,6 +199,81 @@ def parse_packet(data: bytes) -> tuple[int, int, array.array] | None:
     return kind, index, pcm
 
 
+def load_wake_config() -> None:
+    try:
+        with open(WAKE_CONFIG, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return
+    if not isinstance(data, dict):
+        return
+    WAKE["enabled"] = bool(data.get("enabled", False))
+    try:
+        WAKE["sensitivity"] = max(1, min(10, int(data.get("sensitivity") or 5)))
+    except (TypeError, ValueError):
+        WAKE["sensitivity"] = 5
+    if data.get("model"):
+        WAKE["model"] = str(data["model"])
+
+
+def save_wake_config() -> None:
+    data = {"enabled": bool(WAKE["enabled"]), "sensitivity": int(WAKE["sensitivity"]),
+            "model": WAKE["model"]}
+    tmp = WAKE_CONFIG + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False)
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, WAKE_CONFIG)
+
+
+def wake_feed(pcm: array.array) -> None:
+    """Скормить кадр детектору слова. Ошибки не должны ронять приёмник."""
+    global WAKE_MODEL
+    if not WAKE["enabled"]:
+        return
+    if WAKE_MODEL is None:
+        try:
+            sys.path.insert(0, "/data/mypult")
+            import wakeword  # noqa: PLC0415 - тяжёлый импорт только при включении
+            WAKE_MODEL = wakeword.load(WAKE["model"])
+            common.log("micd", "детектор слова загружен: %s" % WAKE["model"])
+        except Exception as exc:  # noqa: BLE001
+            WAKE["error"] = str(exc)[:200]
+            WAKE["enabled"] = False
+            common.log("micd", "детектор слова не загрузился: %s" % exc)
+            return
+    try:
+        import numpy as np  # noqa: PLC0415
+        samples = np.frombuffer(pcm.tobytes(), dtype="<i2")
+        hit = WAKE_MODEL.feed(samples, WAKE["sensitivity"])
+    except Exception as exc:  # noqa: BLE001
+        WAKE["error"] = str(exc)[:200]
+        WAKE["enabled"] = False
+        return
+    WAKE["prob"] = round(float(WAKE_MODEL.last_prob), 4)
+    WAKE["peak"] = max(WAKE["peak"], WAKE["prob"])
+    if hit:
+        WAKE["hits"] += 1
+        WAKE["last_hit"] = time.time()
+        common.log("micd", "слово активации: сработало (всего %d)" % WAKE["hits"])
+
+
+def set_wake(enabled=None, sensitivity=None) -> None:
+    """Включить/выключить детектор и запомнить настройку."""
+    global WAKE_MODEL
+    if enabled is not None:
+        WAKE["enabled"] = bool(enabled)
+        if not WAKE["enabled"]:
+            WAKE_MODEL = None        # заодно освобождаем память
+    if sensitivity is not None:
+        try:
+            WAKE["sensitivity"] = max(1, min(10, int(sensitivity)))
+        except (TypeError, ValueError):
+            pass
+    save_wake_config()
+
+
 def receiver() -> None:
     global DROPPED, LAST_FRAME_TS
     while True:
@@ -225,6 +312,9 @@ def receiver() -> None:
                     channel = Channel(kind, index)
                     CHANNELS[(kind, index)] = channel
                 channel.push(pcm, now)
+            wanted = channel_from_config()
+            if wanted is None or wanted == (kind, index):
+                wake_feed(pcm)
         try:
             sock.close()
         except OSError:
@@ -305,6 +395,15 @@ def status_payload() -> dict:
         "channels": channels,
         "seen": seen[-16:],
         "record_dir": RECORD_DIR,
+        "wake": {
+            "enabled": bool(WAKE["enabled"]),
+            "sensitivity": int(WAKE["sensitivity"]),
+            "prob": WAKE["prob"],
+            "peak": WAKE["peak"],
+            "hits": WAKE["hits"],
+            "last_hit": WAKE["last_hit"],
+            "error": WAKE["error"],
+        },
         **tap_state(),
     }
 
@@ -473,7 +572,17 @@ class Handler(BaseHTTPRequestHandler):
                 except (TypeError, ValueError):
                     pass
             save_config()
-            self._json(200, {"ok": True, "config": dict(CONFIG)})
+            wake_changed = False
+            if "wake" in data:
+                WAKE["enabled"] = bool(data.get("wake"))
+                wake_changed = True
+            if "sensitivity" in data:
+                wake_changed = True
+            if wake_changed:
+                set_wake(data.get("wake"), data.get("sensitivity"))
+            self._json(200, {"ok": True, "config": dict(CONFIG),
+                             "wake": {"enabled": WAKE["enabled"],
+                                      "sensitivity": WAKE["sensitivity"]}})
             return
 
         try:
@@ -489,6 +598,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     load_config()
+    load_wake_config()
     threading.Thread(target=receiver, daemon=True).start()
     server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     common.log("micd", "API на 127.0.0.1:%d" % PORT)

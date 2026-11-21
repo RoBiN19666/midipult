@@ -163,6 +163,29 @@ if [ -f "$SRC/service/micd.py" ]; then
     chmod 600 /data/mypult/micd.py 2>/dev/null
     sed -i 's/\r$//' /data/mypult/micd.py 2>/dev/null
 fi
+# Детектор слова активации: модель и инференс на numpy. Без numpy детектор
+# просто не включается, остальное работает как раньше.
+if [ -f "$SRC/service/wakeword.py" ]; then
+    cp -f "$SRC/service/wakeword.py" /data/mypult/wakeword.py 2>/dev/null || \
+        warn "не скопировался wakeword.py"
+    chmod 600 /data/mypult/wakeword.py 2>/dev/null
+    sed -i 's/\r$//' /data/mypult/wakeword.py 2>/dev/null
+fi
+if [ -f "$SRC/service/wake/wake.bin" ]; then
+    cp -f "$SRC/service/wake/wake.bin" /data/mypult/wake.bin 2>/dev/null || \
+        warn "не скопировалась модель wake.bin"
+    chmod 600 /data/mypult/wake.bin 2>/dev/null
+fi
+if [ -f /data/mypult/wakeword.py ] && ! "$PY" -c 'import numpy' >/dev/null 2>&1; then
+    if [ -x /opt/bin/pip ] || "$PY" -m pip --version >/dev/null 2>&1; then
+        say "ставлю numpy для слова активации"
+        "$PY" -m pip install --no-cache-dir --disable-pip-version-check numpy \
+            >>/tmp/mypult.log 2>&1 || \
+            warn "numpy не установился — слово активации будет недоступно"
+    else
+        warn "numpy нет: слово активации не заработает (нужен python3-numpy или pip)"
+    fi
+fi
 if [ -d "$SRC/service/mictap" ]; then
     say "копирую mictap (.so и патч launch.json)"
     mkdir -p "$STAGE/service/mictap" || warn "не создался $STAGE/service/mictap"

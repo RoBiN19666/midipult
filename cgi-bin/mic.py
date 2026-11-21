@@ -190,7 +190,8 @@ def main():
         return
 
     if action == "config":
-        payload = {key: data[key] for key in ("channel", "gain") if key in data}
+        payload = {key: data[key] for key in ("channel", "gain", "wake", "sensitivity")
+                   if key in data}
         result = daemon("POST", "/config", payload, timeout=8.0)
         if result is None:
             common.fail(503, "micd.py не отвечает")

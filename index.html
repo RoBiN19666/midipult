@@ -3316,6 +3316,11 @@ body.light dialog.queue-dlg.ym-look{
     </div>
     <div class="sys-bar" style="margin-top:12px"><i id="micLevelBar" style="width:0%"></i></div>
     <div class="seg-note" id="micLevel" style="margin-top:6px">—</div>
+    <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn sm" id="btnWakeToggle" data-on="0">Слово: —</button>
+      <input type="range" id="wakeSens" min="1" max="10" step="1" value="5" aria-label="Чувствительность слова активации" style="max-width:140px">
+      <span class="seg-note" id="wakeState">—</span>
+    </div>
     <div class="row" style="margin-top:10px;gap:6px;flex-wrap:wrap">
       <input id="micChannel" class="net-input" placeholder="канал, например 9:0 или all" autocomplete="off">
       <button class="btn sm ghost" id="btnMicChannel">Сменить канал</button>
@@ -10151,6 +10156,21 @@ body.light dialog.queue-dlg.ym-look{
         list.forEach(function (ch) { el.micChannels.appendChild(micChannelNode(ch, data.selected)); });
       }
     }
+
+    var wake = data.wake || {};
+    if (el.btnWakeToggle) {
+      el.btnWakeToggle.textContent = 'Слово: ' + (wake.enabled ? 'включено' : 'выключено');
+      el.btnWakeToggle.dataset.on = wake.enabled ? '1' : '0';
+    }
+    if (el.wakeSens && document.activeElement !== el.wakeSens) {
+      el.wakeSens.value = wake.sensitivity || 5;
+    }
+    if (el.wakeState) {
+      el.wakeState.textContent = wake.enabled
+        ? ('вероятность ' + ((wake.prob || 0) * 100).toFixed(1) + '% · пик '
+           + ((wake.peak || 0) * 100).toFixed(1) + '% · срабатываний ' + (wake.hits || 0))
+        : 'детектор выключен';
+    }
   }
 
   function loadMic() {
@@ -14721,6 +14741,19 @@ body.light dialog.queue-dlg.ym-look{
         }).then(function () { el.btnMicRecord.disabled = false; });
       });
     }
+    if (el.btnWakeToggle) {
+      el.btnWakeToggle.addEventListener('click', function () {
+        var on = el.btnWakeToggle.dataset.on === '1';
+        micAction({ action: 'config', wake: on ? 0 : 1 },
+          on ? 'Слово активации выключено' : 'Слово активации включено', { timeout: 15000 });
+      });
+    }
+    if (el.wakeSens) {
+      el.wakeSens.addEventListener('change', function () {
+        micAction({ action: 'config', sensitivity: parseInt(this.value, 10) || 5 },
+          'Чувствительность: ' + this.value, { timeout: 15000 });
+      });
+    }
 
     /* радио */
     el.btnRadioPick.addEventListener('click', function (ev) {
@@ -16268,7 +16301,8 @@ body.light dialog.queue-dlg.ym-look{
       'sysCpu', 'sysCpuBar', 'sysLoad', 'sysRam', 'sysRamBar', 'sysRamSub', 'sysTemp', 'sysTempSub',
       'sysDisk', 'sysDiskBar', 'sysDiskSub', 'sysRoot', 'sysRootBar', 'sysRootSub', 'hwList', 'sysLight', 'sysLightSub', 'sysUptime', 'sysBoard',
       'cardMic', 'btnMicToggle', 'btnMicRestart', 'micState', 'micLevelBar', 'micLevel',
-      'micChannel', 'btnMicChannel', 'btnMicRecord', 'micDownload', 'micChannels'
+      'micChannel', 'btnMicChannel', 'btnMicRecord', 'micDownload', 'micChannels',
+      'btnWakeToggle', 'wakeSens', 'wakeState'
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     buildRing();

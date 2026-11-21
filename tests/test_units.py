@@ -47,6 +47,7 @@ import update  # noqa: E402
 import voice_daemon  # noqa: E402
 import micd  # noqa: E402
 import patch_launch  # noqa: E402
+import wakeword  # noqa: E402
 import volume  # noqa: E402
 import vpn  # noqa: E402
 import websearch  # noqa: E402
@@ -2298,6 +2299,32 @@ def test_dns_probe_and_skip():
         network.dns_probe, network.dns_servers = old
 
 
+def test_wakeword():
+    path = os.path.join(SERVICE_DIR, "wake", "wake.bin")
+    check("wake: модель на месте", os.path.isfile(path))
+    model = wakeword.load(path)
+    info = model.info()
+    check("wake: кадр 25 мс / шаг 10 мс",
+          info["win"] == 400 and info["hop"] == 160 and info["n_fft"] == 512)
+    check("wake: 40 мел-полос", info["n_mels"] == 40 and model.mel.shape == (40, 257))
+    check("wake: десять порогов", len(model.thresholds) == 10)
+    check("wake: окно Ханна", abs(float(model.window[0])) < 1e-6
+          and abs(float(model.window[len(model.window) // 2]) - 1.0) < 1e-3)
+
+    import numpy as np
+    hit = model.feed(np.zeros(1600, dtype=np.int16), 5)
+    check("wake: тишина не срабатывает", hit is False)
+    check("wake: вероятность в [0,1]", 0.0 <= model.last_prob <= 1.0,
+          "%.3f" % model.last_prob)
+
+    try:
+        wakeword.WakeModel(b"XXXXX" + b"\x00" * 8)
+        rejected = False
+    except ValueError:
+        rejected = True
+    check("wake: битый формат отвергается", rejected)
+
+
 def main():
     for test in (
         test_generic_helpers,
@@ -2361,6 +2388,7 @@ def main():
         test_mic_ring_buffer,
         test_patch_launch,
         test_dns_probe_and_skip,
+        test_wakeword,
     ):
         try:
             test()
