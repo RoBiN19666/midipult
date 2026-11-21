@@ -256,6 +256,69 @@ stop_state() {
     rm -f /tmp/mypult-state.pid
 }
 
+# --------------------------------------------------------- микрофон (tap) ----
+# Приёмник кадров от vqe_tap.so. Запускается только когда tap включён: без него
+# это лишние ~35 МБ RAM на колонке.
+start_mic() {
+    [ -f /data/mypult/micd.py ] || return 0
+    if [ ! -f /data/mypult/mictap.json ] || \
+       ! grep -q '"enabled": *true' /data/mypult/mictap.json 2>/dev/null; then
+        log "mic: tap выключен — приёмник не запускаю"
+        return 0
+    fi
+    if pid_matches /tmp/mypult-mic.pid "micd.py"; then
+        log "mic: уже работает (pid $(cat /tmp/mypult-mic.pid 2>/dev/null))"
+        return 0
+    fi
+    nohup /opt/bin/python3 /data/mypult/micd.py >>/tmp/mypult.log 2>&1 &
+    echo $! > /tmp/mypult-mic.pid
+    sleep 1
+    if pid_matches /tmp/mypult-mic.pid "micd.py"; then
+        log "mic: приёмник запущен"
+    else
+        log "mic: приёмник НЕ стартовал (см. /tmp/mypult.log)"
+    fi
+}
+
+stop_mic() {
+    if pid_matches /tmp/mypult-mic.pid "micd.py"; then
+        kill "$(cat /tmp/mypult-mic.pid 2>/dev/null)" 2>/dev/null
+    fi
+    for _pid in $(find_pids "micd.py"); do
+        [ "$_pid" = "$$" ] && continue
+        kill "$_pid" 2>/dev/null
+    done
+    rm -f /tmp/mypult-mic.pid
+}
+
+# --------------------------------------------------------- микрофон (tap) ----
+# /etc на прошивке только для чтения, поэтому отдельный S96 с монтажом
+# launch.json туда не положить. Монтируем здесь и, если maind ещё без
+# LD_PRELOAD, один раз перезапускаем quasar. Метка в /tmp не даёт зациклиться,
+# если прошивка почему-то не подхватывает preload.
+ensure_mic_tap() {
+    [ -f /data/mypult/mictap.json ] || return 0
+    grep -q '"enabled": *true' /data/mypult/mictap.json 2>/dev/null || return 0
+    [ -f /data/myweb/deploy/mic-tap.sh ] || return 0
+    sh /data/myweb/deploy/mic-tap.sh mount >>"$LOG" 2>&1
+    _pid=$(ps w 2>/dev/null | awk '/[m]aind --platformd/ {print $1; exit}')
+    if [ -z "${_pid:-}" ]; then
+        log "mic-tap: maind не найден — монтирование отложено"
+        return 0
+    fi
+    if tr '\000' '\n' <"/proc/$_pid/environ" 2>/dev/null | grep -q MYPULT_MIC_SOCKET; then
+        log "mic-tap: maind уже с LD_PRELOAD"
+        return 0
+    fi
+    if [ -f "$RUNDIR/mic-restarted" ]; then
+        log "mic-tap: перезапуск уже был, preload не подхватился — нужен ручной разбор"
+        return 0
+    fi
+    : >"$RUNDIR/mic-restarted"
+    log "mic-tap: перезапускаю quasar, чтобы maind взял LD_PRELOAD"
+    sh /data/myweb/deploy/mic-tap.sh restart >>"$LOG" 2>&1
+}
+
 # --------------------------------------------------------------- watchdog ----
 # Раз в минуту проверяем только критичные процессы и поднимаем то, что упало.
 # Без этого voice_daemon (вместе с будильниками) и state_daemon жили до
@@ -362,6 +425,7 @@ stop_all() {
     stop_watchdog
     stop_voice
     stop_state
+    stop_mic
     stop_web
     stop_pidfile "$RUNDIR/socat.pid" "socat"
     stop_pidfile "$RUNDIR/luna.pid" "luna"
@@ -388,6 +452,11 @@ status_all() {
         echo "state      : up   (8057)"
     else
         echo "state      : down"
+    fi
+    if pid_matches /tmp/mypult-mic.pid "micd.py"; then
+        echo "mic        : up   (8058)"
+    else
+        echo "mic        : down"
     fi
     if pid_matches "$RUNDIR/watchdog.pid" "S99mypult"; then
         echo "watchdog   : up"
@@ -492,10 +561,12 @@ case "$1" in
         restore_volume
         start_voice
         start_state
+        start_mic
         start_ring_backlight
         start_dns_auto
         start_vpn_auto
         start_watchdog
+        ensure_mic_tap
         ;;
     ensure)
         # Только то, что должно работать постоянно; watchdog вызывает это раз
@@ -506,6 +577,7 @@ case "$1" in
         start_web
         start_voice
         start_state
+        start_mic
         ;;
     watch)
         start_watchdog
@@ -524,6 +596,7 @@ case "$1" in
         restore_volume
         start_voice
         start_state
+        start_mic
         start_ring_backlight
         start_dns_auto
         start_vpn_auto
@@ -534,6 +607,7 @@ case "$1" in
         # изменения полным перезапуском веба и зависимых процессов.
         stop_voice
         stop_state
+        stop_mic
         stop_web
         sleep 1
         start_luna
@@ -541,7 +615,9 @@ case "$1" in
         restore_volume
         start_voice
         start_state
+        start_mic
         start_watchdog
+        ensure_mic_tap
         ;;
     status)
         status_all

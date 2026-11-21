@@ -153,6 +153,17 @@ remove_etc_init() {
     fi
 }
 
+say "снимаю перехват микрофона"
+if [ -f "$WEB/deploy/mic-tap.sh" ]; then
+    run sh "$WEB/deploy/mic-tap.sh" remove
+else
+    i=0
+    while [ "$i" -lt 4 ]; do
+        run umount /system/vendor/quasar/launch.json 2>/dev/null || break
+        i=$((i + 1))
+    done
+fi
+
 say "удаляю автозапуск"
 remove_etc_init
 if [ -f "$INIT_OPT" ]; then

@@ -155,6 +155,30 @@ cp -f "$SRC/service/voice_daemon.py" /data/mypult/voice_daemon.py \
     sed -i 's/\r$//' /data/mypult/discovery.py 2>/dev/null
 fi
 
+# Приёмник tap-а микрофона и сам .so: лежат в веб-руте, чтобы обновление
+# приносило их вместе с остальным, а состояние (launch.json) — в /data/mypult.
+if [ -f "$SRC/service/micd.py" ]; then
+    say "копирую micd.py (приёмник микрофона)"
+    cp -f "$SRC/service/micd.py" /data/mypult/micd.py || warn "не скопировался micd.py"
+    chmod 600 /data/mypult/micd.py 2>/dev/null
+    sed -i 's/\r$//' /data/mypult/micd.py 2>/dev/null
+fi
+if [ -d "$SRC/service/mictap" ]; then
+    say "копирую mictap (.so и патч launch.json)"
+    mkdir -p "$STAGE/service/mictap" || warn "не создался $STAGE/service/mictap"
+    cp -f "$SRC/service/mictap/"* "$STAGE/service/mictap/" 2>/dev/null || \
+        warn "не скопировались файлы mictap"
+    chmod 644 "$STAGE/service/mictap/"*.so 2>/dev/null
+    chmod 755 "$STAGE/service/mictap/build.sh" 2>/dev/null
+fi
+if [ -f "$SRC/deploy/mic-tap.sh" ]; then
+    mkdir -p "$STAGE/deploy" 2>/dev/null
+    cp -f "$SRC/deploy/mic-tap.sh" "$STAGE/deploy/mic-tap.sh" 2>/dev/null || \
+        warn "не скопировался mic-tap.sh"
+    chmod 755 "$STAGE/deploy/mic-tap.sh" 2>/dev/null
+    sed -i 's/\r$//' "$STAGE/deploy/mic-tap.sh" 2>/dev/null
+fi
+
 if [ -f "$SRC/deploy/uninstall.sh" ]; then
     cp -f "$SRC/deploy/uninstall.sh" /data/mypult/uninstall.sh || \
         warn "не скопировался uninstall.sh"
@@ -253,6 +277,18 @@ else
     "$INIT_TARGET" start
 fi
 sleep 2
+
+# Если tap микрофона был включён, обновление не должно его терять: .so лежит в
+# веб-руте, копия launch.json — в /data/mypult/mictap, поэтому достаточно
+# перемонтировать. Запущенный maind это не меняет — новый LD_PRELOAD
+# подхватится при следующей загрузке или после mic-tap.sh restart.
+if [ -f /data/mypult/mictap.json ] && grep -q '"enabled": *true' /data/mypult/mictap.json 2>/dev/null; then
+    if [ -f "$WEB/deploy/mic-tap.sh" ]; then
+        say "возвращаю tap микрофона (bind-mount launch.json)"
+        sh "$WEB/deploy/mic-tap.sh" mount >>/tmp/mypult.log 2>&1 || \
+            warn "tap не смонтировался — см. sh $WEB/deploy/mic-tap.sh status"
+    fi
+fi
 
 say "проверка по HTTP"
 CODE_INDEX=$(/opt/bin/curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8055/ 2>/dev/null)

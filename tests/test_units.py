@@ -7,16 +7,21 @@
 
 from __future__ import annotations
 
+import array
 import os
+import struct
 import sys
 import shutil
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CGI_DIR = os.path.normpath(os.path.join(HERE, "..", "cgi-bin"))
 SERVICE_DIR = os.path.normpath(os.path.join(HERE, "..", "service"))
+MICTAP_DIR = os.path.normpath(os.path.join(SERVICE_DIR, "mictap"))
 sys.path.insert(0, CGI_DIR)
 sys.path.insert(0, SERVICE_DIR)
+sys.path.insert(0, MICTAP_DIR)
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -39,6 +44,8 @@ import speak  # noqa: E402
 import state_daemon  # noqa: E402
 import update  # noqa: E402
 import voice_daemon  # noqa: E402
+import micd  # noqa: E402
+import patch_launch  # noqa: E402
 import volume  # noqa: E402
 import vpn  # noqa: E402
 import websearch  # noqa: E402
@@ -2216,6 +2223,66 @@ def test_files_security_guard():
           files._can_write("/data/mypult/sounds/test.wav"))
 
 
+def test_mic_packet_parse():
+    pcm = array.array("h", [1, -2, 3])
+    packet = bytes((6, 0)) + struct.pack("<H", 3) + pcm.tobytes()
+    kind, index, got = micd.parse_packet(packet)
+    check("mic: разбор пакета", (kind, index) == (6, 0) and list(got) == [1, -2, 3],
+          "%r" % ((kind, index),))
+    check("mic: короткий пакет", micd.parse_packet(b"\x06\x00\x00") is None)
+    check("mic: не хватает кадров",
+          micd.parse_packet(bytes((6, 0)) + struct.pack("<H", 5) + b"\x00" * 4) is None)
+    check("mic: нулевые кадры",
+          micd.parse_packet(bytes((6, 0)) + struct.pack("<H", 0)) is None)
+    check("mic: лишние байты обрезаются",
+          len(micd.parse_packet(bytes((6, 0)) + struct.pack("<H", 2) + b"\x01\x00\x02\x00extra")[2]) == 2)
+
+
+def test_mic_ring_buffer():
+    channel = micd.Channel(6, 0)
+    now = time.time()
+    for i in range(40):
+        channel.push(array.array("h", [1000] * 512), now + i * 0.032)
+    check("mic: буфер не растёт бесконечно",
+          channel.total <= int(micd.RING_SECONDS * micd.SAMPLE_RATE) + 512,
+          "%d" % channel.total)
+    check("mic: tail возвращает 1 с", len(channel.tail(1.0)) == micd.SAMPLE_RATE * 2,
+          "%d" % len(channel.tail(1.0)))
+    check("mic: уровень посчитан", channel.rms > 0 and channel.peak == 1000)
+    check("mic: кадры посчитаны", channel.frames == 40)
+
+
+def test_patch_launch():
+    base = {"nodes": [{"tasks": [
+        {"arg": ["--platformd"], "envs": ["A=1"]},
+        {"arg": ["--mediad"]},
+    ]}]}
+    out = patch_launch.patch(base, "/x/vqe_tap.so", "/tmp/mic.sock", "6:0")
+    envs = out["nodes"][0]["tasks"][0]["envs"]
+    check("launch: LD_PRELOAD добавлен", "LD_PRELOAD=/x/vqe_tap.so" in envs)
+    check("launch: сокет добавлен", "MYPULT_MIC_SOCKET=/tmp/mic.sock" in envs)
+    check("launch: канал добавлен", "MYPULT_MIC_CHANNEL=6:0" in envs)
+    check("launch: чужие envs сохранены", "A=1" in envs)
+    check("launch: mediad не тронут",
+          out["nodes"][0]["tasks"][1].get("envs") is None)
+
+    again = patch_launch.patch(out, "/x/vqe_tap.so", "/tmp/mic.sock", "6:0")
+    check("launch: повторный патч не дублирует",
+          again["nodes"][0]["tasks"][0]["envs"].count("LD_PRELOAD=/x/vqe_tap.so") == 1)
+
+    all_channels = patch_launch.patch(base, "/x/vqe_tap.so", "/tmp/mic.sock", "")
+    check("launch: режим «все каналы» без MYPULT_MIC_CHANNEL",
+          not any(e.startswith("MYPULT_MIC_CHANNEL") for e in
+                  all_channels["nodes"][0]["tasks"][0]["envs"]))
+
+    broken = {"nodes": [{"tasks": [{"arg": ["--mediad"]}]}]}
+    try:
+        patch_launch.patch(broken, "/x", "/y", "6:0")
+        check("launch: без --platformd ошибка", False)
+    except ValueError:
+        check("launch: без --platformd ошибка", True)
+
+
 def main():
     for test in (
         test_generic_helpers,
@@ -2275,6 +2342,9 @@ def main():
         test_update_local_archive,
         test_update_dns_hint,
         test_files_security_guard,
+        test_mic_packet_parse,
+        test_mic_ring_buffer,
+        test_patch_launch,
     ):
         try:
             test()
