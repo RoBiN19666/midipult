@@ -221,8 +221,19 @@ def load_wake_config() -> None:
 
 
 def save_wake_config() -> None:
-    data = {"enabled": bool(WAKE["enabled"]), "sensitivity": int(WAKE["sensitivity"]),
-            "model": WAKE["model"]}
+    # Читаем старый файл и обновляем только свои ключи: в нём может лежать
+    # "action" (что делать по слову), который задаёт голосовой демон.
+    data = {}
+    try:
+        with open(WAKE_CONFIG, "r", encoding="utf-8") as fh:
+            loaded = json.load(fh)
+        if isinstance(loaded, dict):
+            data = loaded
+    except (OSError, ValueError):
+        pass
+    data.update({"enabled": bool(WAKE["enabled"]),
+                 "sensitivity": int(WAKE["sensitivity"]),
+                 "model": WAKE["model"]})
     tmp = WAKE_CONFIG + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False)
@@ -247,15 +258,21 @@ def wake_feed(pcm: array.array) -> None:
             WAKE["enabled"] = False
             common.log("micd", "детектор слова не загрузился: %s" % exc)
             return
+    # Локальная ссылка: set_wake() из другого потока может обнулить WAKE_MODEL
+    # между вызовом и чтением last_prob.
+    model = WAKE_MODEL
+    if model is None:
+        return
     try:
         import numpy as np  # noqa: PLC0415
         samples = np.frombuffer(pcm.tobytes(), dtype="<i2")
-        hit = WAKE_MODEL.feed(samples, WAKE["sensitivity"])
+        hit = model.feed(samples, WAKE["sensitivity"])
+        prob = round(float(model.last_prob), 4)
     except Exception as exc:  # noqa: BLE001
         WAKE["error"] = str(exc)[:200]
         WAKE["enabled"] = False
         return
-    WAKE["prob"] = round(float(WAKE_MODEL.last_prob), 4)
+    WAKE["prob"] = prob
     WAKE["peak"] = max(WAKE["peak"], WAKE["prob"])
     now_ts = time.time()
     if WAKE["prob"] >= 0.15:
@@ -272,6 +289,13 @@ def wake_feed(pcm: array.array) -> None:
         WAKE["last_hit"] = time.time()
         WAKE["trace"].append({"t": round(WAKE["last_hit"], 1), "p": WAKE["prob"], "hit": True})
         common.log("micd", "слово активации: сработало (всего %d)" % WAKE["hits"])
+        # Метка для голосового демона: он по ней отменяет ответ Алисы, не
+        # открывая второй сессии распознавания.
+        try:
+            with open("/tmp/mypult/wake-hit", "w", encoding="utf-8") as fh:
+                fh.write("%.3f\n" % WAKE["last_hit"])
+        except OSError:
+            pass
 
 
 def set_wake(enabled=None, sensitivity=None) -> None:

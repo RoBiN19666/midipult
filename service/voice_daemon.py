@@ -98,6 +98,55 @@ FOLLOW_UP_STOP = ("хватит", "стоп", "спасибо", "пока", "д�
                   "замолчи", "отмена", "не надо")
 
 
+# --- слово активации -------------------------------------------------------
+# Микрофонный приёмник (micd) ловит слово и пишет метку времени в wake-hit.
+# Демон по ней отменяет ответ Алисы ещё до того, как придёт расшифровка, —
+# это на секунду раньше, чем делает handle() перед своим ответом.
+WAKE_CONFIG = "/data/mypult/wake.json"
+WAKE_HIT = "/tmp/mypult/wake-hit"
+
+
+def wake_config():
+    try:
+        with open(WAKE_CONFIG, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def wake_action():
+    """off — ничего не делать, cancel — отменять ответ Алисы по слову."""
+    return str(wake_config().get("action") or "off").strip().lower()
+
+
+def wake_hit_time():
+    try:
+        with open(WAKE_HIT, "r", encoding="utf-8") as fh:
+            return float((fh.read() or "0").strip())
+    except (OSError, ValueError):
+        return 0.0
+
+
+def wake_watch_loop():
+    seen = wake_hit_time()
+    if wake_action() == "cancel":
+        log("слово активации: отменяю ответ Алисы (режим cancel)")
+    while True:
+        time.sleep(0.2)
+        if wake_action() != "cancel":
+            seen = wake_hit_time()
+            continue
+        ts = wake_hit_time()
+        if ts <= seen:
+            continue
+        seen = ts
+        if time.time() - ts > 5:
+            continue
+        log("слово активации: отменяю ответ Алисы")
+        stop_alice_speech()
+
+
 def follow_up_wanted(text):
     return normalize(text).strip(" .!?,") in FOLLOW_UP_STOP
 
@@ -874,6 +923,7 @@ def main():
     threading.Thread(target=autobright_loop, daemon=True).start()
     threading.Thread(target=volume_sync_loop, daemon=True).start()
     threading.Thread(target=disk_cleanup_loop, daemon=True).start()
+    threading.Thread(target=wake_watch_loop, daemon=True).start()
     last_text = ""
     last_ts = 0.0
     idle_reason = ""
@@ -914,6 +964,11 @@ def main():
             continue
         log("распознано за %.1f с: %r" % (time.time() - started, text))
         last_text, last_ts = text, time.time()
+        # Само по себе слово активации — не команда: ответ Алисы уже отменён,
+        # а нейросеть на «джарвис» отвечать не должна.
+        if normalize(text).strip(" .!?,") in ("джарвис", "jarvis", "джарвиз"):
+            log("только слово активации — молчу")
+            continue
         silenced = False
         if should_silence(text):
             try:

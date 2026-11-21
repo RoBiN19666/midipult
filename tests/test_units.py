@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import array
+import json
 import os
 import struct
 import sys
@@ -2325,6 +2326,30 @@ def test_wakeword():
     check("wake: битый формат отвергается", rejected)
 
 
+def test_wake_action():
+    tmp = tempfile.mkdtemp(prefix="wake-")
+    cfg = os.path.join(tmp, "wake.json")
+    hit = os.path.join(tmp, "wake-hit")
+    old = (voice_daemon.WAKE_CONFIG, voice_daemon.WAKE_HIT)
+    voice_daemon.WAKE_CONFIG, voice_daemon.WAKE_HIT = cfg, hit
+    try:
+        check("слово: без файла — off", voice_daemon.wake_action() == "off")
+        check("слово: без метки — 0", voice_daemon.wake_hit_time() == 0.0)
+        with open(cfg, "w", encoding="utf-8") as fh:
+            json.dump({"action": "CANCEL"}, fh)
+        check("слово: действие читается", voice_daemon.wake_action() == "cancel")
+        with open(hit, "w", encoding="utf-8") as fh:
+            fh.write("1795287559.770\n")
+        check("слово: метка читается",
+              abs(voice_daemon.wake_hit_time() - 1795287559.77) < 0.001)
+        with open(hit, "w", encoding="utf-8") as fh:
+            fh.write("мусор\n")
+        check("слово: битая метка — 0", voice_daemon.wake_hit_time() == 0.0)
+    finally:
+        voice_daemon.WAKE_CONFIG, voice_daemon.WAKE_HIT = old
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     for test in (
         test_generic_helpers,
@@ -2389,6 +2414,7 @@ def main():
         test_patch_launch,
         test_dns_probe_and_skip,
         test_wakeword,
+        test_wake_action,
     ):
         try:
             test()
