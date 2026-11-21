@@ -238,9 +238,11 @@ def chosen() -> Channel | None:
         if wanted and wanted in CHANNELS:
             return CHANNELS[wanted]
         if not wanted:
+            # Режим «все каналы»: выбираем самый громкий живой — на Миди это 9:0,
+            # на других прошивках может оказаться другой индекс.
             alive = [c for c in CHANNELS.values() if c.last_ts and time.time() - c.last_ts < 2.0]
             if alive:
-                return max(alive, key=lambda c: c.frames)
+                return max(alive, key=lambda c: c.rms)
         return None
 
 
