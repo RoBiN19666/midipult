@@ -114,10 +114,10 @@ class Channel:
         max_bytes = int(seconds * SAMPLE_RATE) * 2
         return data[-max_bytes:]
 
-    def snapshot(self) -> dict:
+    def snapshot(self, levels: bool = False) -> dict:
         with LOCK:
             fresh = (time.time() - self.last_ts) < 2.0 if self.last_ts else False
-            return {
+            data = {
                 "kind": self.kind,
                 "index": self.index,
                 "frames": self.frames,
@@ -126,8 +126,12 @@ class Channel:
                 "peak": round(self.peak / 32768.0, 4),
                 "clipped": self.clipped,
                 "seconds": round(self.total / SAMPLE_RATE, 2),
-                "levels": list(self.levels),
             }
+            if levels:
+                # История уровня нужна только для выбранного канала: иначе
+                # /status раздувается до десятков килобайт на каждый опрос.
+                data["levels"] = list(self.levels)[-30:]
+            return data
 
 
 def load_config() -> None:
@@ -241,9 +245,9 @@ def chosen() -> Channel | None:
 
 
 def status_payload() -> dict:
-    with LOCK:
-        channels = [c.snapshot() for c in CHANNELS.values()]
     sel = chosen()
+    with LOCK:
+        channels = [c.snapshot(levels=(c is sel)) for c in CHANNELS.values()]
     seen = []
     try:
         with open(SOCK_PATH + ".seen", "r", encoding="utf-8") as fh:
@@ -255,17 +259,15 @@ def status_payload() -> dict:
                     seen.append(line.split())
     except OSError:
         pass
-    mounted = os.path.exists("/data/mypult/mictap/active")
     return {
         "ok": True,
         "listening": bool(LAST_FRAME_TS and time.time() - LAST_FRAME_TS < 3.0),
         "socket": SOCK_PATH,
-        "mounted": mounted,
         "dropped": DROPPED,
         "config": dict(CONFIG),
         "selected": "%d:%d" % (sel.kind, sel.index) if sel else "",
         "channels": channels,
-        "seen": seen,
+        "seen": seen[-16:],
         "record_dir": RECORD_DIR,
     }
 

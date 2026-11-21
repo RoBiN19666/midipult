@@ -80,14 +80,23 @@ def seen_channels() -> list:
     return rows[:32]
 
 
+def tap_mounted(state: dict) -> bool:
+    """Активен ли bind-mount: в файле launch.json есть наш LD_PRELOAD."""
+    launch = state.get("launch") or "/system/vendor/quasar/launch.json"
+    try:
+        with open(launch, "r", encoding="utf-8", errors="replace") as fh:
+            return "LD_PRELOAD=" in fh.read(65536)
+    except OSError:
+        return False
+
+
 def fallback_status() -> dict:
     state = read_state()
-    mounted = os.path.exists("/data/mypult/mictap/launch.json")
     return {
         "ok": True,
         "daemon": False,
         "listening": False,
-        "mounted": mounted and bool(state.get("enabled")),
+        "mounted": tap_mounted(state),
         "arch": state.get("arch", ""),
         "socket": SOCKET,
         "seen": seen_channels(),
@@ -101,13 +110,14 @@ def fallback_status() -> dict:
 
 def status() -> dict:
     fresh = daemon("GET", "/status", timeout=4.0)
-    if fresh is None:
-        return fallback_status()
-    fresh["daemon"] = True
+    data = fallback_status() if fresh is None else dict(fresh, daemon=True)
     state = read_state()
-    fresh["arch"] = state.get("arch", "")
-    fresh["installed"] = os.path.exists("/data/mypult/mictap/vqe_tap.so")
-    return fresh
+    data["arch"] = state.get("arch", "")
+    data["channel"] = state.get("channel", "")
+    data["enabled"] = bool(state.get("enabled"))
+    data["installed"] = os.path.exists("/data/mypult/mictap/vqe_tap.so")
+    data["mounted"] = tap_mounted(state)
+    return data
 
 
 def send_wav(name: str) -> None:

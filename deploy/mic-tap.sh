@@ -187,15 +187,17 @@ mount_only() {
 }
 
 write_state() {
-    /opt/bin/python3 - "$STATE" "$1" "$(elf_class "$MAIN")" "$SOCK" "$2" <<'PY'
+    /opt/bin/python3 - "$STATE" "$1" "$(elf_class "$MAIN")" "$SOCK" "$2" "$LAUNCH" "$MAIN" <<'PY'
 import json, os, sys, time
 
-path, enabled, klass, sock, channel = sys.argv[1:6]
+path, enabled, klass, sock, channel, launch, maind = sys.argv[1:8]
 data = {
     "enabled": enabled == "on",
     "arch": "armhf" if klass == "1" else "aarch64",
     "channel": channel,
     "socket": sock,
+    "launch": launch,
+    "maind": maind,
     "updated": time.strftime("%Y-%m-%dT%H:%M:%S"),
 }
 with open(path + ".tmp", "w", encoding="utf-8") as fh:
