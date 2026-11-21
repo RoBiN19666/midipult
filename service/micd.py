@@ -57,6 +57,10 @@ WAKE = {
     "hits": 0,
     "last_hit": 0.0,
     "error": "",
+    # Пики вероятности для настройки порога: видно, «чуть не дотянуло» или
+    # модель вообще не слышит слово. Храним только заметные кадры.
+    "trace": deque(maxlen=40),
+    "last_trace": 0.0,
 }
 WAKE_MODEL = None
 DROPPED = 0
@@ -253,9 +257,20 @@ def wake_feed(pcm: array.array) -> None:
         return
     WAKE["prob"] = round(float(WAKE_MODEL.last_prob), 4)
     WAKE["peak"] = max(WAKE["peak"], WAKE["prob"])
+    now_ts = time.time()
+    if WAKE["prob"] >= 0.15:
+        WAKE["trace"].append({"t": round(now_ts, 1), "p": WAKE["prob"]})
+        if now_ts - WAKE["last_trace"] >= 0.15:
+            WAKE["last_trace"] = now_ts
+            try:
+                with open("/tmp/mypult/wake-trace.log", "a", encoding="utf-8") as fh:
+                    fh.write("%.2f %.3f%s\n" % (now_ts, WAKE["prob"], " hit" if hit else ""))
+            except OSError:
+                pass
     if hit:
         WAKE["hits"] += 1
         WAKE["last_hit"] = time.time()
+        WAKE["trace"].append({"t": round(WAKE["last_hit"], 1), "p": WAKE["prob"], "hit": True})
         common.log("micd", "слово активации: сработало (всего %d)" % WAKE["hits"])
 
 
@@ -403,6 +418,7 @@ def status_payload() -> dict:
             "hits": WAKE["hits"],
             "last_hit": WAKE["last_hit"],
             "error": WAKE["error"],
+            "trace": list(WAKE["trace"])[-20:],
         },
         **tap_state(),
     }
