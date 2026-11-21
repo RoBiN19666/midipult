@@ -314,6 +314,14 @@ ensure_mic_tap() {
         log "mic-tap: перезапуск уже был, preload не подхватился — нужен ручной разбор"
         return 0
     fi
+    # На загрузке S99 стартует почти сразу после S97: даём Quasar встать и
+    # убеждаемся, что это тот же процесс, а не недозапущенный.
+    sleep 5
+    _pid2=$(ps w 2>/dev/null | awk '/[m]aind --platformd/ {print $1; exit}')
+    if [ -z "${_pid2:-}" ] || [ "$_pid2" != "$_pid" ]; then
+        log "mic-tap: maind перезапустился сам — откладываю свой перезапуск"
+        return 0
+    fi
     : >"$RUNDIR/mic-restarted"
     log "mic-tap: перезапускаю quasar, чтобы maind взял LD_PRELOAD"
     sh /data/myweb/deploy/mic-tap.sh restart >>"$LOG" 2>&1

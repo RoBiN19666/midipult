@@ -67,6 +67,39 @@ has_symbol() {
     grep -q "YandexVqeC_GetOutputChannelData" "$1" 2>/dev/null
 }
 
+# Пути Quasar не зашиты намертво: на Станции 2 и после обновления прошивки они
+# могут быть другими. Если привычных нет — берём launch.json из командной строки
+# запущенного launcher'а, а путь к maind — из самого launch.json.
+resolve_paths() {
+    if [ -f "$MAIN" ] && [ -f "$LAUNCH" ]; then
+        return 0
+    fi
+    _cand=$(ps w 2>/dev/null | awk '/quasar_launcher2/ {print $NF; exit}')
+    case "$_cand" in
+        *.json) [ -f "$_cand" ] && LAUNCH="$_cand" ;;
+    esac
+    [ -f "$LAUNCH" ] || return 1
+    _main=$(/opt/bin/python3 - "$LAUNCH" <<'PY'
+import json, sys
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+except (OSError, ValueError):
+    sys.exit(0)
+for node in data.get("nodes", []):
+    for task in node.get("tasks", []):
+        if "--platformd" in (task.get("arg") or []):
+            print(task.get("path") or "")
+            sys.exit(0)
+PY
+)
+    if [ -n "${_main:-}" ] && [ -f "$_main" ]; then
+        MAIN="$_main"
+    fi
+    [ -f "$MAIN" ]
+}
+
 mounted() {
     # stat на прошивке нет, поэтому проверяем по содержимому: копия в $DIR
     # совпадает с системным файлом и содержит наш LD_PRELOAD.
@@ -89,6 +122,7 @@ build_patch() {
 }
 
 apply() {
+    resolve_paths
     channel="${1:-$(saved_channel)}"
     case "$channel" in
         all|ALL|\*) channel=all ;;
@@ -135,6 +169,7 @@ apply() {
 }
 
 mount_only() {
+    resolve_paths
     [ -f "$DIR/vqe_tap.so" ] || exit 0
     has_symbol "$MAIN" || exit 0
     mounted && exit 0
@@ -172,6 +207,7 @@ PY
 }
 
 remove() {
+    resolve_paths
     # Снимаем все слои: после нескольких apply их могло накопиться.
     i=0
     while [ "$i" -lt 4 ]; do
@@ -213,6 +249,7 @@ restart_quasar() {
 }
 
 status() {
+    resolve_paths
     class=$(elf_class "$MAIN" 2>/dev/null)
     so=$(so_for_arch "${class:-}" 2>/dev/null || echo "?")
     log "maind      : $MAIN (ELF-класс ${class:-?}, ожидается $so)"
