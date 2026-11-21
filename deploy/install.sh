@@ -326,6 +326,11 @@ port53_listening() {
         /proc/net/udp /proc/net/udp6 2>/dev/null
 }
 
+dns_answers() {
+    [ -f "$WEB/cgi-bin/dnsprobe.py" ] || return 1
+    "$PY" "$WEB/cgi-bin/dnsprobe.py" >/dev/null 2>&1
+}
+
 ensure_unbound() {
     port53_listening && return 0
     if [ ! -x /usr/sbin/unbound ]; then
@@ -341,7 +346,7 @@ ensure_unbound() {
     if [ -x /etc/init.d/S70unbound ]; then
         /etc/init.d/S70unbound restart >>/tmp/mypult.log 2>&1 || true
         sleep 2
-        if port53_listening; then
+        if port53_listening && dns_answers; then
             say "unbound поднят (S70unbound)"
             return 0
         fi
@@ -350,10 +355,10 @@ ensure_unbound() {
     sleep 1
     /usr/sbin/unbound >>/tmp/mypult.log 2>&1 || true
     sleep 2
-    if port53_listening; then
-        say "unbound поднят"
+    if port53_listening && dns_answers; then
+        say "unbound поднят и отвечает"
     else
-        warn "unbound не поднялся — проверьте /etc/unbound/unbound.conf"
+        warn "unbound не отвечает — проверьте /etc/unbound/unbound.conf"
     fi
 }
 

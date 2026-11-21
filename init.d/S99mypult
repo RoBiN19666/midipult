@@ -503,12 +503,29 @@ port53_listening() {
         /proc/net/udp /proc/net/udp6 2>/dev/null
 }
 
+# Порт может быть занят, а резолвер — не отвечать. Спрашиваем по-настоящему.
+dns_answers() {
+    [ -f "$WEBROOT/cgi-bin/dnsprobe.py" ] || return 1
+    "$PY" "$WEBROOT/cgi-bin/dnsprobe.py" >/dev/null 2>&1
+}
+
 # Резолвер прошивки (unbound) иногда не поднимается: IPv6 на loopback выключен,
 # и unbound не может занять ::1. Чиним только если :53 никто не слушает.
 ensure_dns() {
-    port53_listening && return 0
+    port53_listening && dns_answers && return 0
     [ -x /usr/sbin/unbound ] || { log "dns: unbound не найден"; return 0; }
-    log "dns: :53 не слушает — пробую поднять unbound"
+    # watchdog зовёт ensure раз в минуту: не чаще одного рестарта в 10 минут,
+    # иначе получается карусель PID, как в 0.6.16.
+    if [ -f /tmp/mypult-dns-restart ]; then
+        _last=$(cat /tmp/mypult-dns-restart 2>/dev/null)
+        _now=$(date +%s)
+        case "$_last" in
+            ''|*[!0-9]*) : ;;
+            *) [ $((_now - _last)) -lt 600 ] && { log "dns: недавно перезапускали, жду"; return 0; } ;;
+        esac
+    fi
+    date +%s >/tmp/mypult-dns-restart 2>/dev/null || true
+    log "dns: резолвер не отвечает — пробую поднять unbound"
     if [ "$(cat /proc/sys/net/ipv6/conf/lo/disable_ipv6 2>/dev/null)" = "1" ]; then
         echo 0 > /proc/sys/net/ipv6/conf/lo/disable_ipv6 2>/dev/null || true
         sleep 1
@@ -519,10 +536,10 @@ ensure_dns() {
         /usr/sbin/unbound >/dev/null 2>&1 || true
     fi
     sleep 2
-    if port53_listening; then
-        log "dns: unbound поднят"
+    if port53_listening && dns_answers; then
+        log "dns: unbound поднят и отвечает"
     else
-        log "dns: unbound не поднялся"
+        log "dns: unbound не отвечает"
     fi
 }
 

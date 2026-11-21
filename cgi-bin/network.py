@@ -177,12 +177,20 @@ def ensure_loopback_ipv6():
         return False
 
 
-def restart_unbound():
-    """Поднять unbound: штатный init, затем start-stop-daemon, затем бинарник."""
+def restart_unbound(force=False):
+    """Поднять unbound: штатный init, затем start-stop-daemon/бинарник.
+
+    Без `force` живой резолвер не трогаем. С `force` перезапускаем даже
+    отвечающий: конфиг только что переписан, и старые forwarders ещё в памяти.
+    Каждый способ пробуем один раз: раньше четыре круга рестартов давали
+    «код 0», скачущий PID и пустой 502 у CGI.
+    """
+    if not force and dns_probe(1.0):
+        return [], True
     attempts = []
-    commands = []
     if ensure_loopback_ipv6():
         attempts.append({"command": "loopback-ipv6", "code": 0, "detail": "::1 включён"})
+    commands = []
     if os.access(INIT, os.X_OK):
         commands.append([INIT, "restart"])
     commands.append(["/bin/sh", "-c",
@@ -190,19 +198,19 @@ def restart_unbound():
                      "start-stop-daemon -S -q -p %s -x %s >/dev/null 2>&1 || %s"
                      % (PIDFILE, PIDFILE, UNBOUND_BIN, UNBOUND_BIN)])
     for command in commands:
-        code, out, err = common.run(command, timeout=20)
+        code, out, err = common.run(command, timeout=12)
         detail = ((out or "") + (err or "")).strip().replace("\n", " ")[:180]
         attempts.append({"command": command[0], "code": code, "detail": detail})
-        for _ in range(6):
+        for _ in range(5):
             if dns_probe(0.8):
                 return attempts, True
-            time.sleep(0.5)
+            time.sleep(0.4)
     return attempts, dns_probe(1.0)
 
 
-def ensure_dns():
-    """Поднять резолвер и, если не вышло, вернуть резервный конфиг."""
-    attempts, ok = restart_unbound()
+def ensure_dns(force=False):
+    """Поднять резолвер; если не вышло — вернуть резервный конфиг и один повтор."""
+    attempts, ok = restart_unbound(force=force)
     restored = False
     if not ok and os.path.exists(UNBOUND_BACKUP):
         try:
@@ -214,13 +222,21 @@ def ensure_dns():
         except OSError:
             restored = False
         if restored:
-            more, ok = restart_unbound()
+            more, ok = restart_unbound(force=True)
             attempts += more
-    return {"ok": bool(ok), "restored": restored, "attempts": attempts}
+    result = {"ok": bool(ok), "restored": restored, "attempts": attempts}
+    if not ok:
+        result["error"] = ("unbound не отвечает на 127.0.0.1:53; попытки: "
+                           + "; ".join("%s -> %s" % (item["command"], item["code"])
+                                       for item in attempts))
+    return result
 
 
 def set_dns(servers):
     clean = clean_servers(servers)
+    same = dns_servers() == clean
+    if same and dns_probe(1.0):
+        return clean, {"ok": True, "restored": False, "attempts": [], "skipped": True}
 
     if os.path.exists(UNBOUND) and not os.path.exists(UNBOUND_BACKUP):
         with open(UNBOUND, "r", encoding="utf-8") as src:
@@ -240,15 +256,12 @@ def set_dns(servers):
     with open(UNBOUND, "w", encoding="utf-8") as fh:
         fh.write(content)
 
-    probe = ensure_dns()
-    if not probe["ok"]:
-        raise RuntimeError("unbound не поднялся: %s" % "; ".join(
-            "%s → %s" % (item["command"], item["code"]) for item in probe["attempts"]))
-
-    try:
-        common.write_json(DNS_STATE, {"servers": clean})
-    except OSError:
-        pass
+    probe = ensure_dns(force=True)
+    if probe["ok"]:
+        try:
+            common.write_json(DNS_STATE, {"servers": clean})
+        except OSError:
+            pass
     return clean, probe
 
 
@@ -260,13 +273,16 @@ def reset_dns():
         with open(UNBOUND, "w", encoding="utf-8") as dst:
             dst.write(data)
         restored = True
-    probe = ensure_dns()
+        probe = ensure_dns(force=True)
+    else:
+        probe = ensure_dns(force=True)
     try:
         os.remove(DNS_STATE)
     except OSError:
         pass
-    result = {"restored": restored, "servers": dns_servers()}
-    result.update(probe)
+    result = dict(probe)
+    result["restored"] = restored
+    result["servers"] = dns_servers()
     return result
 
 
@@ -418,7 +434,7 @@ def main():
         try:
             servers, probe = set_dns(str(data.get("servers") or "").split(","))
         except Exception as exc:  # noqa: BLE001
-            common.fail(502, "DNS: %s" % exc)
+            common.fail(400, "DNS: %s" % exc)
             return
         result = status()
         result["applied"] = servers

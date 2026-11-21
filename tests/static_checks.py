@@ -682,6 +682,23 @@ def test_luna_yam_guard():
           "luna_owned_by_yam" in init and "не запускаю" in init)
 
 
+def test_dns_probe_hardening():
+    init = read(os.path.join(ROOT, "init.d", "S99mypult"))
+    install = read(os.path.join(ROOT, "deploy", "install.sh"))
+    network = read(os.path.join(ROOT, "cgi-bin", "network.py"))
+    check("DNS: есть dnsprobe.py",
+          os.path.isfile(os.path.join(ROOT, "cgi-bin", "dnsprobe.py")))
+    check("DNS: init проверяет ответ, а не только порт",
+          "dns_answers" in init and "/tmp/mypult-dns-restart" in init)
+    check("DNS: install проверяет ответ", "dns_answers" in install)
+    check("DNS: set_dns не отдаёт 502 на неудачу",
+          'common.fail(502, "DNS' not in network)
+    check("DNS: повторные серверы не рестартят резолвер",
+          "skipped" in network and "same and dns_probe" in network)
+    check("DNS: после смены конфига — принудительный рестарт",
+          "ensure_dns(force=True)" in network)
+
+
 def main():
     for test in (
         test_encoding,
@@ -708,6 +725,7 @@ def main():
         test_version,
         test_security_files_guard,
         test_luna_yam_guard,
+        test_dns_probe_hardening,
     ):
         try:
             test()

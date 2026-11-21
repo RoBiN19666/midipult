@@ -37,6 +37,7 @@ import glagol  # noqa: E402
 import llm  # noqa: E402
 import media  # noqa: E402
 import network  # noqa: E402
+import dnsprobe  # noqa: E402
 import alice_cli  # noqa: E402
 import lyrics  # noqa: E402
 import radio  # noqa: E402
@@ -2281,6 +2282,20 @@ def test_patch_launch():
         check("launch: без --platformd ошибка", False)
     except ValueError:
         check("launch: без --platformd ошибка", True)
+def test_dns_probe_and_skip():
+    query = dnsprobe.build_query("ya.ru", 0x1234)
+    check("dnsprobe: id запроса на месте", query[:2] == b"\x12\x34")
+    check("dnsprobe: qname и тип A", b"ya" in query and query.endswith(b"\x00\x01\x00\x01"))
+
+    old = (network.dns_probe, network.dns_servers)
+    network.dns_probe = lambda *args, **kwargs: True
+    network.dns_servers = lambda: ["77.88.8.8"]
+    try:
+        clean, probe = network.set_dns(["77.88.8.8"])
+        check("network: DNS жив и серверы те же — рестарта нет",
+              probe.get("skipped") is True and clean == ["77.88.8.8"])
+    finally:
+        network.dns_probe, network.dns_servers = old
 
 
 def main():
@@ -2345,6 +2360,7 @@ def main():
         test_mic_packet_parse,
         test_mic_ring_buffer,
         test_patch_launch,
+        test_dns_probe_and_skip,
     ):
         try:
             test()
