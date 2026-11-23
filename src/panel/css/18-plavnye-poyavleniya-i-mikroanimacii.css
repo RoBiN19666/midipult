@@ -1,0 +1,30 @@
+/* ───────── плавные появления и микроанимации ───────── */
+@keyframes softDialogIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes softDialogOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(8px) scale(.99)}}
+@keyframes backdropIn{from{opacity:0}to{opacity:1}}
+@keyframes backdropOut{from{opacity:1}to{opacity:0}}
+@keyframes detailsIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+@keyframes ymContentIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes nowIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes lyricsOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(8px) scale(.99)}}
+dialog[open]{animation:softDialogIn .22s cubic-bezier(.2,.8,.2,1)}
+dialog::backdrop{animation:backdropIn .18s ease}
+dialog.closing{animation:softDialogOut .16s ease-in forwards}
+dialog.closing::backdrop{animation:backdropOut .16s ease-in forwards}
+details[open] > *:not(summary){animation:detailsIn .2s ease-out}
+.ym-dlg.closing .ym-side,.ym-dlg.closing .ym-main{animation:softDialogOut .16s ease-in forwards}
+.ym-dlg.closing::backdrop{animation:backdropOut .16s ease-in forwards}
+.lyrics-dlg.closing{animation:lyricsOut .15s ease-in forwards}
+.lyrics-dlg.closing::backdrop{animation:backdropOut .15s ease-in forwards}
+.ym-body > *{animation:ymContentIn .22s ease-out}
+.ym-now:not([hidden]){animation:nowIn .24s cubic-bezier(.2,.8,.2,1)}
+.card{transition:border-color .18s ease,box-shadow .18s ease}
+.card:hover{border-color:rgba(124,92,255,.28)}
+.btn{transition:transform .12s ease,filter .16s ease,background .16s ease,border-color .16s ease}
+.btn:active{transform:scale(.97)}
+.ym-tab,.ym-nav-item,.ym-search-chip,.ym-choice{transition:color .16s ease,background .16s ease,border-color .16s ease,transform .12s ease}
+.ym-tab:active,.ym-nav-item:active,.ym-search-chip:active,.ym-choice:active{transform:scale(.97)}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important;scroll-behavior:auto!important}
+}

@@ -1,0 +1,4 @@
+/* ---------- tts ---------- */
+.counter{font-size:var(--fs-12);color:var(--muted);font-variant-numeric:tabular-nums}
+#ttsText{min-height:96px}
+

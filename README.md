@@ -21,7 +21,7 @@
 
 Текущая версия — **0.6.75**. Работает на самой колонке: `lighttpd` на порту **8055** + CGI на Python.
 Интерфейс — один `index.html` на чистом HTML/CSS/JS, без React, Node и внешних CDN.
-Исходники панели лежат в `src/` (`panel.template.html`, `panel.css`, `panel.js`),
+Исходники панели лежат в `src/panel/` (`index.html`, `css/`, `js/` по разделам),
 а `index.html` — собранный артефакт: `python3 deploy/build_panel.py`. Руками его
 править не нужно, CI проверяет, что он совпадает со сборкой.
 

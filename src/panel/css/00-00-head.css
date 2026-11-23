@@ -1,0 +1,230 @@
+:root{
+  --bg:#07090f;
+  --card-a:rgba(30,35,52,.94);
+  --card-b:rgba(13,16,25,.97);
+  --stroke:rgba(255,255,255,.085);
+  --text:#eef2ff;
+  --muted:#8f9bb3;
+  --accent:#7c5cff;
+  --accent2:#22d3ee;
+  --ok:#34d399;
+  --warn:#fbbf24;
+  --bad:#fb7185;
+  --radius:20px;
+  --shadow:0 22px 55px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.05);
+  /* размерная сетка: радиусы */
+  --r6:6px;--r8:8px;--r10:10px;--r12:12px;--r16:16px;--r20:20px;--r-pill:999px;
+  /* высоты контролов, кегли, ритм отступов */
+  --ctl-h:42px;--ctl-h-sm:36px;
+  --fs-10:10px;--fs-11:11px;--fs-12:12px;--fs-13:13px;--fs-14:14px;--fs-15:15px;
+  --fs-16:16px;--fs-18:18px;--fs-20:20px;--fs-22:22px;
+  --gap-2xs:2px;--gap-xs:4px;--gap-sm:8px;--gap-md:12px;--gap-lg:16px;--gap-xl:20px;
+  --page-x:18px;--pad-card:16px;
+}
+body.light{
+  --bg:#f4efe7;
+  --card-a:rgba(255,252,247,.96);
+  --card-b:rgba(247,240,231,.98);
+  --stroke:rgba(76,62,48,.14);
+  --text:#20242c;
+  --muted:#6d675e;
+  --shadow:0 24px 54px rgba(78,58,38,.10), inset 0 1px 0 rgba(255,255,255,.9);
+}
+body.light .aurora{opacity:.3;filter:saturate(.9)}
+body.light .tabs{background:rgba(255,252,247,.94);border-color:rgba(76,62,48,.13);box-shadow:0 12px 32px rgba(78,58,38,.10), inset 0 1px 0 rgba(255,255,255,.9)}
+body.light .tab{color:#625b52}
+body.light .tab:hover{background:rgba(76,62,48,.06);color:#20242c}
+body.light .tab[aria-pressed="true"]{color:#fff;background:linear-gradient(135deg,#6a4df5,#3a7bd5);box-shadow:0 8px 18px rgba(91,75,219,.22), inset 0 1px 0 rgba(255,255,255,.25)}
+body.light .card{background:linear-gradient(155deg,rgba(255,253,249,.98),rgba(247,240,231,.98));border-color:rgba(76,62,48,.14)}
+body.light .card::after{display:none}
+body.light .clock-time{background:linear-gradient(120deg,#202838,#5b4bdb 70%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 8px 20px rgba(91,75,219,.18))}
+body.light .logo{color:#4d3fd8;background:linear-gradient(140deg,#ece8ff,#ddf5ff);border-color:rgba(77,63,216,.18);box-shadow:0 10px 24px rgba(77,63,216,.14)}
+body.light .btn.ghost{background:rgba(255,252,247,.78);color:#252a33;border-color:rgba(76,62,48,.18)}
+body.light .net-input,body.light select,body.light input[type="text"],body.light input[type="password"],body.light input[type="number"],body.light input[type="time"]{background:#fffdfa;color:#20242c;border-color:rgba(76,62,48,.2)}
+body.light .chip,body.light .llm-chip{background:rgba(76,62,48,.055);color:#2b303a;border-color:rgba(76,62,48,.14)}
+body.light .chip[aria-pressed="true"]{background:rgba(124,92,255,.16);border-color:rgba(124,92,255,.6)}
+body.light .pill{background:rgba(255,252,247,.78);border-color:rgba(76,62,48,.13);color:#6d675e}
+body.light .pill.ok{color:#047857}
+body.light .pill.warn{color:#92400e}
+body.light .pill.bad{color:#be123c}
+body.light .log,body.light pre{background:#fbf7f0;color:#4a4138;border-color:rgba(76,62,48,.14)}
+body.light .log .err{color:#b91c1c}
+body.light footer{color:#7a7064}
+body.light .pin-gate{background:rgba(52,45,38,.34)}
+body.light dialog{background:linear-gradient(155deg,#fffdf9,#f8f1e8);border-color:rgba(76,62,48,.16);box-shadow:0 30px 70px rgba(78,58,38,.24)}
+body.light dialog::backdrop{background:rgba(52,45,38,.30);backdrop-filter:blur(6px)}
+body.light .svc span{background:rgba(76,62,48,.05);border-color:rgba(76,62,48,.14);color:#6d675e}
+body.light .svc span.on{background:rgba(4,120,87,.06);border-color:rgba(4,120,87,.35);color:#047857}
+body.light .svc span.off{background:rgba(190,18,60,.05);border-color:rgba(190,18,60,.30);color:#be123c}
+body.light select option,body.light .llm-field select option{background:#fffdfa;color:#20242c}
+body.light .ring .dots b.sel{outline-color:#20242c}
+body.light .seg-note,body.light p,body.light .field-top label{color:#5f594f}
+body.light .media-art{color:#4d3fd8;background:linear-gradient(140deg,#ece8ff,#ddf5ff);border-color:rgba(76,62,48,.14)}
+body.light .media-cover{border-color:rgba(76,62,48,.18)}
+body.light .banner{background:rgba(251,191,36,.16);color:#7c4a03}
+body.light .toast{background:rgba(255,252,247,.98);color:#20242c;border-color:rgba(76,62,48,.16);box-shadow:0 14px 34px rgba(78,58,38,.16)}
+body.light .toast.ok{border-color:rgba(4,120,87,.4)}
+body.light .toast.warn{border-color:rgba(146,64,14,.45)}
+body.light .toast.bad{border-color:rgba(190,18,60,.45)}
+body.light .banner code{background:rgba(124,92,255,.12);color:#4c3ed8}
+body.light .pin-card input{background:#fffdfa;color:#20242c;border-color:rgba(76,62,48,.2)}
+body.light .ring .core{background:radial-gradient(circle at 50% 35%,#fffdfa,#eee5d9);border-color:rgba(76,62,48,.13)}
+body.light input[type="color"]::-webkit-color-swatch{border-color:rgba(76,62,48,.25)}
+body.light input[type="color"]::-moz-color-swatch{border-color:rgba(76,62,48,.25)}
+
+/* 3D-сцена — часть светлой карточки, а не чёрное окно внутри неё. */
+body.light .station-stage{
+  background:
+    radial-gradient(60% 80% at 50% 18%,rgba(124,92,255,.14),transparent 70%),
+    radial-gradient(70% 60% at 50% 100%,rgba(34,211,238,.10),transparent 70%),
+    linear-gradient(160deg,#fbf6ee,#efe5d8);
+  border:1px solid rgba(76,62,48,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 14px 32px rgba(78,58,38,.08);
+}
+body.light .station-stage::after{
+  background:radial-gradient(ellipse,rgba(78,58,38,.20),transparent 70%);
+}
+body.light .station-color{
+  box-shadow:inset 0 0 0 1px rgba(76,62,48,.16),0 2px 6px rgba(78,58,38,.18);
+}
+body.light .station-color[aria-pressed="true"]{
+  border-color:#20242c;
+  box-shadow:0 0 0 2px rgba(124,92,255,.55),0 2px 6px rgba(78,58,38,.18);
+}
+body.light .home-stats>div{
+  background:rgba(255,255,255,.58);
+  border-color:rgba(76,62,48,.12);
+}
+
+/* Мобильное меню вкладок: в тёмной теме это тёмная плашка, в светлой —
+   такая же бумажная, как остальные карточки. */
+body.light .mobile-tabs-btn{
+  background:rgba(255,252,247,.94);
+  color:#20242c;
+  border-color:rgba(76,62,48,.14);
+  box-shadow:0 12px 32px rgba(78,58,38,.10),inset 0 1px 0 rgba(255,255,255,.9);
+}
+body.light .mobile-tabs-menu{
+  background:linear-gradient(160deg,#fffdf9,#f8f1e8);
+  border-color:rgba(76,62,48,.14);
+  box-shadow:0 18px 40px rgba(78,58,38,.16);
+}
+body.light .mobile-tabs-menu button{color:#20242c}
+body.light .mobile-tabs-menu button[aria-pressed="true"]{background:rgba(124,92,255,.16)}
+
+/* Яндекс Музыка и очередь — фирменные тёмные медиа-поверхности.
+   Общий светлый dialog не должен делать их бежевыми с белым текстом. */
+body.light dialog.ym-dlg{
+  background:#0b0b0d;color:#f5f5f7;border-color:#202024;
+  box-shadow:0 30px 80px rgba(0,0,0,.65);
+}
+body.light .ym-dlg input[type="text"],
+body.light .ym-dlg .ym-search-wrap input{
+  background:transparent;color:#f5f5f7;border-color:transparent;
+}
+body.light .ym-dlg input[type="text"]::placeholder,
+body.light .ym-dlg .ym-search-wrap input::placeholder{color:#8b8b94}
+body.light dialog.queue-dlg{
+  background:#0b0e16;color:#eef2ff;border-color:rgba(255,255,255,.08);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+body.light dialog.lyrics-dlg:not(.ym-look){
+  background:linear-gradient(160deg,#fffdf9,#f6eee3);color:#20242c;
+  border-color:rgba(76,62,48,.14);box-shadow:0 30px 80px rgba(78,58,38,.22);
+}
+/* Текст, открытый из Яндекс Музыки, остаётся её фирменной тёмной
+   поверхностью даже при светлой теме панели. */
+body.light dialog.lyrics-dlg.ym-look{
+  background:#0b0e16;color:#eef2ff;border-color:rgba(255,255,255,.08);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+body.light .lyrics-dlg.ym-look::backdrop{
+  background:rgba(4,6,12,.74);backdrop-filter:blur(10px);
+}
+/* Бегущая строка в карточке «Плеер»: на светлом фоне нужен тёмный текст. */
+body.light .np-lyric-inner{
+  background:linear-gradient(100deg,rgba(124,92,255,.12),rgba(34,211,238,.06) 58%,rgba(124,92,255,.09));
+  border-color:rgba(124,92,255,.24);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 10px 24px rgba(78,58,38,.10);
+}
+body.light .np-lyric-text{color:#242a36;text-shadow:0 0 18px rgba(124,92,255,.12)}
+body.light .np-kicker{color:#5f594f}
+
+/* Анимации кольца/дисплея в светлой теме: без чёрных кружков и шапок. */
+body.light .anim-tile{border-color:rgba(76,62,48,.14)}
+body.light .anim-tile:hover{border-color:rgba(76,62,48,.28)}
+body.light .anim-tile .anim-name{color:#5f594f;opacity:.9}
+body.light .anim-tile-x{background:rgba(255,252,247,.96);color:#6d675e;
+  border:1px solid rgba(76,62,48,.16);line-height:14px}
+body.light .anim-tile-x:hover{background:rgba(190,18,60,.12);color:#be123c}
+body.light .alarm-dlg-head,body.light .alarm-dlg-foot{
+  background:#fffdf9;color:#20242c;border-color:rgba(76,62,48,.14);
+}
+body.light .anim-editor{background:rgba(255,255,255,.55);border-color:rgba(76,62,48,.14)}
+body.light .anim-frame{background:rgba(255,255,255,.62);color:#5f594f;
+  border-color:rgba(76,62,48,.16)}
+body.light .anim-frame[aria-pressed="true"]{background:rgba(124,92,255,.16);
+  color:#20242c;border-color:#7c5cff;box-shadow:0 0 0 2px rgba(124,92,255,.14)}
+body.light .anim-frame[aria-pressed="true"] small{color:#6d675e}
+body.light .clock-anim-row{background:rgba(255,255,255,.48)}
+
+/* Светлые скроллбары: и корень страницы, и внутренние списки/диалоги. */
+html.light-scroll{color-scheme:light;scrollbar-color:#c9bfb0 #eee5d9;scrollbar-width:thin}
+html.light-scroll::-webkit-scrollbar{width:12px;height:12px}
+html.light-scroll::-webkit-scrollbar-track{background:#eee5d9}
+html.light-scroll::-webkit-scrollbar-thumb{background:#c9bfb0;border-radius:999px;
+  border:3px solid #eee5d9}
+html.light-scroll::-webkit-scrollbar-thumb:hover{background:#b3a897}
+body.light ::-webkit-scrollbar{width:10px;height:10px}
+body.light ::-webkit-scrollbar-track{background:transparent}
+body.light ::-webkit-scrollbar-thumb{background:rgba(76,62,48,.28);border-radius:999px;
+  border:2px solid transparent;background-clip:content-box}
+body.light .lyrics-dlg:not(.ym-look) .lyr-bg{opacity:.16;filter:blur(90px) saturate(1.1) brightness(1.2)}
+body.light .lyrics-dlg:not(.ym-look) .lyr-head{
+  background:linear-gradient(180deg,rgba(255,253,249,.97),rgba(255,253,249,.55) 72%,transparent);
+}
+body.light .lyrics-dlg:not(.ym-look) .lyr-title{color:#20242c}
+body.light .lyrics-dlg:not(.ym-look) .lyr-source{color:#8a8175}
+body.light .lyrics-dlg:not(.ym-look) .lyr-lines .line{color:#5f594f;opacity:.62}
+body.light .lyrics-dlg:not(.ym-look) .lyr-lines .line:hover{color:#33302b;opacity:.82}
+body.light .lyrics-dlg:not(.ym-look) .lyr-lines .line.active{color:#15181f;opacity:1;text-shadow:0 0 24px rgba(124,92,255,.24)}
+body.light .lyrics-dlg:not(.ym-look) .lyr-lines .plain{color:#4a4138}
+body.light .lyrics-dlg:not(.ym-look) .lyr-player{
+  background:rgba(255,252,247,.97);border-top-color:rgba(76,62,48,.14);
+}
+body.light .lyrics-dlg:not(.ym-look) .lyr-player-art{background:#e8ded1;color:#6d675e}
+body.light .lyrics-dlg:not(.ym-look) .lyr-player-meta b{color:#20242c}
+body.light .lyrics-dlg:not(.ym-look) .lyr-player-meta span{color:#8a8175}
+body.light .lyrics-dlg:not(.ym-look) .lyr-player-progress span,
+body.light .lyrics-dlg:not(.ym-look) .lyr-player-volume span{color:#8a8175}
+body.light .lyrics-dlg:not(.ym-look) .lyr-icon{color:#5f594f}
+body.light .lyrics-dlg:not(.ym-look) .lyr-icon:hover{background:rgba(76,62,48,.08);color:#20242c}
+body.light .lyrics-dlg:not(.ym-look) .lyr-switch{background:rgba(76,62,48,.05);border-color:rgba(76,62,48,.14);color:#5f594f}
+body.light .lyrics-dlg:not(.ym-look) .lyr-switch-track{background:#ded5c8;border-color:rgba(76,62,48,.22)}
+body.light .lyrics-dlg:not(.ym-look) .lyr-switch-track i{background:#6d675e}
+body.light .lyrics-dlg:not(.ym-look) .lyr-switch input:checked + .lyr-switch-track{background:rgba(124,92,255,.55);border-color:rgba(124,92,255,.75)}
+body.light .lyrics-dlg:not(.ym-look) .lyr-switch input:checked + .lyr-switch-track i{background:#fff}
+body.light .lyrics-dlg:not(.ym-look) input[type="range"]::-webkit-slider-runnable-track{
+  background:linear-gradient(90deg,#c99a1e 0 var(--fill,0%),#ded5c8 var(--fill,0%) 100%);
+}
+body.light .lyrics-dlg:not(.ym-look) input[type="range"]::-webkit-slider-thumb{
+  background:#c99a1e;box-shadow:0 0 0 3px rgba(201,154,30,.18),0 2px 6px rgba(78,58,38,.25);
+}
+body.light .lyrics-dlg:not(.ym-look) input[type="range"]::-moz-range-track{background:#ded5c8}
+body.light .lyrics-dlg:not(.ym-look) input[type="range"]::-moz-range-progress{background:#c99a1e}
+body.light .lyrics-dlg:not(.ym-look) input[type="range"]::-moz-range-thumb{background:#c99a1e}
+*{-webkit-tap-highlight-color:transparent}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;min-height:100vh;
+  font-family:"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  color:var(--text);background:var(--bg);overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  padding-left:var(--sbw,0px);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+button,input,textarea{font-family:inherit}
+select{max-width:100%}
+[hidden]{display:none !important}
+

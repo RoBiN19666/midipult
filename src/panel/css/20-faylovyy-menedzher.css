@@ -1,0 +1,42 @@
+/* ───────── файловый менеджер ───────── */
+.files-dlg{width:min(1080px,96vw);max-height:92vh;padding:0;border:1px solid var(--stroke);border-radius:22px;
+  background:linear-gradient(160deg,var(--card-a),var(--card-b));color:var(--text);overflow:hidden}
+.files-dlg::backdrop{background:rgba(4,5,12,.78);backdrop-filter:blur(8px)}
+.files-shell{display:flex;flex-direction:column;max-height:92vh}
+.files-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 12px}
+.files-head h3{margin:2px 0 0;font-size:20px}
+.files-kicker{color:var(--muted);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
+.files-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:0 20px 10px}
+.files-path{flex:1 1 260px;min-width:180px;height:38px;border:1px solid var(--stroke);border-radius:10px;
+  background:rgba(0,0,0,.18);color:var(--text);padding:0 11px;font:inherit;font-size:13px}
+.files-roots{display:flex;gap:6px;flex-wrap:wrap;padding:0 20px 8px}
+.files-roots button{border:1px solid var(--stroke);background:rgba(255,255,255,.04);color:var(--muted);
+  border-radius:999px;padding:5px 10px;font:inherit;font-size:11px;cursor:pointer}
+.files-roots button:hover{color:var(--text);border-color:var(--accent2)}
+.files-note{padding:0 20px 8px;color:var(--muted);font-size:11px}
+.files-list{overflow:auto;padding:0 12px 12px;min-height:180px;flex:1}
+.files-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto auto;align-items:center;gap:10px;
+  padding:9px 8px;border-radius:9px;border-bottom:1px solid rgba(255,255,255,.04)}
+.files-row:hover{background:rgba(255,255,255,.045)}
+.files-row .files-ico{color:var(--accent2);font-size:16px;text-align:center}
+.files-row .files-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;font-size:13px}
+.files-row .files-name small{display:block;color:var(--muted);font-size:10px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.files-row .files-act{display:flex;gap:3px;opacity:.55}
+.files-row:hover .files-act{opacity:1}
+.files-row .files-act button{border:0;background:transparent;color:var(--muted);cursor:pointer;padding:4px;border-radius:6px}
+.files-row .files-act button:hover{color:var(--text);background:rgba(255,255,255,.08)}
+.files-row .files-lock{color:var(--muted);font-size:10px;padding-right:4px}
+.files-empty{padding:32px 12px;text-align:center;color:var(--muted);font-size:13px}
+.files-editor{border-top:1px solid var(--stroke);padding:12px 20px 16px;background:rgba(0,0,0,.12)}
+.files-editor-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.files-editor-head b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.files-editor textarea{width:100%;height:min(42vh,360px);resize:vertical;border:1px solid var(--stroke);border-radius:10px;
+  background:#0b0d16;color:#e8e9f3;padding:12px;font:12px/1.5 ui-monospace,Consolas,monospace}
+@media(max-width:620px){
+  .files-dlg{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
+  .files-shell{max-height:100dvh}
+  .files-head{padding:14px 14px 8px}.files-toolbar,.files-roots,.files-note{padding-left:14px;padding-right:14px}
+  .files-list{padding:0 8px 8px}.files-editor{padding:10px 12px 14px}
+  .files-row{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}
+  .files-row .files-meta{display:none}
+}

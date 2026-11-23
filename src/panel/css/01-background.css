@@ -1,0 +1,7 @@
+/* ---------- background ---------- */
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.aurora span{position:absolute;display:block;width:52vmax;height:52vmax;border-radius:50%;opacity:.5}
+.aurora span:nth-child(1){background:radial-gradient(circle at 30% 30%,#6d4bff,transparent 65%);top:-20vmax;left:-14vmax}
+.aurora span:nth-child(2){background:radial-gradient(circle at 60% 40%,#0e7490,transparent 65%);bottom:-24vmax;right:-16vmax}
+.aurora span:nth-child(3){background:radial-gradient(circle at 50% 50%,#ff3d81,transparent 65%);top:38%;left:58%;opacity:.22}
+

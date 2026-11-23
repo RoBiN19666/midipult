@@ -5,6 +5,13 @@
 развивался итерациями `0.0.x`; полная история — в
 [docs/CHANGELOG-dev.md](docs/CHANGELOG-dev.md).
 
+## 0.6.95 — 2026-11-24
+
+- панель: исходники разложены по разделам — `src/panel/index.html`,
+  `src/panel/css/*.css` (23 файла) и `src/panel/js/*.js` (42 файла).
+  `index.html` собирается `deploy/build_panel.py`; собранный файл побайтово
+  совпадает с 0.6.94, поведение не менялось. CI проверяет сборку.
+
 ## 0.6.94 — 2026-11-23
 
 - панель: исходники разделены на `src/panel.template.html`, `src/panel.css` и

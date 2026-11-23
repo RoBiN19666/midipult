@@ -1,0 +1,29 @@
+/* ───────── Сбер Звук ───────── */
+.zvuk-token-wrap{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.zvuk-token-wrap .net-input{flex:1 1 260px}
+.zvuk-status{margin-top:8px;color:var(--muted);font-size:11px}
+.zvuk-status.ok{color:var(--good,#22c55e)}
+.zvuk-status.bad{color:var(--bad,#ef4444)}
+.zvuk-search{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.zvuk-search .net-input{flex:1 1 220px}
+.zvuk-now{display:none;margin-top:12px;padding:10px 12px;border:1px solid var(--stroke);border-radius:12px;
+  background:rgba(124,92,255,.08);font-size:12px}
+.zvuk-now:not(:empty){display:block}
+.zvuk-results{margin-top:10px;display:flex;flex-direction:column;gap:2px;max-height:330px;overflow:auto}
+.zvuk-track{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto;gap:9px;align-items:center;
+  padding:7px 6px;border-radius:8px;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.zvuk-track:hover{background:rgba(255,255,255,.055)}
+.zvuk-track img{width:34px;height:34px;border-radius:7px;object-fit:cover;background:rgba(255,255,255,.08)}
+.zvuk-track .zt-title{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zvuk-track .zt-artist{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.zvuk-track .zt-time{font-size:10px;color:var(--muted)}
+.zvuk-track .zt-play{font-size:15px;color:var(--accent2)}
+.ext-src{display:inline-block;margin-left:6px;padding:1px 5px;border-radius:999px;
+  font-size:8px;font-weight:800;letter-spacing:.04em;vertical-align:1px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.045);color:var(--muted)}
+.ext-src.yt{color:#ff8a8a;border-color:rgba(255,107,107,.3);background:rgba(255,107,107,.08)}
+.ext-src.sc{color:#ffb86b;border-color:rgba(255,153,51,.32);background:rgba(255,153,51,.08)}
+.ext-now-src{font-size:10px;color:var(--muted);margin-top:2px}
+.zvuk-empty{padding:14px 4px;color:var(--muted);font-size:12px}
+@media(max-width:620px){.zvuk-track{grid-template-columns:30px minmax(0,1fr) auto}.zvuk-track img{width:30px;height:30px}.zvuk-track .zt-time{display:none}}
+

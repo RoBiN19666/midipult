@@ -56,11 +56,11 @@ lighttpd ── static /data/myweb/index.html
 ## 3. Файлы проекта
 
 ```
-index.html                 SPA целиком (HTML+CSS+JS), собран из src/
-src/panel.template.html    разметка панели
-src/panel.css              стили панели
-src/panel.js               логика панели
-deploy/build_panel.py      сборка index.html из src/
+index.html                 SPA целиком (HTML+CSS+JS), собран из src/panel/
+src/panel/index.html       разметка панели
+src/panel/css/*.css        стили панели по разделам
+src/panel/js/*.js          логика панели по разделам
+deploy/build_panel.py      сборка index.html
 index.py                   серверный PIN-гейт и отдача index.html
 manifest.json, favicon.ico PWA-ярлык и иконки (без service worker)
 icon-192.png, icon-512.png, icon.png, icon-circle.png

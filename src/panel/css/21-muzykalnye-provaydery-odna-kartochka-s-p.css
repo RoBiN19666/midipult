@@ -1,0 +1,86 @@
+/* ───────── музыкальные провайдеры: одна карточка с переключателем ───────── */
+.c-providers{grid-column:span 12;min-width:0}
+.prov-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.prov-tab{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.045);color:var(--muted);
+  font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.prov-tab:hover{color:var(--text);background:rgba(255,255,255,.08)}
+.prov-tab[aria-pressed="true"]{color:var(--text);border-color:rgba(124,92,255,.6);
+  background:rgba(124,92,255,.18)}
+.prov-dot{width:6px;height:6px;border-radius:50%;background:#6b7280;flex:0 0 auto}
+.prov-dot.ok{background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,.55)}
+.prov-dot.warn{background:#f59e0b}
+.prov-dot.bad{background:#ef4444}
+.prov-pane{padding-top:6px}
+.prov-pane[hidden]{display:none}
+.prov-pane .zvuk-status{margin-top:8px}
+.prov-pane .zvuk-results{max-height:min(46vh,360px)}
+.prov-ym-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.vk-oauth{display:flex;flex-direction:column;gap:9px;margin-top:10px;padding:10px;
+  border:1px solid var(--stroke);border-radius:12px;background:rgba(255,255,255,.035)}
+.vk-oauth-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vk-oauth-row input{flex:1 1 190px;min-width:0}
+.vk-redirect{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  font-size:11px;color:var(--muted)}
+.vk-redirect code{min-width:0;padding:4px 7px;border-radius:7px;background:rgba(255,255,255,.05);
+  border:1px solid var(--stroke);color:var(--text);font-size:10px;
+  overflow-wrap:anywhere;user-select:all}
+.vk-redirect .btn{margin-left:auto}
+.beta-badge{display:inline-flex;align-items:center;height:19px;padding:0 8px;margin-left:8px;
+  border-radius:999px;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.14);
+  color:#fbbf24;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  vertical-align:middle}
+.prov-beta{font-size:9px;font-weight:800;letter-spacing:.04em;color:#fbbf24;
+  border:1px solid rgba(245,158,11,.35);border-radius:999px;padding:1px 5px;line-height:1.2}
+.prov-soon{margin-left:6px;font-size:8px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:#8f95a8;border:1px solid var(--stroke);
+  border-radius:999px;padding:1px 5px;line-height:1.2}
+.prov-tab:disabled{opacity:.48;cursor:default}
+.prov-tab:disabled:hover{color:var(--muted);background:rgba(255,255,255,.045)}
+@media(max-width:520px){
+  .prov-tab{flex:1 1 calc(50% - 6px);justify-content:center;padding:0 8px}
+}
+/* Текст из обычного плеера панели — фирменные фиолетово-голубые акценты,
+   а не жёлтые кнопки Яндекс Музыки. */
+.lyrics-dlg:not(.ym-look){--lyr-fill:#7c5cff;--lyr-empty:#3d3d44}
+body.light .lyrics-dlg:not(.ym-look){--lyr-empty:#ded5c8}
+.lyrics-dlg:not(.ym-look) .lyr-play{
+  background:linear-gradient(135deg,#7c5cff,#4f7cff);color:#fff;
+  box-shadow:0 10px 26px rgba(92,110,255,.38);
+}
+.lyrics-dlg:not(.ym-look) input[type="range"]::-webkit-slider-runnable-track{
+  background:linear-gradient(90deg,var(--lyr-fill) 0 var(--fill,0%),var(--lyr-empty) var(--fill,0%) 100%);
+}
+.lyrics-dlg:not(.ym-look) input[type="range"]::-webkit-slider-thumb{
+  background:var(--lyr-fill);
+  box-shadow:0 0 0 3px rgba(124,92,255,.18),0 2px 6px rgba(76,62,180,.28);
+}
+.lyrics-dlg:not(.ym-look) input[type="range"]::-moz-range-track{background:var(--lyr-empty)}
+.lyrics-dlg:not(.ym-look) input[type="range"]::-moz-range-progress{background:var(--lyr-fill)}
+.lyrics-dlg:not(.ym-look) input[type="range"]::-moz-range-thumb{background:var(--lyr-fill)}
+body.light .lyrics-dlg:not(.ym-look) input[type="range"]::-webkit-slider-runnable-track{
+  background:linear-gradient(90deg,var(--lyr-fill) 0 var(--fill,0%),var(--lyr-empty) var(--fill,0%) 100%);
+}
+body.light .lyrics-dlg:not(.ym-look) input[type="range"]::-webkit-slider-thumb{
+  background:var(--lyr-fill);box-shadow:0 0 0 3px rgba(124,92,255,.16),0 2px 6px rgba(78,58,38,.22);
+}
+/* В окне текста Яндекс Музыки переключатель «В плеере» не нужен. */
+.lyrics-dlg.ym-look .lyr-switch{display:none}
+/* Очередь/похожие/избранное, открытые из Яндекс Музыки, — в её жёлтой теме. */
+.queue-dlg.ym-look{
+  background:#0b0a08;color:#f7f7f5;border-color:rgba(255,219,77,.14);
+  box-shadow:0 30px 84px rgba(0,0,0,.64);
+}
+.queue-dlg.ym-look .q-kicker{color:#b8a86a}
+.queue-dlg.ym-look .q-name{color:#fff}
+.queue-dlg.ym-look .chip[aria-pressed="true"]{
+  border-color:#ffdb4d;background:rgba(255,219,77,.16);color:#fff;
+}
+.queue-dlg.ym-look .queue-row.current{background:rgba(255,219,77,.13)}
+.queue-dlg.ym-look .queue-row.current .q-t{color:#ffdb4d}
+.queue-dlg.ym-look .queue-row:hover{background:rgba(255,255,255,.06)}
+.queue-dlg.ym-look #btnQueueClose{border-color:rgba(255,219,77,.42);color:#ffdb4d}
+.queue-dlg.ym-look::backdrop{background:rgba(4,4,2,.78)}
+body.light dialog.queue-dlg.ym-look{
+  background:#0b0a08;color:#f7f7f5;border-color:rgba(255,219,77,.14);
+}

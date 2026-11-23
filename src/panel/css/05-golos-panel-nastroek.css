@@ -1,0 +1,23 @@
+/* ---------- голос: панель настроек ---------- */
+.voice-panel{margin-top:10px;padding:10px 12px;border-radius:var(--r12);
+  border:1px solid var(--stroke);background:rgba(255,255,255,.025)}
+body.light .voice-panel{background:rgba(76,62,48,.035)}
+.voice-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.voice-panel-title{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.voice-panel-title b{font-size:var(--fs-13);font-weight:650;color:var(--text)}
+.voice-settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));
+  gap:8px 12px;margin-top:9px;align-content:start;align-items:start}
+.voice-setting{display:flex;flex-direction:column;gap:4px;min-width:0}
+.voice-setting>span{font-size:var(--fs-10);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600}
+.voice-setting select{width:100%;height:var(--ctl-h-sm)}
+.voice-setting small{display:block;flex:0 0 auto;font-size:var(--fs-11);
+  line-height:1.35;color:var(--muted)}
+.voice-help{margin-top:9px;padding-top:8px;border-top:1px solid var(--stroke);
+  font-size:var(--fs-11);line-height:1.45;color:var(--muted)}
+.voice-panel.off .voice-settings,.voice-panel.off .voice-help{opacity:.55}
+.voice-panel.off select{pointer-events:none;cursor:not-allowed}
+.voice-panel select:disabled{cursor:not-allowed}
+@media(max-width:560px){.voice-panel{padding:11px 12px}.voice-settings{grid-template-columns:1fr}}
+
+

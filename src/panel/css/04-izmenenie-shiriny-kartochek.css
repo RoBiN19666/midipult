@@ -1,0 +1,12 @@
+/* ---------- изменение ширины карточек ---------- */
+.card-resize{position:absolute;right:2px;bottom:2px;width:18px;height:18px;padding:0;
+  border:0;background:transparent;cursor:nwse-resize;opacity:0;z-index:7;
+  transition:opacity .15s ease}
+.card-resize::before{content:"";position:absolute;right:4px;bottom:4px;width:9px;height:9px;
+  border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  border-radius:0 0 2px 0;opacity:.75}
+.card:hover .card-resize,.card-resize:focus-visible{opacity:.85}
+body.card-resizing,body.card-resizing *{cursor:nwse-resize!important;user-select:none}
+@media(max-width:760px){.card-resize{display:none}}
+
+

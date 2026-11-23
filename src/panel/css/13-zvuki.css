@@ -1,0 +1,26 @@
+/* ---------- звуки ---------- */
+.sound-drop{
+  margin-top:10px;padding:14px;border:1px dashed var(--stroke);border-radius:var(--r12);
+  text-align:center;font-size:var(--fs-12);color:var(--muted);line-height:1.45;
+}
+.sound-drop.drag{border-color:var(--accent);background:rgba(124,92,255,.10);color:var(--text)}
+.sound-list{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--gap-sm);max-height:430px;overflow:auto;overflow-x:hidden;margin-top:10px;padding-right:3px}
+.sound-head{font-size:var(--fs-11);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:10px}
+.sound-row{
+  display:flex;align-items:center;gap:var(--gap-md);padding:8px 10px;border:1px solid var(--stroke);min-width:0;
+  border-radius:var(--r10);background:rgba(255,255,255,.03);transition:border-color .15s,background .15s;
+  min-width:0;
+}
+.sound-row.drag{border-color:var(--accent);background:rgba(124,92,255,.12)}
+.sound-main{flex:1;min-width:0;overflow:hidden}
+.sound-name{font-size:var(--fs-13);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;overflow-wrap:anywhere}
+.sound-desc{font-size:var(--fs-11);color:var(--muted);margin-top:2px}
+body.light .sound-desc{color:#5f594f}
+.sound-meta{font-size:var(--fs-11);color:var(--muted);margin-top:2px;overflow-wrap:anywhere;min-width:0}
+.sound-actions{display:flex;gap:var(--gap-xs);flex-wrap:wrap;justify-content:flex-end}
+.sound-actions .btn{height:30px;padding:0 10px;font-size:var(--fs-11)}
+.sound-play{width:30px;height:30px;min-width:30px;padding:0!important;border-radius:50%!important;font-size:var(--fs-12);line-height:1}
+.sound-unsupported{font-size:var(--fs-11);color:var(--muted);align-self:center}
+body.light .sound-row{background:rgba(76,62,48,.035)}
+body.light .sound-drop.drag{background:rgba(124,92,255,.08)}
+
