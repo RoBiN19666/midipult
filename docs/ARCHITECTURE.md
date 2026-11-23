@@ -61,8 +61,7 @@ src/panel/index.html       разметка панели
 src/panel/css/*.css        стили панели по разделам
 src/panel/js/*.js          логика панели по разделам
 deploy/build_panel.py      сборка index.html
-index.py                   серверный PIN-гейт и отдача index.html
-manifest.json, favicon.ico PWA-ярлык и иконки (без service worker)
+index.py                   серверный PIN-гейт и отдача index.htmlmanifest.json, favicon.ico PWA-ярлык и иконки (без service worker)
 icon-192.png, icon-512.png, icon.png, icon-circle.png
 docs/img/logo.png         горизонтальный логотип для README
 version.json               версия и дата
@@ -106,6 +105,12 @@ lighttpd/myweb.conf        конфиг веб-сервера
 deploy/                    установка и заливка с Windows
 tests/                     статические, юнит- и CGI-тесты
 ```
+
+`index.html` не редактируется руками: он собирается из `src/panel/`
+скриптом `deploy/build_panel.py` (стили и скрипты склеиваются по порядку
+имён файлов). На колонку попадает только собранный `index.html`; `src/`
+не копируется и в архив обновления не входит. Проверка расхождения —
+`python3 deploy/build_panel.py --check`, её же выполняет CI.
 
 ---
 

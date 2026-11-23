@@ -41,7 +41,7 @@ git push -u origin main
 1. Создайте пустой репозиторий (без README).
 2. На странице репозитория: **Add file → Upload files**.
 3. Перетащите папки `cgi-bin`, `deploy`, `docs`, `init.d`, `lighttpd`,
-   `service`, `tests` и файлы:
+   `service`, `src`, `tests` и файлы:
    - `index.html`, `index.py`, `manifest.json`, `favicon.ico`,
      `icon-192.png`, `icon-512.png`, `icon.png`, `icon-circle.png`;
    - `README.md`, `FAQ.md`, `SECURITY.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`;
@@ -102,8 +102,26 @@ powershell -ExecutionPolicy Bypass -File deploy\publish-release.ps1 -Version 0.6
 
 В архив входят `index.html`, `index.py`, `manifest.json`, `version.json`,
 иконки, `assets`, `cgi-bin`, `service`, `init.d`, `lighttpd`, `deploy` и
-`bin` (`yt-dlp`, если есть). `__pycache__`, `tests` и `.git` в архив не
-попадают.
+`bin` (`yt-dlp`, если есть). `__pycache__`, `tests`, `src` и `.git` в архив не
+попадают: `src/` нужен только для сборки `index.html` на компьютере, на
+колонке он не используется.
+
+### Каналы: стабильный и бета
+
+Канал выбирается в карточке «Обновление» и хранится в
+`/data/mypult/update.json`. На стабильном канале prerelease-релизы
+игнорируются, на бете — видны.
+
+- **Бета-релиз**: тот же порядок, но при создании релиза поставьте галочку
+  **Set as a pre-release**. `version.json` и тег при этом обычные (`0.6.98`,
+  `v0.6.98`) — бета помечается флагом релиза, а не суффиксом версии.
+- **Возврат на стабильную**: установка беты запоминается
+  (`installed_prerelease`), и при переключении на стабильный канал панель
+  предлагает вернуться на стабильную версию, даже если она младше беты.
+  Это предложение показывается только в карточке, без всплывающего окна;
+  кнопка называется «Вернуться на стабильную».
+- **Откат**: кнопка «Откатить обновление» восстанавливает последнюю
+  резервную копию (`/data/mypult-update-backup-*`) и перезапускает панель.
 
 ## Лицензия
 

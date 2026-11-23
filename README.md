@@ -24,6 +24,9 @@
 Исходники панели лежат в `src/panel/` (`index.html`, `css/`, `js/` по разделам),
 а `index.html` — собранный артефакт: `python3 deploy/build_panel.py`. Руками его
 править не нужно, CI проверяет, что он совпадает со сборкой.
+На колонку попадает только собранный `index.html` — папка `src/` туда не
+копируется и в архив обновления не входит. Правки: изменить файлы в
+`src/panel/…`, затем `python3 deploy/build_panel.py` (проверка — `--check`).
 
 [Все релизы](https://github.com/RoBiN19666/midipult/releases)
 
