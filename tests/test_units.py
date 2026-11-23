@@ -1796,6 +1796,15 @@ def test_update_beta_channel():
     check("update: установленная бета без суффикса — возврат на стабильную",
           update.update_available("0.6.94", "0.6.95", "stable", False, True, True))
 
+    old_settings = update.load_settings
+    try:
+        update.load_settings = lambda: {"installed_prerelease": True}
+        public = update.public_release({})
+        check("update: статус отдаёт признак установленной беты",
+              public.get("installed_prerelease") is True)
+    finally:
+        update.load_settings = old_settings
+
 
 def test_update_check_guard():
     import time

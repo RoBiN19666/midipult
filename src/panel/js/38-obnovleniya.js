@@ -32,7 +32,10 @@
     State.updateInfo = data || null;
     if (el.updChannel) el.updChannel.value = (data && data.channel) || 'stable';
     var current = (data && data.current) || State.version || '—';
-    el.updCurrent.textContent = 'v' + current;
+    var installedBeta = !!(data && data.installed_prerelease);
+    var downgrade = !!(installedBeta && data && !data.prerelease && data.latest &&
+      versionCmp(current, data.latest) > 0);
+    el.updCurrent.textContent = 'v' + current + (installedBeta ? ' · бета' : '');
     if (data && data.checked_at) {
       el.updChecked.textContent = 'проверено ' + formatUpdateTime(data.checked_at);
     } else {
@@ -42,6 +45,7 @@
     if (!data || !data.update_available) {
       el.updNew.hidden = true;
       el.updHint.textContent = '';
+      el.btnUpdateApply.textContent = 'Обновить';
       if (data && data.error) {
         el.updState.textContent = data.error;
       } else if (data && data.latest) {
@@ -54,18 +58,24 @@
       return;
     }
     el.updNew.hidden = false;
-    el.updNewTitle.textContent = 'Доступна версия v' + data.latest +
-      (data.prerelease ? ' (бета)' : '') +
-      (data.published_at ? ' · ' + formatUpdateTime(Date.parse(data.published_at) / 1000) : '');
+    el.updNewTitle.textContent = downgrade
+      ? 'Возврат на стабильную версию v' + data.latest +
+        (data.published_at ? ' · ' + formatUpdateTime(Date.parse(data.published_at) / 1000) : '')
+      : 'Доступна версия v' + data.latest +
+        (data.prerelease ? ' (бета)' : '') +
+        (data.published_at ? ' · ' + formatUpdateTime(Date.parse(data.published_at) / 1000) : '');
     el.updNotes.textContent = data.body || 'Описание изменений не приложено.';
-    el.updState.textContent = 'Есть обновление: v' + current + ' → v' + data.latest;
+    el.updState.textContent = downgrade
+      ? 'Сейчас бета v' + current + ' · стабильная v' + data.latest
+      : 'Есть обновление: v' + current + ' → v' + data.latest;
+    el.btnUpdateApply.textContent = downgrade ? 'Вернуться на стабильную' : 'Обновить';
     el.updHint.textContent = updateDismissed(data.latest) ? 'уведомление отключено' : '';
   }
 
   function showUpdateDialog(data) {
     if (!data || !data.update_available) return;
     State.updateInfo = data;
-    el.updateDlgVer.textContent = 'v' + data.latest;
+    el.updateDlgVer.textContent = 'v' + data.latest + (data.prerelease ? ' (бета)' : '');
     el.updateDlgFrom.textContent = 'Сейчас: v' + data.current +
       (data.published_at ? ' · опубликовано ' + formatUpdateTime(Date.parse(data.published_at) / 1000) : '');
     el.updateDlgNotes.textContent = data.body || 'Описание изменений не приложено.';
@@ -87,6 +97,9 @@
 
   function maybePromptUpdate(data) {
     if (!data || !data.update_available) return;
+    // С беты на более старую стабильную — не навязываем окном, только в карточке.
+    if (data.installed_prerelease && !data.prerelease &&
+        versionCmp(data.current, data.latest) > 0) return;
     if (updateDismissed(data.latest) || State.updateRunning) return;
     var prompted = store.get(UPDATE_PROMPT_KEY, {}) || {};
     var today = new Date().toISOString().slice(0, 10);

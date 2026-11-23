@@ -702,7 +702,16 @@
     el.btnBackup.addEventListener('click', downloadBackup);
     el.btnUpdateCheck.addEventListener('click', function () { loadUpdateInfo(true, true); });
     if (el.updChannel) {
-      el.updChannel.addEventListener('change', function () { setUpdateChannel(this.value); });
+      el.updChannel.addEventListener('change', function () {
+        var value = this.value;
+        if (value === 'beta' && !window.confirm(
+          'Бета-канал: сборки могут быть нестабильными и ломать панель. ' +
+          'Вернуться на стабильную версию можно в любой момент. Включить?')) {
+          this.value = 'stable';
+          return;
+        }
+        setUpdateChannel(value);
+      });
     }
     if (el.btnUpdateRollback) {
       el.btnUpdateRollback.addEventListener('click', rollbackUpdate);

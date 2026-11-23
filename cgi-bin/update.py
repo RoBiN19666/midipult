@@ -345,6 +345,7 @@ def public_release(cache):
         "current": cache.get("current") or current_version(),
         "channel": cache.get("channel") or channel(),
         "prerelease": bool(cache.get("prerelease")),
+        "installed_prerelease": bool(load_settings().get("installed_prerelease")),
         "latest": cache.get("version") or None,
         "tag": cache.get("tag") or None,
         "name": cache.get("name") or "",
