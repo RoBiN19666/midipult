@@ -1793,6 +1793,8 @@ def test_update_beta_channel():
           not update.update_available("0.6.93", "0.6.94-beta", "beta", False, True))
     check("update: стабильная новее беты — обновление",
           update.update_available("0.6.94", "0.6.93", "beta", False, True))
+    check("update: установленная бета без суффикса — возврат на стабильную",
+          update.update_available("0.6.94", "0.6.95", "stable", False, True, True))
 
 
 def test_update_check_guard():

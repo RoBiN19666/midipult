@@ -127,19 +127,20 @@ def set_channel(value):
     return value
 
 
-def wanted_update(target, current, chan):
+def wanted_update(target, current, chan, current_beta=False):
     """Нужно ли ставить target: новее или возврат с беты на стабильную."""
     if not target:
         return False
     if newer(target, current):
         return True
-    return (chan == "stable" and is_prerelease(current)
+    return (chan == "stable" and (is_prerelease(current) or current_beta)
             and version_key(target) != version_key(current))
 
 
-def update_available(target, current, chan, prerelease, has_assets):
+def update_available(target, current, chan, prerelease, has_assets,
+                     current_beta=False):
     """Есть ли куда обновляться и есть ли для этого архив."""
-    return bool(has_assets) and wanted_update(target, current, chan)
+    return bool(has_assets) and wanted_update(target, current, chan, current_beta)
 
 
 def load_cache():
@@ -233,6 +234,7 @@ def release_assets(release, version):
 def check(force=False):
     current = current_version()
     chan = channel()
+    current_beta = bool(load_settings().get("installed_prerelease"))
     cache = load_cache()
     now = int(time.time())
     cached_at = int(cache.get("checked_at") or 0)
@@ -249,7 +251,7 @@ def check(force=False):
         cached["channel"] = chan
         cached["cached"] = True
         has_assets = bool(cached.get("archive") and cached.get("sha"))
-        wanted = wanted_update(cached.get("version"), current, chan)
+        wanted = wanted_update(cached.get("version"), current, chan, current_beta)
         cached["update_available"] = wanted and has_assets
         cached["error"] = ("" if has_assets or not wanted
                            else "В релизе панели нет архива обновления")
@@ -259,7 +261,7 @@ def check(force=False):
         release = fetch_release(chan)
         archive, sha = release_assets(release, release["version"])
         has_assets = bool(archive and sha)
-        wanted = wanted_update(release["version"], current, chan)
+        wanted = wanted_update(release["version"], current, chan, current_beta)
         available = wanted and has_assets
         data = {
             "ok": True,
@@ -300,7 +302,7 @@ def check(force=False):
             has_assets = bool(stale.get("archive") and stale.get("sha"))
             stale["update_available"] = update_available(
                 stale.get("version"), current, chan,
-                bool(stale.get("prerelease")), has_assets)
+                bool(stale.get("prerelease")), has_assets, current_beta)
             stale["error"] = explain_net_error(exc)
             return stale
         return {
@@ -506,6 +508,8 @@ def worker_rollback(backup):
     write_status(state="rollback", message="Откатываю последнее обновление…",
                  error="", rolled_back=False, finished_at=0)
     restored = restore_backup(backup)
+    if restored:
+        remember_installed(False)
     restart_panel()
     write_status(state="done" if restored else "error",
                  message="Откат выполнен" if restored else "Не удалось откатить",
@@ -546,7 +550,17 @@ def local_archive(path):
     return real
 
 
-def worker(version, archive_url, sha_url):
+def remember_installed(prerelease):
+    """Запомнить, что установлена бета: строки версии для этого мало."""
+    try:
+        data = load_settings()
+        data["installed_prerelease"] = bool(prerelease)
+        common.write_json(SETTINGS_PATH, data, mode=0o600)
+    except OSError:
+        pass
+
+
+def worker(version, archive_url, sha_url, prerelease="0"):
     status = read_status()
     if status.get("state") in ("downloading", "installing", "rollback"):
         return 1
@@ -598,6 +612,7 @@ def worker(version, archive_url, sha_url):
             raise RuntimeError("после установки версия %s, ожидалась %s" % (installed, version))
 
         write_status(state="installing", message="Перезапускаю пульт…")
+        remember_installed(prerelease == "1")
         restart_panel()
         write_status(state="done", message="Обновление установлено",
                      error="", installed=installed, rolled_back=False,
@@ -675,6 +690,7 @@ def worker_local(path):
         if installed != version:
             raise RuntimeError("после установки версия %s, ожидалась %s" % (installed, version))
 
+        remember_installed(is_prerelease(version))
         restart_panel()
         write_status(state="done", message="Обновление установлено", error="",
                      installed=installed, to=version, rolled_back=False,
@@ -710,9 +726,9 @@ def worker_local(path):
 
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--worker":
-        if len(sys.argv) != 5:
+        if len(sys.argv) != 6:
             return 2
-        return worker(sys.argv[2], sys.argv[3], sys.argv[4])
+        return worker(sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
 
     if len(sys.argv) > 1 and sys.argv[1] == "--worker-local":
         if len(sys.argv) != 3:
@@ -798,7 +814,8 @@ def main():
         try:
             subprocess.Popen(
                 [sys.executable, os.path.abspath(__file__), "--worker",
-                 str(cache.get("version")), archive["url"], sha["url"]],
+                 str(cache.get("version")), archive["url"], sha["url"],
+                 "1" if cache.get("prerelease") else "0"],
                 stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
                 start_new_session=True, close_fds=True, cwd=DATA_ROOT,
             )
