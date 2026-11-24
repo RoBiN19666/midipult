@@ -475,18 +475,18 @@ def test_p2_hardening():
           and "location.protocol === 'http:'" in html)
     check("P3: автояркость manual показывает паузу",
           "пауза (ручной режим)" in html and "data.mode || {}" in html)
-    check("player: watcher, fresh-запрос и 2с/10с poll",
-          "?player=1" in html and "active ? 2000 : 10000" in html
+    check("player: watcher, fresh-запрос и long-poll",
+          "player=1" in html and "wait=1" in html
           and "refreshPlayer(true, true)" in html
           and "fresh=1" in html and "pendingSeek" in html
-          and "Перемотка не применилась" in html
-          and "Станция не применила перемотку" in html
           and "commandGuard(" in html and "cmdPlaying" in html
           and "currentProgress" in html and "progressAt" in html
           and "start_watcher" in read(os.path.join(ROOT, "service", "state_daemon.py"))
           and "def start_watcher" in read(os.path.join(ROOT, "cgi-bin", "glagol.py"))
           and "latest(" in read(os.path.join(ROOT, "cgi-bin", "player.py"))
           and '"fresh" in query' in read(
+              os.path.join(ROOT, "service", "state_daemon.py"))
+          and '"wait" in query' in read(
               os.path.join(ROOT, "service", "state_daemon.py"))
           and '"player" in query' in read(
               os.path.join(ROOT, "service", "state_daemon.py")))

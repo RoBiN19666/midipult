@@ -44,6 +44,8 @@ STATE = {"ok": True, "status": {}, "player": {}}
 SYSTEM_STATE = {}
 SOUNDS_STATE = {}
 PLAYER_STATE = {}
+PLAYER_COND = threading.Condition()
+PLAYER_VERSION = 0
 PLAYER_INTERVAL = 10.0
 HISTORY = "/data/mypult/history.jsonl"
 HISTORY_INTERVAL = 30
@@ -115,6 +117,16 @@ def ring_forward(colors):
             pass
 
 
+def player_signature(value):
+    """Что считается изменением плеера: прогресс и age меняются постоянно."""
+    data = value if isinstance(value, dict) else {}
+    return (
+        bool(data.get("playing")), data.get("id"), data.get("title"),
+        data.get("artist"), data.get("kind"), data.get("alice"),
+        data.get("volume"), data.get("duration"), data.get("error"),
+    )
+
+
 def refresh_loop():
     global STATE, PLAYER_STATE
     while True:
@@ -125,12 +137,18 @@ def refresh_loop():
             payload["status"] = {"ok": False, "error": str(exc)[:200]}
         # Watcher держит WS к Glagol и обновляет state пушем, поэтому снимок
         # дешёвый: берём его каждые 2 с, а не раз в 10.
+        before = player_signature(PLAYER_STATE)
         PLAYER_STATE = player_now()
         payload["player"] = PLAYER_STATE
         with LOCK:
             payload["system"] = SYSTEM_STATE
             payload["sounds"] = SOUNDS_STATE
             STATE = payload
+        if player_signature(PLAYER_STATE) != before:
+            global PLAYER_VERSION
+            with PLAYER_COND:
+                PLAYER_VERSION += 1
+                PLAYER_COND.notify_all()
         time.sleep(2)
 
 
@@ -362,10 +380,17 @@ class Handler(BaseHTTPRequestHandler):
             if "player" in query:
                 # fresh=1 — сразу спросить Glagol (после play/pause), иначе
                 # отдаём watcher-состояние, которое обновляется пушем.
+                with PLAYER_COND:
+                    seen_version = PLAYER_VERSION
                 fresh = player_now(force="fresh" in query)
                 with LOCK:
                     PLAYER_STATE = fresh
                     STATE["player"] = fresh
+                # wait=1 — long-poll: держим запрос до изменения плеера.
+                if "wait" in query and PLAYER_VERSION == seen_version:
+                    with PLAYER_COND:
+                        if PLAYER_VERSION == seen_version:
+                            PLAYER_COND.wait(12)
             with LOCK:
                 value = STATE if full else {
                     "ok": STATE.get("ok", True),

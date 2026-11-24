@@ -1240,46 +1240,27 @@
     if (!duration) return;
     var position = Math.round((value / 1000) * duration);
     State.seeking = false;
-    // Держим цель до подтверждения: старые снапшоты не вернут ползунок.
-    State.pendingSeek = { target: position, until: Date.now() + 10000 };
+    // Ползунок и прогресс двигаются сразу, подтверждение — в фоне.
+    State.pendingSeek = { target: position, until: Date.now() + 12000 };
     State.progressBase = position;
     State.progressAt = Date.now() / 1000;
     State.mediaProgress = position;
     updateMediaProgress();
-
-    var attempts = 0;
-    var send = function () {
-      attempts += 1;
-      return cgi('media.py', { action: 'seek', position: position }, { timeout: 12000 })
-        .then(function () {
-          el.mediaKind.textContent = 'перематываю…';
-          return new Promise(function (resolve) { setTimeout(resolve, 700); });
-        })
-        .then(function () { return refreshPlayer(true, true); })
-        .then(function () { return check(); });
-    };
-    var check = function () {
-      // Проверяем по «сырому» state, а не по отображаемой цели: если станция
-      // команду проигнорировала, повторяем (до 3 раз).
-      return fetch('/state?player=1&fresh=1', { cache: 'no-store', credentials: 'same-origin' })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          var p = (data && data.player) || {};
-          var got = Number(p.progress) || 0;
-          if (Math.abs(got - position) <= 8) {
+    el.mediaKind.textContent = 'перематываю…';
+    return cgi('media.py', { action: 'seek', position: position }, { timeout: 12000 })
+      .then(function () {
+        // Не ждём станцию: один фоновый опрос для подтверждения.
+        setTimeout(function () {
+          refreshPlayer(true, true).then(function () {
             el.mediaKind.textContent = 'сейчас музыка';
-            return;
-          }
-          if (attempts < 3) return send();
-          State.pendingSeek = null;
-          el.mediaKind.textContent = 'перемотка не удалась';
-          toast('Станция не применила перемотку', 'warn');
-        });
-    };
-    return send().catch(function (err) {
-      State.pendingSeek = null;
-      toast('Перемотка: ' + err.message, 'bad');
-    });
+          });
+        }, 900);
+      })
+      .catch(function (err) {
+        State.pendingSeek = null;
+        el.mediaKind.textContent = 'перемотка не удалась';
+        toast('Перемотка: ' + err.message, 'bad');
+      });
   }
 
   function setPlaying(value) {

@@ -335,9 +335,13 @@
     }, delay);
   }
 
-  function refreshState(freshPlayer, fresh) {
+  function refreshState(freshPlayer, fresh, wait) {
     if (document.hidden) return Promise.resolve();
-    var url = '/state' + (freshPlayer ? '?player=1' + (fresh ? '&fresh=1' : '') : '');
+    var params = [];
+    if (freshPlayer) params.push('player=1');
+    if (fresh) params.push('fresh=1');
+    if (wait) params.push('wait=1');
+    var url = '/state' + (params.length ? '?' + params.join('&') : '');
     return fetch(url, { cache: 'no-store', credentials: 'same-origin' })
       .then(function (res) {
         if (!res.ok) throw new Error('state ' + res.status);
@@ -359,13 +363,13 @@
   var playerTimer = null;
   var lastPlayerPoll = 0;
 
-  function refreshPlayer(force, fresh) {
+  function refreshPlayer(force, fresh, wait) {
     if (playerPromise) {
       if (!force) return playerPromise;
       // Команда пришла во время опроса: дождёмся его и сразу запросим новый.
       return playerPromise.then(function () { return refreshPlayer(true, fresh); });
     }
-    playerPromise = refreshState(true, fresh);
+    playerPromise = refreshState(true, fresh, wait);
     playerPromise.then(function () { playerPromise = null; },
                        function () { playerPromise = null; });
     return playerPromise;
@@ -400,11 +404,9 @@
           else if (wasBt) refreshPlayer(true);
         });
       }
-      var active = !!State.playing;
-      var wait = active ? 2000 : 10000;
-      if (Date.now() - lastPlayerPoll < wait) return;
-      lastPlayerPoll = Date.now();
-      refreshPlayer();
+      // Long-poll: состояние приходит сразу после изменения в watcher,
+      // без опроса раз в 2 секунды.
+      if (!playerPromise) refreshPlayer(false, false, true);
       extSyncRemote();
     }, 250);
   }
@@ -417,7 +419,7 @@
     // Станция применяет команду и обновляет state с задержкой до нескольких
     // секунд. Держим ожидаемое состояние, чтобы кнопки не мигали назад.
     State.cmdPlaying = playing;
-    State.cmdUntil = Date.now() + (playing ? 5000 : 7000);
+    State.cmdUntil = Date.now() + (playing ? 15000 : 12000);
     setPlaying(playing);
   }
 
@@ -449,6 +451,8 @@
           setTimeout(function () { refreshPlayer(true, true); }, 1200);
         });
       }).catch(function (err) {
+        State.cmdPlaying = null;
+        State.cmdUntil = 0;
         el.mediaKind.textContent = 'не удалось…';
         toast('Плеер: ' + err.message, 'bad');
       });
@@ -496,24 +500,30 @@
 
   function endVolumeDrag() {
     if (volDragTimer) clearTimeout(volDragTimer);
-    volDragTimer = setTimeout(function () { State.volumeDragging = false; }, 700);
+    // Держим ползунок авторитетным дольше: станция может применить
+    // громкость через несколько секунд, а опрос всё это время шлёт старое.
+    volDragTimer = setTimeout(function () { State.volumeDragging = false; }, 2500);
   }
+
+  var volSeq = 0;
 
   function pushVolume() {
     if (volTimer) clearTimeout(volTimer);
     volPending = true;
+    var seq = ++volSeq;
     volTimer = setTimeout(function () {
       volTimer = null;
-      if (!volPending) return;
-      volPending = false;
       var level = State.volume;
       cgi('volume.py', { level: level }, { timeout: 9000 }).then(function (data) {
+        if (seq !== volSeq) return;
         if (data && typeof data.level === 'number') setVolumeUI(data.level);
         if (data && data.method) log('volume', 'method', data.method);
         if (State.tab === 'sound' || State.tab === 'home') refreshPlayer(true);
       }).catch(function (err) {
-        toast('Громкость: ' + err.message, 'bad');
+        if (seq === volSeq) toast('Громкость: ' + err.message, 'bad');
+      }).then(function () {
+        if (seq === volSeq) volPending = false;
       });
-    }, 200);
+    }, 150);
   }
 
