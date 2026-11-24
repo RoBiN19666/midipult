@@ -2789,11 +2789,21 @@ body.light dialog.queue-dlg.ym-look{
   html:not(.touch-ui) body[data-menu="left"] .tabs,
   html:not(.touch-ui) body[data-menu="right"] .tabs{
     position:fixed;top:50%;transform:translateY(-50%);
-    flex-direction:column;margin:0;z-index:95;width:max-content;
-    max-height:calc(100dvh - 32px);overflow:visible;
+    flex-direction:column;margin:0;z-index:95;
+    width:64px;min-width:64px;max-width:64px;
+    align-items:flex-start;overflow:visible;
   }
   html:not(.touch-ui) body[data-menu="left"] .tabs{left:12px;right:auto}
-  html:not(.touch-ui) body[data-menu="right"] .tabs{right:12px;left:auto}
+  html:not(.touch-ui) body[data-menu="right"] .tabs{right:12px;left:auto;align-items:flex-end}
+  /* Справа вкладка раскрывается влево: иконка остаётся у края,
+     подпись выезжает в сторону контента. */
+  html:not(.touch-ui) body[data-menu="right"] .tab{
+    flex-direction:row-reverse;margin-left:auto;
+  }
+  html:not(.touch-ui) body[data-menu="right"] .tab-label{padding-left:0;padding-right:0}
+  html:not(.touch-ui) body[data-menu="right"] .tab:hover .tab-label{
+    padding-left:14px;padding-right:0;
+  }
   /* Место под рейку резервируем только с её стороны, а ширину сетки
      увеличиваем на столько же — карточки не сужаются и занимают
      свободную половину экрана. */
