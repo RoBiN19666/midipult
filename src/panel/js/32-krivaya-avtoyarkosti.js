@@ -58,8 +58,11 @@
       ctx.moveTo(x, 12);
       ctx.lineTo(x, g.height - g.pad);
       ctx.stroke();
-      ctx.fillText(lux ? String(lux) : '0', x - 6, g.height - 8);
+      var label = lux ? String(lux) : '0';
+      ctx.textAlign = lux === g.maxLux ? 'right' : 'center';
+      ctx.fillText(label, Math.min(x, g.width - 12), g.height - 8);
     });
+    ctx.textAlign = 'start';
     [10, 100, 255].forEach(function (level) {
       var y = curveLevelToY(level, g);
       ctx.beginPath();
