@@ -32,9 +32,14 @@
     setVolumeUI(State.volume);
 
     // Luna не умеет отдавать состояние кольца, поэтому восстанавливаем
-    // последний известный режим — и не врём, что кольцо горит, если его гасили.
-    var mode = store.get('ledMode', 'solid');
-    if (mode === 'off') {
+    // последний известный режим — но только если пользователь его выбирал.
+    // Иначе дефолтный зелёный (#00E676) зажигал кольцо при каждом открытии
+    // панели, и оно горело, пока не нажмёшь «Выключить».
+    var mode = store.get('ledMode', null);
+    if (!mode) {
+      State.ledMode = 'off';
+      el.ledHint.textContent = 'кольцо не менялось';
+    } else if (mode === 'off') {
       State.ledMode = 'off';
       paintOff();
       el.ledHint.textContent = 'Кольцо выключено';
