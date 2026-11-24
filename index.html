@@ -9144,8 +9144,10 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
       } else {
         incoming = pending.target;
       }
-    } else if (!trackChanged && playing && local > 0 && incoming < local - 1.5) {
+    } else if (!trackChanged && playing && local > 0 && incoming < local - 1.5
+               && Number(data.age || 0) > 2) {
       // Старый снапшот (watcher/демон) не должен откатывать ползунок назад.
+      // Свежий снапшот (age <= 2) — это перемотка назад, её принимаем.
       incoming = local;
     } else if (!trackChanged && !playing && wasPlaying && incoming < local - 0.2) {
       // На паузе станция иногда отдаёт позицию чуть позже, чем та, на которой
@@ -9307,13 +9309,24 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
     if (fresh) params.push('fresh=1');
     if (wait) params.push('wait=1');
     var url = '/state' + (params.length ? '?' + params.join('&') : '');
-    return fetch(url, { cache: 'no-store', credentials: 'same-origin' })
+    var controller = null;
+    var timer = null;
+    if (wait && window.AbortController) {
+      controller = new AbortController();
+      timer = setTimeout(function () { controller.abort(); }, 20000);
+    }
+    var options = { cache: 'no-store', credentials: 'same-origin' };
+    if (controller) options.signal = controller.signal;
+    return fetch(url, options)
       .then(function (res) {
+        if (timer) { clearTimeout(timer); timer = null; }
         if (!res.ok) throw new Error('state ' + res.status);
         return res.json();
       })
       .then(applyState)
-      .catch(function () {
+      .catch(function (err) {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (err && err.name === 'AbortError') return;
         // Постоянный процесс недоступен — возвращаемся к CGI.
         return cgi('state.py', {}, { timeout: 9000, silent: true })
           .then(applyState)
