@@ -1124,6 +1124,24 @@
               </select>
               <small class="seg-note" id="voiceMicNote">сессия не закрывается: Алиса может отвечать медленнее</small>
             </label>
+            <label class="voice-setting">
+              <span>Музыка голосом</span>
+              <select id="voiceMusicVoice" aria-label="Музыка голосом">
+                <option value="off">Выключено</option>
+                <option value="on">Включено</option>
+              </select>
+              <small class="seg-note" id="voiceMusicVoiceNote">«включи ютуб джаз», «включи саундклауд lofi», «включи сбер звук …»</small>
+            </label>
+            <label class="voice-setting">
+              <span>Сервис для «включи музыку»</span>
+              <select id="voiceMusicDefault" aria-label="Сервис для включи музыку">
+                <option value="">Алиса (Яндекс)</option>
+                <option value="youtube">YouTube</option>
+                <option value="soundcloud">SoundCloud</option>
+                <option value="zvuk">Сбер Звук</option>
+              </select>
+              <small class="seg-note" id="voiceMusicDefaultNote">пусто — фразу забирает Алиса</small>
+            </label>
           </div>
           <div class="voice-help" id="voiceHelp">
             Пульт и Алиса делят микрофон: в режиме «по фразам Алисы» его

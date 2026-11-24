@@ -1156,6 +1156,71 @@ def test_voice_answer_append():
           voice_daemon.answer_append("") == 1)
 
 
+def test_voice_music_intent():
+    check("музыка: ютуб и запрос",
+          voice_daemon.music_intent("включи ютуб джаз") ==
+          {"service": "youtube", "query": "джаз"},
+          str(voice_daemon.music_intent("включи ютуб джаз")))
+    check("музыка: падеж «на ютубе»",
+          voice_daemon.music_intent("включи на ютубе кино") ==
+          {"service": "youtube", "query": "кино"},
+          str(voice_daemon.music_intent("включи на ютубе кино")))
+    check("музыка: саундклауд",
+          voice_daemon.music_intent("включи саундклауд lofi") ==
+          {"service": "soundcloud", "query": "lofi"},
+          str(voice_daemon.music_intent("включи саундклауд lofi")))
+    check("музыка: сбер звук",
+          voice_daemon.music_intent("включи сбер звук джаз") ==
+          {"service": "zvuk", "query": "джаз"},
+          str(voice_daemon.music_intent("включи сбер звук джаз")))
+    check("музыка: спотифай распознан",
+          (voice_daemon.music_intent("включи спотифай кино") or {}).get("service") == "spotify")
+    check("музыка: «включи звук» — не сервис",
+          voice_daemon.music_intent("включи звук") is None)
+    check("музыка: без глагола — не наша",
+          voice_daemon.music_intent("ютуб джаз") is None)
+    check("музыка: «включи музыку» — без сервиса",
+          voice_daemon.music_intent("включи музыку") is None)
+    check("музыка: bare-запрос ловится",
+          voice_daemon.bare_music_request("включи музыку"))
+
+
+def test_voice_music_play():
+    old_ready = voice_daemon.music_service_ready
+    old_post = voice_daemon.post
+    calls = []
+    try:
+        voice_daemon.music_service_ready = lambda service: False
+        check("музыка: не настроенный Spotify",
+              "Spotify" in voice_daemon.music_play({"service": "spotify"}))
+        check("музыка: не настроенный YouTube",
+              "не настроен" in voice_daemon.music_play({"service": "youtube"}))
+
+        voice_daemon.music_service_ready = lambda service: True
+
+        def fake_post(url, payload, timeout=None):
+            calls.append((url.rsplit("/", 1)[-1], dict(payload)))
+            if payload.get("action") == "search":
+                return {"tracks": [{"id": "abc", "url": "https://sc/1",
+                                    "title": "T", "artist": "A"}]}
+            return {}
+
+        voice_daemon.post = fake_post
+        check("музыка: YouTube запускается",
+              voice_daemon.music_play({"service": "youtube", "query": "джаз"}) == "")
+        check("музыка: сначала search, потом play",
+              [payload["action"] for _, payload in calls] == ["search", "play"],
+              str(calls))
+        calls.clear()
+        check("музыка: SoundCloud запускается",
+              voice_daemon.music_play({"service": "soundcloud", "query": "lofi"}) == "")
+        check("музыка: SoundCloud play с url",
+              calls[-1][1].get("url") == "https://sc/1", str(calls))
+    finally:
+        voice_daemon.music_service_ready = old_ready
+        voice_daemon.post = old_post
+
+
 def test_voice_passive_wants():
     old_llm = voice_daemon.llm_enabled_cached
     old_info = voice_daemon.llm_info
@@ -2433,6 +2498,12 @@ def test_voice_idle_and_toggle():
           voicecfg.resolve_idle({"idle": "always"}, "yandexstation_2") == "always")
     check("голос: по умолчанию включён", voicecfg.is_enabled({}) is True)
     check("голос: выключение уважается", voicecfg.is_enabled({"enabled": False}) is False)
+    check("голос: музыка голосом по умолчанию выключена",
+          voicecfg.music_voice_enabled({}) is False)
+    check("голос: сервис по умолчанию пуст",
+          voicecfg.resolve_music_default({}) == "")
+    check("голос: spotify не принимается как сервис по умолчанию",
+          voicecfg.resolve_music_default({"music_default": "spotify"}) == "")
 
     started = []
     old_load = voicecfg.load
@@ -2759,6 +2830,8 @@ def main():
         test_voice_passive_wants,
         test_voice_llm_cache,
         test_voice_answer_append,
+        test_voice_music_intent,
+        test_voice_music_play,
         test_voice_native_phrase,
         test_status_probe_cache,
         test_lyrics_parse,

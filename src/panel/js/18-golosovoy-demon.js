@@ -66,6 +66,13 @@
             ? 'если сценариев и нейросети нет — микрофон не открывается вообще'
             : 'микрофон занят постоянно, пока пульт слушает';
       }
+      if (el.voiceMusicVoice) {
+        el.voiceMusicVoice.value = data.music_voice ? 'on' : 'off';
+      }
+      if (el.voiceMusicDefault) {
+        el.voiceMusicDefault.value = data.music_default || '';
+        el.voiceMusicDefault.disabled = !data.music_voice;
+      }
     }).catch(function (err) {
       el.voiceDaemonStatus.textContent = err.message;
     });
@@ -100,6 +107,27 @@
     if (!mode) return Promise.resolve();
     return cgi('voicecfg.py', { idle: mode }, { timeout: 10000 }).then(function () {
       toast(mode === 'auto' ? 'Микрофон в простое выключен' : 'Пульт слушает постоянно', 'ok');
+      return loadVoice();
+    }).catch(function (err) {
+      toast('Голос: ' + err.message, 'bad');
+      return loadVoice();
+    });
+  }
+
+  function setVoiceMusicVoice(on) {
+    return cgi('voicecfg.py', { music_voice: on }, { timeout: 10000 }).then(function () {
+      toast(on ? 'Музыка голосом включена' : 'Музыка голосом выключена', 'ok');
+      return loadVoice();
+    }).catch(function (err) {
+      toast('Голос: ' + err.message, 'bad');
+      return loadVoice();
+    });
+  }
+
+  function setVoiceMusicDefault(mode) {
+    return cgi('voicecfg.py', { music_default: mode }, { timeout: 10000 }).then(function () {
+      toast(mode ? '«Включи музыку» — из выбранного сервиса'
+        : '«Включи музыку» — Алиса', 'ok');
       return loadVoice();
     }).catch(function (err) {
       toast('Голос: ' + err.message, 'bad');

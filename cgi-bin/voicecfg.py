@@ -34,6 +34,7 @@ STORE = "/data/mypult/voice.json"
 LUNA = "http://127.0.0.1:8099"
 IDLE_MODES = ("always", "auto")
 MIC_MODES = ("continuous", "econom", "alice")
+MUSIC_DEFAULTS = ("", "youtube", "soundcloud", "zvuk")
 MIDI_MODELS = ("yandexmidi",)
 
 
@@ -96,6 +97,17 @@ def is_enabled(config):
     return (config or {}).get("enabled") is not False
 
 
+def music_voice_enabled(config):
+    """Голосовые команды внешних музыкальных сервисов (по умолчанию выкл)."""
+    return (config or {}).get("music_voice") is True
+
+
+def resolve_music_default(config):
+    """Сервис для «включи музыку»; пусто — отдаём Алисе."""
+    mode = str((config or {}).get("music_default") or "").strip().lower()
+    return mode if mode in MUSIC_DEFAULTS else ""
+
+
 def state(config=None):
     config = load() if config is None else config
     model = device_model()
@@ -105,6 +117,8 @@ def state(config=None):
         "device": model,
         "max_volume": common.to_int(config.get("max_volume"), 45, 1, 100),
         "mic_mode": resolve_mic_mode(config, model),
+        "music_voice": music_voice_enabled(config),
+        "music_default": resolve_music_default(config),
     }
 
 
@@ -143,6 +157,24 @@ def main():
             return
         config = load()
         config["idle"] = mode
+        save(config)
+        common.ok(config=config, **state(config))
+        return
+
+    if data.get("music_voice") is not None:
+        config = load()
+        config["music_voice"] = common.truthy(data.get("music_voice"))
+        save(config)
+        common.ok(config=config, **state(config))
+        return
+
+    if data.get("music_default") is not None:
+        mode = str(data.get("music_default") or "").strip().lower()
+        if mode not in MUSIC_DEFAULTS:
+            common.fail(400, "сервис: %s" % ", ".join(MUSIC_DEFAULTS))
+            return
+        config = load()
+        config["music_default"] = mode
         save(config)
         common.ok(config=config, **state(config))
         return

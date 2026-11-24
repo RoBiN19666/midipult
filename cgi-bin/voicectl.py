@@ -132,6 +132,8 @@ def status():
         # Панель берёт режим микрофона отсюда: без этого поля селект после
         # обновления страницы показывал первый пункт («Непрерывно»).
         "mic_mode": voicecfg.resolve_mic_mode(config, model),
+        "music_voice": voicecfg.music_voice_enabled(config),
+        "music_default": voicecfg.resolve_music_default(config),
     }
 
 

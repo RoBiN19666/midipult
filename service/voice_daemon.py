@@ -883,6 +883,18 @@ def handle(text, request_id=""):
         log("нейросеть: переключение <- %r" % text)
         return True
 
+    if music_voice_on():
+        music = music_intent(text)
+        if not music and music_default() and bare_music_request(text):
+            music = {"service": music_default(),
+                     "query": clean_music_query(text)}
+        if music:
+            log("музыка: %s <- %r" % (music["service"], text))
+            problem = music_play(music)
+            if problem:
+                say(problem)
+            return True
+
     if intent:
         log("команда: %s %s <- %r" % (intent[0], intent[1], text))
         return perform(*intent)
@@ -1061,7 +1073,167 @@ NATIVE_MEDIA = (
     "музык", "песн", "альбом", "плейлист", "трек", "исполнител",
     "групп", "радио", "видео", "фильм", "сериал", "ютуб",
     "телевизор", "позвони", "набери", "закажи", "купи",
+    "саундклауд", "спотифай", "сбер звук", "сберзвук",
 )
+
+
+MUSIC_VERBS = ("включи", "включай", "включить", "поставь", "запусти",
+               "вруби", "сыграй", "играй")
+
+MUSIC_SERVICES = (
+    ("youtube", ("ютуб", "ютюб", "youtube")),
+    ("soundcloud", ("саундклауд", "саундклоуд", "soundcloud", "саунд клоуд")),
+    ("zvuk", ("сбер звук", "сберзвук")),
+    ("spotify", ("спотифай", "spotify")),
+)
+
+MUSIC_FILLER = (
+    "алиса", "пожалуйста", "мне", "нам", "включи", "включай", "включить",
+    "поставь", "запусти", "вруби", "сыграй", "играй", "музыку", "музыка",
+    "песню", "песня", "трек", "что-нибудь", "что то",
+)
+
+MUSIC_NAMES = {"youtube": "YouTube", "soundcloud": "SoundCloud",
+               "zvuk": "Сбер Звук", "spotify": "Spotify"}
+_MUSIC_READY = {"at": 0.0, "data": {}}
+
+
+def music_voice_on():
+    try:
+        return bool((voice_config() or {}).get("music_voice")) if voicecfg else False
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def music_default():
+    try:
+        return voicecfg.resolve_music_default(voice_config()) if voicecfg else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _service_span(low, word):
+    """Найти слово сервиса с падежным окончанием: «ютубе», «саундклауде»."""
+    start = low.find(word)
+    while start >= 0:
+        before = start == 0 or not low[start - 1].isalnum()
+        end = start + len(word)
+        extra = 0
+        while (end < len(low) and extra < 2 and low[end] in "аеиоуыэюя"
+               and (end + 1 >= len(low) or not low[end + 1].isalnum())):
+            end += 1
+            extra += 1
+        after = end >= len(low) or not low[end].isalnum()
+        if before and after:
+            return start, end
+        start = low.find(word, start + 1)
+    return None
+
+
+def clean_music_query(text):
+    words = []
+    for word in normalize(text).replace("-", " ").split():
+        if word in MUSIC_FILLER:
+            continue
+        words.append(word)
+    while words and words[0] in ("на", "в", "из", "у", "с", "по", "от", "для"):
+        words.pop(0)
+    return " ".join(words).strip(" .,!?")
+
+
+def music_intent(text):
+    """Сервис и запрос из фразы «включи ютуб джаз». None — если не наша."""
+    low = normalize(text)
+    if not any(verb in low for verb in MUSIC_VERBS):
+        return None
+    for service, words in MUSIC_SERVICES:
+        for word in words:
+            span = _service_span(low, word)
+            if not span:
+                continue
+            query = clean_music_query(low[:span[0]] + " " + low[span[1]:])
+            return {"service": service, "query": query}
+    return None
+
+
+def bare_music_request(text):
+    low = normalize(text)
+    return "музык" in low and any(verb in low for verb in MUSIC_VERBS)
+
+
+def music_error_text(exc):
+    try:
+        body = exc.read().decode("utf-8", "replace")
+        data = json.loads(body)
+        return str(data.get("error") or body)[:160]
+    except Exception:  # noqa: BLE001
+        return "HTTP %d" % (getattr(exc, "code", 0) or 0)
+
+
+def music_service_ready(service):
+    """Настроен ли сервис. Кэш на минуту, чтобы не дёргать CGI зря."""
+    now = time.time()
+    if now - _MUSIC_READY["at"] > 60:
+        _MUSIC_READY["data"] = {}
+        _MUSIC_READY["at"] = now
+    if service in _MUSIC_READY["data"]:
+        return _MUSIC_READY["data"][service]
+    ready = True
+    try:
+        if service in ("youtube", "soundcloud"):
+            info = post(BASE + "/cgi-bin/%s.py" % service,
+                        {"action": "status"}, timeout=15) or {}
+            ready = bool(info.get("has_ytdlp"))
+        elif service == "zvuk":
+            info = post(BASE + "/cgi-bin/zvuk.py",
+                        {"action": "status"}, timeout=15) or {}
+            ready = bool(info.get("has_token"))
+        elif service == "spotify":
+            ready = False
+    except Exception:  # noqa: BLE001 - пусть решает сам поиск
+        ready = True
+    _MUSIC_READY["data"][service] = ready
+    return ready
+
+
+def music_play(intent):
+    """Включить трек из сервиса. Возвращает текст ошибки или пустую строку."""
+    service = str((intent or {}).get("service") or "")
+    query = str((intent or {}).get("query") or "").strip() or "музыка"
+    name = MUSIC_NAMES.get(service, service)
+    if service == "spotify":
+        return "Spotify пока не поддерживается: нужен Spotify Connect"
+    if not music_service_ready(service):
+        if service == "zvuk":
+            return "Сбер Звук не настроен: вставьте токен в карточке «Сбер Звук»"
+        return "%s не настроен: нет yt-dlp или ffmpeg" % name
+    try:
+        found = post(BASE + "/cgi-bin/%s.py" % service,
+                     {"action": "search", "q": query, "limit": 3},
+                     timeout=45) or {}
+        tracks = found.get("tracks") or []
+        if not tracks:
+            return "Ничего не нашёл: %s" % name
+        track = tracks[0]
+        if service == "youtube":
+            payload = {"action": "play", "id": track.get("id")}
+        elif service == "soundcloud":
+            payload = {"action": "play", "url": track.get("url"),
+                       "title": track.get("title"),
+                       "artist": track.get("artist")}
+        else:
+            payload = {"action": "play", "id": track.get("id"),
+                       "title": track.get("title"),
+                       "artist": track.get("artist"),
+                       "cover": track.get("cover"),
+                       "duration": track.get("duration")}
+        post(BASE + "/cgi-bin/%s.py" % service, payload, timeout=90)
+    except urllib.error.HTTPError as exc:
+        return "%s: %s" % (name, music_error_text(exc))
+    except Exception as exc:  # noqa: BLE001
+        return "%s не ответил: %s" % (name, str(exc)[:120])
+    log("музыка запущена: %s <- %r" % (service, query))
+    return ""
 
 
 def native_keep(text):
@@ -1097,6 +1269,9 @@ def passive_wants(text, llm_on=None):
         return intent[0] != "radio"
     if llm_switch_may_match(text):
         return True
+    if music_voice_on():
+        if music_intent(text) or (music_default() and bare_music_request(text)):
+            return True
     if "свет" in low or native_keep(text):
         return False
     return llm_enabled_cached() if llm_on is None else bool(llm_on)

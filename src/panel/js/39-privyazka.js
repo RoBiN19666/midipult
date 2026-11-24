@@ -516,6 +516,16 @@
         setVoiceMicMode(this.value);
       });
     }
+    if (el.voiceMusicVoice) {
+      el.voiceMusicVoice.addEventListener('change', function () {
+        setVoiceMusicVoice(this.value === 'on');
+      });
+    }
+    if (el.voiceMusicDefault) {
+      el.voiceMusicDefault.addEventListener('change', function () {
+        setVoiceMusicDefault(this.value);
+      });
+    }
 
     /* индикация панели */
     if (el.panelBright) {

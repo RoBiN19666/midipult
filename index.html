@@ -3736,6 +3736,24 @@ body.light dialog.queue-dlg.ym-look{
               </select>
               <small class="seg-note" id="voiceMicNote">сессия не закрывается: Алиса может отвечать медленнее</small>
             </label>
+            <label class="voice-setting">
+              <span>Музыка голосом</span>
+              <select id="voiceMusicVoice" aria-label="Музыка голосом">
+                <option value="off">Выключено</option>
+                <option value="on">Включено</option>
+              </select>
+              <small class="seg-note" id="voiceMusicVoiceNote">«включи ютуб джаз», «включи саундклауд lofi», «включи сбер звук …»</small>
+            </label>
+            <label class="voice-setting">
+              <span>Сервис для «включи музыку»</span>
+              <select id="voiceMusicDefault" aria-label="Сервис для включи музыку">
+                <option value="">Алиса (Яндекс)</option>
+                <option value="youtube">YouTube</option>
+                <option value="soundcloud">SoundCloud</option>
+                <option value="zvuk">Сбер Звук</option>
+              </select>
+              <small class="seg-note" id="voiceMusicDefaultNote">пусто — фразу забирает Алиса</small>
+            </label>
           </div>
           <div class="voice-help" id="voiceHelp">
             Пульт и Алиса делят микрофон: в режиме «по фразам Алисы» его
@@ -10181,6 +10199,13 @@ body.light dialog.queue-dlg.ym-look{
             ? 'если сценариев и нейросети нет — микрофон не открывается вообще'
             : 'микрофон занят постоянно, пока пульт слушает';
       }
+      if (el.voiceMusicVoice) {
+        el.voiceMusicVoice.value = data.music_voice ? 'on' : 'off';
+      }
+      if (el.voiceMusicDefault) {
+        el.voiceMusicDefault.value = data.music_default || '';
+        el.voiceMusicDefault.disabled = !data.music_voice;
+      }
     }).catch(function (err) {
       el.voiceDaemonStatus.textContent = err.message;
     });
@@ -10215,6 +10240,27 @@ body.light dialog.queue-dlg.ym-look{
     if (!mode) return Promise.resolve();
     return cgi('voicecfg.py', { idle: mode }, { timeout: 10000 }).then(function () {
       toast(mode === 'auto' ? 'Микрофон в простое выключен' : 'Пульт слушает постоянно', 'ok');
+      return loadVoice();
+    }).catch(function (err) {
+      toast('Голос: ' + err.message, 'bad');
+      return loadVoice();
+    });
+  }
+
+  function setVoiceMusicVoice(on) {
+    return cgi('voicecfg.py', { music_voice: on }, { timeout: 10000 }).then(function () {
+      toast(on ? 'Музыка голосом включена' : 'Музыка голосом выключена', 'ok');
+      return loadVoice();
+    }).catch(function (err) {
+      toast('Голос: ' + err.message, 'bad');
+      return loadVoice();
+    });
+  }
+
+  function setVoiceMusicDefault(mode) {
+    return cgi('voicecfg.py', { music_default: mode }, { timeout: 10000 }).then(function () {
+      toast(mode ? '«Включи музыку» — из выбранного сервиса'
+        : '«Включи музыку» — Алиса', 'ok');
       return loadVoice();
     }).catch(function (err) {
       toast('Голос: ' + err.message, 'bad');
@@ -15314,6 +15360,16 @@ body.light dialog.queue-dlg.ym-look{
         setVoiceMicMode(this.value);
       });
     }
+    if (el.voiceMusicVoice) {
+      el.voiceMusicVoice.addEventListener('change', function () {
+        setVoiceMusicVoice(this.value === 'on');
+      });
+    }
+    if (el.voiceMusicDefault) {
+      el.voiceMusicDefault.addEventListener('change', function () {
+        setVoiceMusicDefault(this.value);
+      });
+    }
 
     /* индикация панели */
     if (el.panelBright) {
@@ -17049,6 +17105,7 @@ body.light dialog.queue-dlg.ym-look{
       'vpnUrl', 'btnVpnSave', 'btnVpnToggle', 'vpnStatus', 'vpnServer', 'vpnLog', 'vpnAutostart',
       'btnVoiceDaemon', 'voiceDaemonStatus', 'voiceIdleMode', 'voiceIdleNote',
     'voiceMicMode', 'voiceMicNote', 'voicePanel',
+      'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote',
       'cardPanel', 'panelBright', 'panelBrightVal', 'btnPanelOff', 'btnPanelRestore', 'panelStatus',
       'radioChips', 'btnRadioPrev', 'btnRadioStop', 'btnRadioNext', 'radioStatus',
       'radioName', 'btnRadioAdd', 'radioUrl', 'btnRadioStream',
