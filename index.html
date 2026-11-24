@@ -2748,7 +2748,12 @@ body.light dialog.queue-dlg.ym-look{
   background:#070a10;color:var(--text);display:none;flex-direction:column;
   overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.7);
 }
-.term-dlg[open]{display:flex}
+.term-dlg[open]{display:flex;animation:termDlgIn .18s ease}
+.term-dlg.closing{animation:termDlgOut .16s ease forwards}
+.term-dlg.closing::backdrop{animation:termBackdropOut .16s ease forwards}
+@keyframes termDlgIn{from{opacity:0;transform:scale(.985) translateY(6px)}to{opacity:1;transform:none}}
+@keyframes termDlgOut{to{opacity:0;transform:scale(.985) translateY(6px)}}
+@keyframes termBackdropOut{to{opacity:0}}
 .term-dlg::backdrop{background:rgba(3,5,10,.72);backdrop-filter:blur(6px)}
 .term-dlg-head{
   flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:10px 14px;
@@ -15254,7 +15259,7 @@ body.light dialog.queue-dlg.ym-look{
     socket.onclose = function () {
       // shell завершился (exit) или соединение пропало — закрываем окно.
       termSetStatus('сессия завершена');
-      if (el.termDlg && el.termDlg.open) el.termDlg.close();
+      termHideDialog();
     };
   }
 
@@ -15303,9 +15308,18 @@ body.light dialog.queue-dlg.ym-look{
     if (term) term.reset();
   }
 
+  function termHideDialog() {
+    if (!el.termDlg || !el.termDlg.open || el.termDlg.classList.contains('closing')) return;
+    el.termDlg.classList.add('closing');
+    setTimeout(function () {
+      if (el.termDlg.open) el.termDlg.close();
+      el.termDlg.classList.remove('closing');
+    }, 170);
+  }
+
   function termCloseDialog() {
     termDisconnect();
-    if (el.termDlg && el.termDlg.open) el.termDlg.close();
+    termHideDialog();
     termSetStatus('не запущен');
   }
 
@@ -15314,7 +15328,14 @@ body.light dialog.queue-dlg.ym-look{
     if (el.btnTermFinish) el.btnTermFinish.addEventListener('click', termFinish);
     if (el.btnTermClose) el.btnTermClose.addEventListener('click', termCloseDialog);
     if (el.termDlg) {
-      el.termDlg.addEventListener('close', function () { termDisconnect(); });
+      el.termDlg.addEventListener('close', function () {
+        el.termDlg.classList.remove('closing');
+        termDisconnect();
+      });
+      el.termDlg.addEventListener('cancel', function (event) {
+        event.preventDefault();
+        termCloseDialog();
+      });
     }
     window.addEventListener('resize', function () {
       if (el.termDlg && el.termDlg.open) termResize();

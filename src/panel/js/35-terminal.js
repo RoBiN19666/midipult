@@ -82,7 +82,7 @@
     socket.onclose = function () {
       // shell завершился (exit) или соединение пропало — закрываем окно.
       termSetStatus('сессия завершена');
-      if (el.termDlg && el.termDlg.open) el.termDlg.close();
+      termHideDialog();
     };
   }
 
@@ -131,9 +131,18 @@
     if (term) term.reset();
   }
 
+  function termHideDialog() {
+    if (!el.termDlg || !el.termDlg.open || el.termDlg.classList.contains('closing')) return;
+    el.termDlg.classList.add('closing');
+    setTimeout(function () {
+      if (el.termDlg.open) el.termDlg.close();
+      el.termDlg.classList.remove('closing');
+    }, 170);
+  }
+
   function termCloseDialog() {
     termDisconnect();
-    if (el.termDlg && el.termDlg.open) el.termDlg.close();
+    termHideDialog();
     termSetStatus('не запущен');
   }
 
@@ -142,7 +151,14 @@
     if (el.btnTermFinish) el.btnTermFinish.addEventListener('click', termFinish);
     if (el.btnTermClose) el.btnTermClose.addEventListener('click', termCloseDialog);
     if (el.termDlg) {
-      el.termDlg.addEventListener('close', function () { termDisconnect(); });
+      el.termDlg.addEventListener('close', function () {
+        el.termDlg.classList.remove('closing');
+        termDisconnect();
+      });
+      el.termDlg.addEventListener('cancel', function (event) {
+        event.preventDefault();
+        termCloseDialog();
+      });
     }
     window.addEventListener('resize', function () {
       if (el.termDlg && el.termDlg.open) termResize();
