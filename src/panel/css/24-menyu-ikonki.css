@@ -1,0 +1,44 @@
+.tab .tab-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.tab .tab-icon svg{width:18px;height:18px;display:block}
+.tab .tab-label{white-space:nowrap}
+
+@media(min-width:981px){
+  .tabs{padding:8px;gap:6px;border-radius:22px}
+  .tab{
+    width:52px;min-width:52px;height:50px;padding:0;border-radius:16px;
+    gap:0;justify-content:flex-start;overflow:hidden;
+    transition:width .28s cubic-bezier(.22,.7,.3,1), background .2s,
+      box-shadow .2s, color .2s;
+  }
+  .tab .tab-icon{width:52px;height:50px;flex:0 0 52px}
+  .tab .tab-icon svg{width:23px;height:23px;transition:transform .28s}
+  .tab .tab-label{
+    max-width:0;opacity:0;padding-right:0;overflow:hidden;
+    font-size:13px;font-weight:600;
+    transition:opacity .16s ease, max-width .28s, padding .28s;
+  }
+  .tab:hover{
+    width:var(--tab-open, 140px);color:var(--text);
+    background:rgba(255,255,255,.07);
+    box-shadow:0 8px 22px rgba(0,0,0,.35);
+  }
+  .tab:hover .tab-icon svg{transform:scale(1.1)}
+  .tab:hover .tab-label{max-width:180px;opacity:1;padding-right:14px}
+  .tab[aria-pressed="true"]{
+    width:var(--tab-open, 140px);color:#fff;
+    background:linear-gradient(135deg,rgba(124,92,255,.55),rgba(34,211,238,.28));
+    box-shadow:0 8px 22px rgba(124,92,255,.35), inset 0 1px 0 rgba(255,255,255,.16);
+  }
+  .tab[aria-pressed="true"] .tab-label{max-width:180px;opacity:1;padding-right:14px}
+  .tab[aria-pressed="true"] .tab-icon svg{transform:scale(1.06)}
+  .tab:focus-visible{
+    width:var(--tab-open, 140px);outline:2px solid rgba(124,92,255,.7);
+    outline-offset:2px;
+  }
+  .tab:focus-visible .tab-label{max-width:180px;opacity:1;padding-right:14px}
+}
+
+@media(max-width:980px){
+  .tab{gap:6px}
+  .tab .tab-label{font-size:12px}
+}

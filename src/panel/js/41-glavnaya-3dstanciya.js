@@ -1409,6 +1409,7 @@
     restore();
     bind();
     buildMobileTabs();
+    measureTabs();
     initHome();
     initRingMusic();
     initLogo();

@@ -2665,6 +2665,50 @@ body.light dialog.queue-dlg.ym-look{
   .curve-row .curve-del{min-width:74px;padding:0 8px}
   .curve-head{font-size:10px}
 }
+.tab .tab-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.tab .tab-icon svg{width:18px;height:18px;display:block}
+.tab .tab-label{white-space:nowrap}
+
+@media(min-width:981px){
+  .tabs{padding:8px;gap:6px;border-radius:22px}
+  .tab{
+    width:52px;min-width:52px;height:50px;padding:0;border-radius:16px;
+    gap:0;justify-content:flex-start;overflow:hidden;
+    transition:width .28s cubic-bezier(.22,.7,.3,1), background .2s,
+      box-shadow .2s, color .2s;
+  }
+  .tab .tab-icon{width:52px;height:50px;flex:0 0 52px}
+  .tab .tab-icon svg{width:23px;height:23px;transition:transform .28s}
+  .tab .tab-label{
+    max-width:0;opacity:0;padding-right:0;overflow:hidden;
+    font-size:13px;font-weight:600;
+    transition:opacity .16s ease, max-width .28s, padding .28s;
+  }
+  .tab:hover{
+    width:var(--tab-open, 140px);color:var(--text);
+    background:rgba(255,255,255,.07);
+    box-shadow:0 8px 22px rgba(0,0,0,.35);
+  }
+  .tab:hover .tab-icon svg{transform:scale(1.1)}
+  .tab:hover .tab-label{max-width:180px;opacity:1;padding-right:14px}
+  .tab[aria-pressed="true"]{
+    width:var(--tab-open, 140px);color:#fff;
+    background:linear-gradient(135deg,rgba(124,92,255,.55),rgba(34,211,238,.28));
+    box-shadow:0 8px 22px rgba(124,92,255,.35), inset 0 1px 0 rgba(255,255,255,.16);
+  }
+  .tab[aria-pressed="true"] .tab-label{max-width:180px;opacity:1;padding-right:14px}
+  .tab[aria-pressed="true"] .tab-icon svg{transform:scale(1.06)}
+  .tab:focus-visible{
+    width:var(--tab-open, 140px);outline:2px solid rgba(124,92,255,.7);
+    outline-offset:2px;
+  }
+  .tab:focus-visible .tab-label{max-width:180px;opacity:1;padding-right:14px}
+}
+
+@media(max-width:980px){
+  .tab{gap:6px}
+  .tab .tab-label{font-size:12px}
+}
 </style>
 </head>
 <body class="booting">
@@ -2709,14 +2753,38 @@ body.light dialog.queue-dlg.ym-look{
 <div class="banner" id="capsBanner" hidden></div>
 
 <nav class="tabs" id="tabs" aria-label="Разделы">
-  <button class="tab" data-tab="home" aria-pressed="true">⌂ Главная</button>
-  <button class="tab" data-tab="display" aria-pressed="false">◐ Дисплей</button>
-  <button class="tab" data-tab="sound" aria-pressed="false">♪ Звук</button>
-  <button class="tab" data-tab="ai" aria-pressed="false">✦ Нейросеть</button>
-  <button class="tab" data-tab="network" aria-pressed="false">⇄ Сеть</button>
-  <button class="tab" data-tab="scenarios" aria-pressed="false">▦ Сценарии</button>
-  <button class="tab" data-tab="settings" aria-pressed="false">⚙ Настройки</button>
-  <button class="tab" data-tab="system" aria-pressed="false">▤ Система</button>
+  <button class="tab" data-tab="home" aria-pressed="true" title="Главная">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.2v-6H9.2v6H5a1 1 0 0 1-1-1z"/></svg></span>
+    <span class="tab-label">Главная</span>
+  </button>
+  <button class="tab" data-tab="display" aria-pressed="false" title="Дисплей">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20h7M12 16.5V20"/></svg></span>
+    <span class="tab-label">Дисплей</span>
+  </button>
+  <button class="tab" data-tab="sound" aria-pressed="false" title="Звук">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5.5 6.5 9H3.5v6h3L11 18.5z"/><path d="M15 9.5a4 4 0 0 1 0 5"/><path d="M17.6 7a7.5 7.5 0 0 1 0 10"/></svg></span>
+    <span class="tab-label">Звук</span>
+  </button>
+  <button class="tab" data-tab="ai" aria-pressed="false" title="Нейросеть">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.6 4.4L18 9.5l-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6z"/><path d="M18.4 15.4l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg></span>
+    <span class="tab-label">Нейросеть</span>
+  </button>
+  <button class="tab" data-tab="network" aria-pressed="false" title="Сеть">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 9.3a13 13 0 0 1 17 0"/><path d="M6.6 12.7a9 9 0 0 1 10.8 0"/><path d="M9.7 16a5 5 0 0 1 4.6 0"/><circle cx="12" cy="19" r="1.1" fill="currentColor" stroke="none"/></svg></span>
+    <span class="tab-label">Сеть</span>
+  </button>
+  <button class="tab" data-tab="scenarios" aria-pressed="false" title="Сценарии">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 8l-9 4.5L3 8z"/><path d="m3 12 9 4.5L21 12"/><path d="m3 16 9 4.5L21 16"/></svg></span>
+    <span class="tab-label">Сценарии</span>
+  </button>
+  <button class="tab" data-tab="settings" aria-pressed="false" title="Настройки">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h7M17 7h3M4 12h4M12 12h8M4 17h8M17 17h3"/><circle cx="13.5" cy="7" r="2.1"/><circle cx="8.5" cy="12" r="2.1"/><circle cx="14.5" cy="17" r="2.1"/></svg></span>
+    <span class="tab-label">Настройки</span>
+  </button>
+  <button class="tab" data-tab="system" aria-pressed="false" title="Система">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/></svg></span>
+    <span class="tab-label">Система</span>
+  </button>
 </nav>
 
 <button type="button" class="mobile-tabs-btn" id="btnMobileTabs" aria-expanded="false">
@@ -10481,6 +10549,27 @@ body.light dialog.queue-dlg.ym-look{
   var TAB_KEY = 'mypult.tab';
   var START_KEY = 'mypult.start-system';
 
+  // Свёрнутое меню — только иконки; ширину раскрытия считаем по тексту,
+  // чтобы CSS мог плавно анимировать width.
+  function measureTabs() {
+    if (!el.tabs || window.innerWidth < 981) return;
+    Array.prototype.forEach.call(el.tabs.children, function (tab) {
+      var label = tab.querySelector ? tab.querySelector('.tab-label') : null;
+      if (!label) return;
+      var prevMax = label.style.maxWidth;
+      var prevPad = label.style.paddingRight;
+      label.style.maxWidth = 'none';
+      label.style.paddingRight = '14px';
+      var width = 52 + label.scrollWidth + 14;
+      label.style.maxWidth = prevMax;
+      label.style.paddingRight = prevPad;
+      tab.style.setProperty('--tab-open', Math.ceil(width) + 'px');
+    });
+  }
+
+  window.addEventListener('resize', measureTabs);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureTabs);
+
   function loadTabData(name) {
     if (name === 'home') {
       refreshSystem();
@@ -17590,6 +17679,7 @@ body.light dialog.queue-dlg.ym-look{
     restore();
     bind();
     buildMobileTabs();
+    measureTabs();
     initHome();
     initRingMusic();
     initLogo();

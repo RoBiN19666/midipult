@@ -3,6 +3,27 @@
   var TAB_KEY = 'mypult.tab';
   var START_KEY = 'mypult.start-system';
 
+  // Свёрнутое меню — только иконки; ширину раскрытия считаем по тексту,
+  // чтобы CSS мог плавно анимировать width.
+  function measureTabs() {
+    if (!el.tabs || window.innerWidth < 981) return;
+    Array.prototype.forEach.call(el.tabs.children, function (tab) {
+      var label = tab.querySelector ? tab.querySelector('.tab-label') : null;
+      if (!label) return;
+      var prevMax = label.style.maxWidth;
+      var prevPad = label.style.paddingRight;
+      label.style.maxWidth = 'none';
+      label.style.paddingRight = '14px';
+      var width = 52 + label.scrollWidth + 14;
+      label.style.maxWidth = prevMax;
+      label.style.paddingRight = prevPad;
+      tab.style.setProperty('--tab-open', Math.ceil(width) + 'px');
+    });
+  }
+
+  window.addEventListener('resize', measureTabs);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureTabs);
+
   function loadTabData(name) {
     if (name === 'home') {
       refreshSystem();
