@@ -46,6 +46,7 @@ SOUNDS_STATE = {}
 PLAYER_STATE = {}
 PLAYER_COND = threading.Condition()
 PLAYER_VERSION = 0
+PLAYER_AT = 0.0
 PLAYER_INTERVAL = 10.0
 HISTORY = "/data/mypult/history.jsonl"
 HISTORY_INTERVAL = 30
@@ -137,15 +138,26 @@ def refresh_loop():
             payload["status"] = {"ok": False, "error": str(exc)[:200]}
         # Watcher держит WS к Glagol и обновляет state пушем, поэтому снимок
         # дешёвый: берём его каждые 2 с, а не раз в 10.
-        before = player_signature(PLAYER_STATE)
+        global PLAYER_VERSION, PLAYER_AT
+        before = PLAYER_STATE
+        now = time.time()
         PLAYER_STATE = player_now()
         payload["player"] = PLAYER_STATE
         with LOCK:
             payload["system"] = SYSTEM_STATE
             payload["sounds"] = SOUNDS_STATE
             STATE = payload
-        if player_signature(PLAYER_STATE) != before:
-            global PLAYER_VERSION
+        changed = player_signature(PLAYER_STATE) != player_signature(before)
+        if not changed and before:
+            # Перемотка меняет только progress: обычный ход трека не считаем
+            # изменением, а скачок больше 6 секунд — считаем.
+            old_progress = float(before.get("progress") or 0)
+            new_progress = float(PLAYER_STATE.get("progress") or 0)
+            elapsed = now - PLAYER_AT if PLAYER_AT else 0
+            if abs(new_progress - old_progress - elapsed) > 6:
+                changed = True
+        PLAYER_AT = now
+        if changed:
             with PLAYER_COND:
                 PLAYER_VERSION += 1
                 PLAYER_COND.notify_all()
