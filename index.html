@@ -2730,6 +2730,13 @@ body.light dialog.queue-dlg.ym-look{
   html:not(.touch-ui) .tab:hover .tab-label{max-width:180px;opacity:1;padding-right:14px}
 }
 
+/* Наведение на уже открытую вкладку: не теряем градиент активной,
+   а делаем его ярче — чтобы отличать от обычного наведения. */
+html:not(.touch-ui) .tab[aria-pressed="true"]:hover{
+  background:linear-gradient(135deg,rgba(124,92,255,.75),rgba(34,211,238,.42));
+  box-shadow:0 10px 26px rgba(124,92,255,.5), inset 0 1px 0 rgba(255,255,255,.22);
+}
+
 /* Тач: обычные вкладки с подписями, сеткой. */
 @media(min-width:761px){
   html.touch-ui .tabs{
