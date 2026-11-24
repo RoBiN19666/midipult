@@ -1,0 +1,38 @@
+/* Светлая тема: меню и интерактивный терминал. */
+body.light .tabs{
+  background:rgba(255,252,247,.96);
+  border-color:rgba(76,62,48,.14);
+  box-shadow:0 12px 32px rgba(78,58,38,.10), inset 0 1px 0 rgba(255,255,255,.9);
+}
+body.light .tab{color:#625b52}
+body.light .tab:hover{background:rgba(76,62,48,.07);color:#20242c}
+body.light .tab[aria-pressed="true"]{
+  color:#fff;
+  background:linear-gradient(135deg,#6a4df5,#3a7bd5);
+  box-shadow:0 8px 18px rgba(91,75,219,.22), inset 0 1px 0 rgba(255,255,255,.25);
+}
+body.light .tab[aria-pressed="true"]:hover{
+  background:linear-gradient(135deg,#5f43ee,#2f6fd0);
+  box-shadow:0 10px 24px rgba(91,75,219,.32), inset 0 1px 0 rgba(255,255,255,.3);
+}
+/* Выехавшая вкладка в боковой рейке должна быть плотной, не прозрачной. */
+body.light .tab:hover{
+  background:#f6efe4;
+  box-shadow:0 10px 26px rgba(78,58,38,.16);
+}
+body.light .tab[aria-pressed="true"]:hover{
+  background:linear-gradient(135deg,#5f43ee,#2f6fd0);
+}
+
+body.light .term-dlg{
+  background:#fbf8f2;color:#20242c;
+  border-color:rgba(76,62,48,.18);
+  box-shadow:0 30px 80px rgba(78,58,38,.28);
+}
+body.light .term-dlg::backdrop{background:rgba(40,32,24,.35)}
+body.light .term-dlg-head{
+  background:#f4eee3;
+  border-bottom-color:rgba(76,62,48,.12);
+}
+body.light .term-host{background:#fbf8f2}
+body.light .term-dlg-head .seg-note{color:#7a7064}

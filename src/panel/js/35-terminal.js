@@ -86,6 +86,23 @@
     };
   }
 
+  function termTheme() {
+    if (document.body.classList.contains('light')) {
+      return {
+        background: '#fbf8f2',
+        foreground: '#20242c',
+        cursor: '#6a4df5',
+        selectionBackground: 'rgba(106,77,245,.25)'
+      };
+    }
+    return {
+      background: '#070a10',
+      foreground: '#cfe3ff',
+      cursor: '#22d3ee',
+      selectionBackground: 'rgba(124,92,255,.35)'
+    };
+  }
+
   function termEnsureTerm() {
     if (term) return;
     term = new Terminal({
@@ -94,12 +111,7 @@
       cursorBlink: true,
       convertEol: true,
       scrollback: 4000,
-      theme: {
-        background: '#070a10',
-        foreground: '#cfe3ff',
-        cursor: '#22d3ee',
-        selectionBackground: 'rgba(124,92,255,.35)'
-      }
+      theme: termTheme()
     });
     termFit = new FitAddon.FitAddon();
     term.loadAddon(termFit);
@@ -115,6 +127,7 @@
       if (!el.termDlg) return;
       if (!el.termDlg.open) el.termDlg.showModal();
       termEnsureTerm();
+      if (term) term.options.theme = termTheme();
       requestAnimationFrame(function () {
         termResize();
         termConnect();
