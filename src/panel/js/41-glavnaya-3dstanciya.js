@@ -1169,7 +1169,7 @@
     var modeLabel = function () {
       var value = mode();
       return value === 'phone' ? 'телефона'
-        : value === 'touch' ? 'тач-экрана' : 'компьютера';
+        : value === 'touch' ? 'планшета' : 'компьютера';
     };
 
     function current() {
