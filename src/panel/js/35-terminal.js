@@ -80,7 +80,9 @@
       termSetStatus('нет соединения: включён ли PIN?', 'bad');
     };
     socket.onclose = function () {
-      termSetStatus('закрыто');
+      // shell завершился (exit) или соединение пропало — закрываем окно.
+      termSetStatus('сессия завершена');
+      if (el.termDlg && el.termDlg.open) el.termDlg.close();
     };
   }
 
