@@ -1221,6 +1221,42 @@ def test_voice_music_play():
         voice_daemon.post = old_post
 
 
+def test_voice_music_wave():
+    old_path = voice_daemon.MUSIC_QUEUE_PATH
+    old_ready = voice_daemon.music_service_ready
+    old_post = voice_daemon.post
+    calls = []
+    try:
+        voice_daemon.MUSIC_QUEUE_PATH = os.path.join(
+            tempfile.mkdtemp(prefix="mypult-wave-"), "queue.json")
+        voice_daemon.music_service_ready = lambda service: True
+
+        def fake_post(url, payload, timeout=None):
+            calls.append((url.rsplit("/", 1)[-1], dict(payload)))
+            if payload.get("action") == "search":
+                return {"tracks": [
+                    {"id": "1", "title": "A", "duration": 100},
+                    {"id": "2", "title": "B", "duration": 120},
+                ]}
+            return {}
+
+        voice_daemon.post = fake_post
+        check("музыка: волна YouTube запускается",
+              voice_daemon.music_wave_start("youtube") == "")
+        queue = voice_daemon.music_queue_load()
+        check("музыка: в очереди два трека",
+              len(queue.get("tracks") or []) == 2, str(queue))
+        check("музыка: играет первый", int(queue.get("index") or 0) == 0)
+        check("музыка: поиск и play вызваны",
+              [payload["action"] for _, payload in calls] == ["search", "play"],
+              str(calls))
+        voice_daemon.music_queue_clear()
+    finally:
+        voice_daemon.MUSIC_QUEUE_PATH = old_path
+        voice_daemon.music_service_ready = old_ready
+        voice_daemon.post = old_post
+
+
 def test_voice_passive_wants():
     old_llm = voice_daemon.llm_enabled_cached
     old_info = voice_daemon.llm_info
@@ -2832,6 +2868,7 @@ def main():
         test_voice_answer_append,
         test_voice_music_intent,
         test_voice_music_play,
+        test_voice_music_wave,
         test_voice_native_phrase,
         test_status_probe_cache,
         test_lyrics_parse,

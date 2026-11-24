@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import re
 import sys
 import threading
@@ -886,11 +887,15 @@ def handle(text, request_id=""):
     if music_voice_on():
         music = music_intent(text)
         if not music and music_default() and bare_music_request(text):
-            music = {"service": music_default(),
-                     "query": clean_music_query(text)}
+            music = {"service": music_default(), "query": ""}
         if music:
             log("музыка: %s <- %r" % (music["service"], text))
-            problem = music_play(music)
+            if not str(music.get("query") or "").strip():
+                # Без названия: волна Звука или случайный поток у остальных.
+                problem = music_wave_start(music["service"])
+            else:
+                music_queue_clear()
+                problem = music_play(music)
             if problem:
                 say(problem)
             return True
@@ -1096,6 +1101,8 @@ MUSIC_FILLER = (
 MUSIC_NAMES = {"youtube": "YouTube", "soundcloud": "SoundCloud",
                "zvuk": "Сбер Звук", "spotify": "Spotify"}
 _MUSIC_READY = {"at": 0.0, "data": {}}
+MUSIC_QUEUE_PATH = "/data/mypult/music_queue.json"
+MUSIC_WAVE_QUERIES = ("музыка", "популярное", "хиты", "лучшее")
 
 
 def music_voice_on():
@@ -1234,6 +1241,161 @@ def music_play(intent):
         return "%s не ответил: %s" % (name, str(exc)[:120])
     log("музыка запущена: %s <- %r" % (service, query))
     return ""
+
+
+def music_queue_load():
+    try:
+        with open(MUSIC_QUEUE_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def music_queue_save(data):
+    try:
+        tmp = MUSIC_QUEUE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False)
+        os.replace(tmp, MUSIC_QUEUE_PATH)
+    except OSError:
+        pass
+
+
+def music_queue_clear():
+    try:
+        os.unlink(MUSIC_QUEUE_PATH)
+    except OSError:
+        pass
+
+
+def music_payload(service, track):
+    if service == "youtube":
+        return {"action": "play", "id": track.get("id")}
+    if service == "soundcloud":
+        return {"action": "play", "url": track.get("url"),
+                "title": track.get("title"), "artist": track.get("artist")}
+    return {"action": "play", "id": track.get("id"),
+            "title": track.get("title"), "artist": track.get("artist"),
+            "cover": track.get("cover"), "duration": track.get("duration")}
+
+
+def music_tracks(service, query, limit=20):
+    found = post(BASE + "/cgi-bin/%s.py" % service,
+                 {"action": "search", "q": query, "limit": limit},
+                 timeout=45) or {}
+    return list(found.get("tracks") or [])
+
+
+def music_fetch(service, mode):
+    """Новая партия: персональная волна Звука или случайный порядок поиска."""
+    if service == "zvuk" and mode == "wave":
+        try:
+            found = post(BASE + "/cgi-bin/zvuk.py",
+                         {"action": "wave", "count": 20}, timeout=45) or {}
+            tracks = list(found.get("tracks") or [])
+            if tracks:
+                return tracks
+        except Exception:  # noqa: BLE001 - нет аккаунта: обычный поиск
+            pass
+    tracks = music_tracks(service, random.choice(MUSIC_WAVE_QUERIES))
+    random.shuffle(tracks)
+    return tracks
+
+
+def music_queue_play(queue):
+    """Включить текущий трек очереди и запомнить его длительность."""
+    service = queue.get("service")
+    tracks = queue.get("tracks") or []
+    index = int(queue.get("index") or 0)
+    if index < 0 or index >= len(tracks):
+        return False
+    track = tracks[index]
+    post(BASE + "/cgi-bin/%s.py" % service, music_payload(service, track),
+         timeout=90)
+    queue["started_at"] = time.time()
+    queue["duration"] = int(track.get("duration") or 0)
+    queue["seen"] = False
+    queue["last_playing"] = 0
+    music_queue_save(queue)
+    log("волна: %s <- %r" % (service, track.get("title")))
+    return True
+
+
+def music_wave_start(service):
+    """Запустить «волну»: для Звука персональную, иначе случайный поиск."""
+    name = MUSIC_NAMES.get(service, service)
+    if service == "spotify":
+        return "Spotify пока не поддерживается: нужен Spotify Connect"
+    if not music_service_ready(service):
+        if service == "zvuk":
+            return "Сбер Звук не настроен: вставьте токен в карточке «Сбер Звук»"
+        return "%s не настроен: нет yt-dlp или ffmpeg" % name
+    mode = "wave" if service == "zvuk" else "random"
+    try:
+        tracks = music_fetch(service, mode)
+    except urllib.error.HTTPError as exc:
+        return "%s: %s" % (name, music_error_text(exc))
+    except Exception as exc:  # noqa: BLE001
+        return "%s не ответил: %s" % (name, str(exc)[:120])
+    if not tracks:
+        return "Ничего не нашёл: %s" % name
+    queue = {"service": service, "mode": mode, "tracks": tracks,
+             "index": 0, "started_at": 0, "duration": 0, "seen": False,
+             "last_playing": 0}
+    try:
+        music_queue_play(queue)
+    except Exception as exc:  # noqa: BLE001
+        music_queue_clear()
+        return "%s не ответил: %s" % (name, str(exc)[:120])
+    return ""
+
+
+def music_wave_loop():
+    """Переключать треки, когда текущий закончился: имитация волны."""
+    while True:
+        time.sleep(3)
+        queue = music_queue_load()
+        if not queue or not queue.get("tracks"):
+            continue
+        try:
+            snap = post(BASE + "/cgi-bin/player.py", {}, timeout=8) or {}
+        except Exception:  # noqa: BLE001
+            continue
+        now = time.time()
+        if snap.get("playing"):
+            queue["seen"] = True
+            queue["last_playing"] = now
+            music_queue_save(queue)
+            continue
+        if not queue.get("seen"):
+            continue
+        started = float(queue.get("started_at") or 0)
+        duration = int(queue.get("duration") or 0)
+        ended_by_time = bool(duration) and now - started > duration + 8
+        ended_by_stop = now - float(queue.get("last_playing") or started) > 30
+        if not (ended_by_time or ended_by_stop):
+            continue
+        index = int(queue.get("index") or 0) + 1
+        if index >= len(queue.get("tracks") or []):
+            try:
+                tracks = music_fetch(queue["service"], queue.get("mode"))
+            except Exception:  # noqa: BLE001
+                tracks = []
+            if not tracks:
+                music_queue_clear()
+                continue
+            queue["tracks"] = tracks
+            index = 0
+        queue["index"] = index
+        queue["seen"] = False
+        queue["last_playing"] = now
+        music_queue_save(queue)
+        try:
+            music_queue_play(queue)
+        except Exception as exc:  # noqa: BLE001
+            log("волна: не удалось переключить: %s" % exc)
+            music_queue_clear()
 
 
 def native_keep(text):
@@ -1398,6 +1560,7 @@ def main():
     except Exception:  # noqa: BLE001
         pass
     threading.Thread(target=llm_cache_loop, daemon=True).start()
+    threading.Thread(target=music_wave_loop, daemon=True).start()
     if alarmd is not None:
         try:
             alarmd.start()
