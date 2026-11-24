@@ -153,11 +153,17 @@
     // и на пустом плеере кнопки не убираем, а оставляем неактивными: ряд
     // управления не должен «прыгать».
     var musicTrack = State.playerKind === 'Track' && !!data.id && !!data.title;
-    [el.btnLike, el.btnDislike, el.btnLyrics].forEach(function (button) {
+    // Лайки — только для трека Яндекса, текст — для любого источника.
+    [el.btnLike, el.btnDislike].forEach(function (button) {
       if (!button) return;
       button.hidden = false;
       button.disabled = !musicTrack;
     });
+    if (el.btnLyrics) {
+      el.btnLyrics.hidden = false;
+      var radioWithoutArtist = data.kind === 'FmRadio' && !data.artist;
+      el.btnLyrics.disabled = !data.title || radioWithoutArtist;
+    }
     if (!musicTrack) {
       if (State.lyricsLines.length) clearLyrics();
       updateInlineLine();

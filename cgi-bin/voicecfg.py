@@ -102,6 +102,11 @@ def music_voice_enabled(config):
     return (config or {}).get("music_voice") is True
 
 
+def music_seed_enabled(config):
+    """Подмешивать похожие треки после запрошенного (по умолчанию да)."""
+    return (config or {}).get("music_seed") is not False
+
+
 def resolve_music_default(config):
     """Сервис для «включи музыку»; пусто — отдаём Алисе."""
     mode = str((config or {}).get("music_default") or "").strip().lower()
@@ -119,6 +124,7 @@ def state(config=None):
         "mic_mode": resolve_mic_mode(config, model),
         "music_voice": music_voice_enabled(config),
         "music_default": resolve_music_default(config),
+        "music_seed": music_seed_enabled(config),
     }
 
 
@@ -164,6 +170,13 @@ def main():
     if data.get("music_voice") is not None:
         config = load()
         config["music_voice"] = common.truthy(data.get("music_voice"))
+        save(config)
+        common.ok(config=config, **state(config))
+        return
+
+    if data.get("music_seed") is not None:
+        config = load()
+        config["music_seed"] = common.truthy(data.get("music_seed"))
         save(config)
         common.ok(config=config, **state(config))
         return

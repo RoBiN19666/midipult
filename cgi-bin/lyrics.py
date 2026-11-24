@@ -91,10 +91,24 @@ def _cache_write(key, value):
         pass
 
 
-def lookup(title, artist, duration=0):
-    """Найти текст в LRCLIB. Возвращает (plain, synced) или (None, None)."""
+def split_artist(title, artist):
+    """YouTube/SoundCloud часто отдают «Исполнитель - Название» в title."""
     title = " ".join(str(title or "").split())[:120]
     artist = " ".join(str(artist or "").split())[:120]
+    if artist:
+        return title, artist
+    for separator in (" - ", " – ", " — "):
+        if separator in title:
+            left, right = title.split(separator, 1)
+            left, right = left.strip(), right.strip()
+            if left and right:
+                return right, left
+    return title, artist
+
+
+def lookup(title, artist, duration=0):
+    """Найти текст в LRCLIB. Возвращает (plain, synced) или (None, None)."""
+    title, artist = split_artist(title, artist)
     if not title:
         return None, None
     key = "|".join((title.lower(), artist.lower(), str(int(duration or 0))))
@@ -114,14 +128,24 @@ def lookup(title, artist, duration=0):
         pass
 
     if not plain and not synced:
-        # Точного совпадения нет — ищем и берём первый результат.
+        # Точного совпадения нет — ищем и выбираем ближайший по длительности.
         try:
             found = _fetch(API + "/search?" + urllib.parse.urlencode(
                 {"q": "%s %s" % (title, artist)}))
-            if isinstance(found, list) and found:
-                item = found[0]
-                plain = item.get("plainLyrics")
-                synced = parse_lrc(item.get("syncedLyrics"))
+            best = None
+            best_delta = None
+            for item in found if isinstance(found, list) else []:
+                if not item.get("plainLyrics") and not item.get("syncedLyrics"):
+                    continue
+                item_duration = float(item.get("duration") or 0)
+                delta = abs(item_duration - duration) if duration and item_duration else 0
+                if best is None or (duration and item_duration and delta <= 5
+                                    and (best_delta is None or delta < best_delta)):
+                    best = item
+                    best_delta = delta if duration and item_duration else None
+            if best is not None:
+                plain = best.get("plainLyrics")
+                synced = parse_lrc(best.get("syncedLyrics"))
         except (urllib.error.HTTPError, urllib.error.URLError, OSError, ValueError):
             pass
 
@@ -135,6 +159,7 @@ def current_track(data):
     artist = str(data.get("artist") or "").strip()
     duration = common.to_int(data.get("duration"), 0, 0, 36000)
     if title:
+        title, artist = split_artist(title, artist)
         return title, artist, duration
     if player is None:
         return "", "", 0
@@ -142,9 +167,10 @@ def current_track(data):
         snap = player.snapshot()
     except Exception:  # noqa: BLE001
         return "", "", 0
-    return (str(snap.get("title") or "").strip(),
-            str(snap.get("artist") or "").strip(),
-            int(float(snap.get("duration") or 0)))
+    title = str(snap.get("title") or "").strip()
+    artist = str(snap.get("artist") or "").strip()
+    title, artist = split_artist(title, artist)
+    return title, artist, int(float(snap.get("duration") or 0))
 
 
 def main():

@@ -4165,6 +4165,14 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
               </select>
               <small class="seg-note" id="voiceMusicDefaultNote">только для фразы без названия сервиса; «включи ютуб …» работает и так</small>
             </label>
+            <label class="voice-setting">
+              <span>Похожие после трека</span>
+              <select id="voiceMusicSeed" aria-label="Похожие после запрошенного трека">
+                <option value="on">Включать</option>
+                <option value="off">Не включать</option>
+              </select>
+              <small class="seg-note" id="voiceMusicSeedNote">если выключено, «включи ютуб X» играет только X</small>
+            </label>
           </div>
           <div class="voice-help" id="voiceHelp">
             Пульт и Алиса делят микрофон: в режиме «по фразам Алисы» его
@@ -9187,11 +9195,17 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
     // и на пустом плеере кнопки не убираем, а оставляем неактивными: ряд
     // управления не должен «прыгать».
     var musicTrack = State.playerKind === 'Track' && !!data.id && !!data.title;
-    [el.btnLike, el.btnDislike, el.btnLyrics].forEach(function (button) {
+    // Лайки — только для трека Яндекса, текст — для любого источника.
+    [el.btnLike, el.btnDislike].forEach(function (button) {
       if (!button) return;
       button.hidden = false;
       button.disabled = !musicTrack;
     });
+    if (el.btnLyrics) {
+      el.btnLyrics.hidden = false;
+      var radioWithoutArtist = data.kind === 'FmRadio' && !data.artist;
+      el.btnLyrics.disabled = !data.title || radioWithoutArtist;
+    }
     if (!musicTrack) {
       if (State.lyricsLines.length) clearLyrics();
       updateInlineLine();
@@ -10670,6 +10684,10 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
         el.voiceMusicDefault.value = data.music_default || '';
         el.voiceMusicDefault.disabled = !data.music_voice;
       }
+      if (el.voiceMusicSeed) {
+        el.voiceMusicSeed.value = data.music_seed === false ? 'off' : 'on';
+        el.voiceMusicSeed.disabled = !data.music_voice;
+      }
       // Селекты усилены кастомными списками: после программной установки
       // значения нужно обновить их подписи, иначе видно старый пункт.
       if (typeof refreshDropdowns === 'function') refreshDropdowns();
@@ -10717,6 +10735,16 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
   function setVoiceMusicVoice(on) {
     return cgi('voicecfg.py', { music_voice: on }, { timeout: 10000 }).then(function () {
       toast(on ? 'Музыка голосом включена' : 'Музыка голосом выключена', 'ok');
+      return loadVoice();
+    }).catch(function (err) {
+      toast('Голос: ' + err.message, 'bad');
+      return loadVoice();
+    });
+  }
+
+  function setVoiceMusicSeed(on) {
+    return cgi('voicecfg.py', { music_seed: on }, { timeout: 10000 }).then(function () {
+      toast(on ? 'Похожие треки включены' : 'Играем только запрошенный трек', 'ok');
       return loadVoice();
     }).catch(function (err) {
       toast('Голос: ' + err.message, 'bad');
@@ -16528,6 +16556,11 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
         setVoiceMusicDefault(this.value);
       });
     }
+    if (el.voiceMusicSeed) {
+      el.voiceMusicSeed.addEventListener('change', function () {
+        setVoiceMusicSeed(this.value === 'on');
+      });
+    }
 
     /* индикация панели */
     if (el.panelBright) {
@@ -18299,7 +18332,7 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
       'vpnUrl', 'btnVpnSave', 'btnVpnToggle', 'vpnStatus', 'vpnServer', 'vpnLog', 'vpnAutostart',
       'btnVoiceDaemon', 'voiceDaemonStatus', 'voiceIdleMode', 'voiceIdleNote',
     'voiceMicMode', 'voiceMicNote', 'voicePanel',
-      'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote',
+      'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote', 'voiceMusicSeed', 'voiceMusicSeedNote',
       'btnTermOpen', 'termStatus', 'termDlg', 'termDlgStatus', 'btnTermFinish',
       'btnTermClose', 'termHost', 'menuPosition',
       'cardPanel', 'panelBright', 'panelBrightVal', 'btnPanelOff', 'btnPanelRestore', 'panelStatus',

@@ -73,6 +73,10 @@
         el.voiceMusicDefault.value = data.music_default || '';
         el.voiceMusicDefault.disabled = !data.music_voice;
       }
+      if (el.voiceMusicSeed) {
+        el.voiceMusicSeed.value = data.music_seed === false ? 'off' : 'on';
+        el.voiceMusicSeed.disabled = !data.music_voice;
+      }
       // Селекты усилены кастомными списками: после программной установки
       // значения нужно обновить их подписи, иначе видно старый пункт.
       if (typeof refreshDropdowns === 'function') refreshDropdowns();
@@ -120,6 +124,16 @@
   function setVoiceMusicVoice(on) {
     return cgi('voicecfg.py', { music_voice: on }, { timeout: 10000 }).then(function () {
       toast(on ? 'Музыка голосом включена' : 'Музыка голосом выключена', 'ok');
+      return loadVoice();
+    }).catch(function (err) {
+      toast('Голос: ' + err.message, 'bad');
+      return loadVoice();
+    });
+  }
+
+  function setVoiceMusicSeed(on) {
+    return cgi('voicecfg.py', { music_seed: on }, { timeout: 10000 }).then(function () {
+      toast(on ? 'Похожие треки включены' : 'Играем только запрошенный трек', 'ok');
       return loadVoice();
     }).catch(function (err) {
       toast('Голос: ' + err.message, 'bad');

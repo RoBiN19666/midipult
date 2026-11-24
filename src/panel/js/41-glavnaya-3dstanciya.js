@@ -1385,7 +1385,7 @@
       'vpnUrl', 'btnVpnSave', 'btnVpnToggle', 'vpnStatus', 'vpnServer', 'vpnLog', 'vpnAutostart',
       'btnVoiceDaemon', 'voiceDaemonStatus', 'voiceIdleMode', 'voiceIdleNote',
     'voiceMicMode', 'voiceMicNote', 'voicePanel',
-      'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote',
+      'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote', 'voiceMusicSeed', 'voiceMusicSeedNote',
       'btnTermOpen', 'termStatus', 'termDlg', 'termDlgStatus', 'btnTermFinish',
       'btnTermClose', 'termHost', 'menuPosition',
       'cardPanel', 'panelBright', 'panelBrightVal', 'btnPanelOff', 'btnPanelRestore', 'panelStatus',

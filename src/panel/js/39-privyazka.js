@@ -526,6 +526,11 @@
         setVoiceMusicDefault(this.value);
       });
     }
+    if (el.voiceMusicSeed) {
+      el.voiceMusicSeed.addEventListener('change', function () {
+        setVoiceMusicSeed(this.value === 'on');
+      });
+    }
 
     /* индикация панели */
     if (el.panelBright) {

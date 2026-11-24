@@ -1262,8 +1262,14 @@ def music_play(intent):
     if musicd_client is None:
         return music_play_direct(intent)
     try:
+        seed_on = True
+        try:
+            seed_on = voicecfg.music_seed_enabled(voicecfg.load())
+        except Exception:  # noqa: BLE001
+            pass
         result = musicd_client.call("start", {
-            "service": service, "mode": "seed", "query": query,
+            "service": service, "mode": "seed" if seed_on else "single",
+            "query": query,
         }, timeout=120)
     except Exception as exc:  # noqa: BLE001
         log("seed: musicd недоступен: %s" % str(exc)[:120])

@@ -18,6 +18,14 @@ import time
 import urllib.error
 import urllib.request
 import urllib.parse
+import sys
+
+sys.path.insert(0, "/data/myweb/cgi-bin")
+try:
+    import common
+except Exception:  # noqa: BLE001
+    common = None
+
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.environ.get("MYPULT_MUSICD_PORT") or "8899")
@@ -182,10 +190,22 @@ def play(queue):
         return False
     track = tracks[index]
     service_call(queue["service"], play_payload(queue["service"], track), timeout=120)
+    if common is not None:
+        try:
+            common.now_playing({
+                "service": queue["service"], "id": track.get("id") or "",
+                "title": track.get("title") or "",
+                "artist": track.get("artist") or track.get("artists") or "",
+                "cover": track.get("cover") or "",
+                "duration": int(track.get("duration") or 0),
+            })
+        except Exception:  # noqa: BLE001
+            pass
     queue["started_at"] = time.time()
     queue["duration"] = int(track.get("duration") or 0)
     queue["seen"] = False
     queue["last_playing"] = 0
+    queue["switching"] = False
     save(queue)
     log("играю %s: %r" % (queue["service"], track.get("title")))
     return True
@@ -225,7 +245,9 @@ def start(payload):
     service = str(payload.get("service") or "").strip().lower()
     if service not in ("zvuk", "youtube", "soundcloud"):
         return {"error": "неизвестный сервис"}
-    mode = "seed" if str(payload.get("mode") or "") == "seed" else "wave"
+    mode = str(payload.get("mode") or "wave").strip().lower()
+    if mode not in ("wave", "seed", "single"):
+        mode = "wave"
     mood = str(payload.get("mood") or "").strip().lower()
     query = str(payload.get("query") or "").strip()
     first = payload.get("track") if isinstance(payload.get("track"), dict) else None
@@ -235,8 +257,9 @@ def start(payload):
     tracks = []
     if first:
         tracks.append(first)
-        related = related_tracks(service, first, mood, query)
-        tracks = dedupe(tracks + related)
+        if mode == "seed":
+            related = related_tracks(service, first, mood, query)
+            tracks = dedupe(tracks + related)
     else:
         tracks = dedupe(wave_tracks(service, mood))
     if not tracks:
@@ -261,6 +284,8 @@ def next_track(direction=1):
     index = int(queue.get("index") or 0) + direction
     if index >= len(queue["tracks"]):
         mode = queue.get("mode")
+        if mode == "single":
+            return {"error": "очередь закончилась"}
         if mode == "seed" and queue.get("seed"):
             tracks = related_tracks(queue["service"], queue.get("seed"),
                                     queue.get("mood"), queue.get("seed_query") or "")
@@ -337,7 +362,17 @@ def run_loop():
         if data.get("playing"):
             queue["seen"] = True
             queue["last_playing"] = now
-            save(queue)
+            # Длительность известна — запускаем следующий за пару секунд до
+            # конца, чтобы не было паузы на переключение.
+            duration = int(queue.get("duration") or 0)
+            started = float(queue.get("started_at") or 0)
+            if (duration and not queue.get("switching")
+                    and now - started >= duration - 2):
+                queue["switching"] = True
+                save(queue)
+                result = next_track(1)
+                if result.get("error"):
+                    log("раннее переключение: %s" % result["error"])
             continue
         if not queue.get("seen"):
             continue
