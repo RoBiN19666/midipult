@@ -1166,7 +1166,11 @@
 
     var presets = [];
     var mode = function () { return window.PultLayout.mode(); };
-    var modeLabel = function () { return mode() === 'phone' ? 'телефона' : 'компьютера'; };
+    var modeLabel = function () {
+      var value = mode();
+      return value === 'phone' ? 'телефона'
+        : value === 'touch' ? 'тач-экрана' : 'компьютера';
+    };
 
     function current() {
       var id = select.value;

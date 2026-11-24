@@ -15015,7 +15015,16 @@ body.light dialog.queue-dlg.ym-look{
 
     window.PultLayout = {
       mode: function () {
-        return window.innerWidth > 760 ? 'wide' : 'phone';
+        if (window.innerWidth <= 760) return 'phone';
+        // Третий тип раскладки: широкий экран с тач-вводом (планшет,
+        // ноутбук с тачскраном/тачпадом-гибрид). Не должен затирать
+        // раскладку обычного десктопа с мышью.
+        var hasTouch = !!(window.matchMedia &&
+          window.matchMedia('(any-pointer: coarse)').matches);
+        if (hasTouch || document.documentElement.classList.contains('touch-ui')) {
+          return 'touch';
+        }
+        return 'wide';
       },
       capture: function () {
         var order = Array.prototype.map.call(
@@ -17771,7 +17780,11 @@ body.light dialog.queue-dlg.ym-look{
 
     var presets = [];
     var mode = function () { return window.PultLayout.mode(); };
-    var modeLabel = function () { return mode() === 'phone' ? 'телефона' : 'компьютера'; };
+    var modeLabel = function () {
+      var value = mode();
+      return value === 'phone' ? 'телефона'
+        : value === 'touch' ? 'тач-экрана' : 'компьютера';
+    };
 
     function current() {
       var id = select.value;

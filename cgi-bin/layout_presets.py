@@ -28,7 +28,7 @@ DEFAULT_STORE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 MAX_PRESETS = 40
 NAME_MAX = 40
 ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
-MODES = ("wide", "phone")
+MODES = ("wide", "touch", "phone")
 MENU_POSITIONS = ("top", "bottom", "left", "right")
 
 

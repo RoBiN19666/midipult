@@ -368,7 +368,16 @@
 
     window.PultLayout = {
       mode: function () {
-        return window.innerWidth > 760 ? 'wide' : 'phone';
+        if (window.innerWidth <= 760) return 'phone';
+        // Третий тип раскладки: широкий экран с тач-вводом (планшет,
+        // ноутбук с тачскраном/тачпадом-гибрид). Не должен затирать
+        // раскладку обычного десктопа с мышью.
+        var hasTouch = !!(window.matchMedia &&
+          window.matchMedia('(any-pointer: coarse)').matches);
+        if (hasTouch || document.documentElement.classList.contains('touch-ui')) {
+          return 'touch';
+        }
+        return 'wide';
       },
       capture: function () {
         var order = Array.prototype.map.call(

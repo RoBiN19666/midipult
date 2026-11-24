@@ -2931,6 +2931,8 @@ def test_layout_presets_sanitize():
     check("раскладка: режим только wide/phone",
           layout_presets.clean_mode("phone") == "phone"
           and layout_presets.clean_mode("hack") == "wide")
+    check("раскладка: режим тач-экрана сохраняется",
+          layout_presets.clean_mode("touch") == "touch")
     check("раскладка: имя обрезается и чистится",
           layout_presets.clean_name("  Мой   дом  ") == "Мой дом"
           and len(layout_presets.clean_name("x" * 80)) == 40)
