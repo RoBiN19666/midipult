@@ -2245,6 +2245,9 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
 .ym-now-volume output{font-size:10px;min-width:34px;text-align:right}
 /* Громкость в развёрнутом плеере: иконка, а шкала — вертикально в поповере. */
 .ym-vol{position:relative;display:flex;align-items:center}
+/* Мостик над кнопкой: без него курсор проходит через щель между
+   кнопкой и поповером, hover срывается и громкость закрывается. */
+.ym-vol::before{content:"";position:absolute;left:-8px;right:-8px;bottom:100%;height:18px}
 .ym-vol-pop{position:absolute;bottom:calc(100% + 10px);left:50%;z-index:40;
   display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 10px;
   border:1px solid #34343c;border-radius:14px;background:#1b1b20;
