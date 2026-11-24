@@ -166,16 +166,16 @@
 .ym-now-seek input,.ym-now-volume input,.ym-vol-track input,.ym-volume-pop input{
   -webkit-appearance:none;appearance:none;height:4px;border-radius:4px;
   background:#3d3d44;accent-color:#ffdb4d;outline:none}
-.ym-now-seek input::-webkit-slider-thumb,.ym-now-volume input,.ym-vol-track input::-webkit-slider-thumb,
+.ym-now-seek input::-webkit-slider-thumb,.ym-now-volume input::-webkit-slider-thumb,.ym-vol-track input::-webkit-slider-thumb,
 .ym-volume-pop input::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
   border-radius:50%;background:#ffdb4d;border:2px solid #ffdb4d;box-shadow:0 0 0 3px rgba(255,219,77,.15);
   cursor:pointer;margin-top:-4px}
-.ym-now-seek input::-webkit-slider-runnable-track,.ym-now-volume input,.ym-vol-track input::-webkit-slider-runnable-track,
+.ym-now-seek input::-webkit-slider-runnable-track,.ym-now-volume input::-webkit-slider-runnable-track,.ym-vol-track input::-webkit-slider-runnable-track,
 .ym-volume-pop input::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:#3d3d44}
-.ym-now-seek input::-moz-range-thumb,.ym-now-volume input,.ym-vol-track input::-moz-range-thumb,
+.ym-now-seek input::-moz-range-thumb,.ym-now-volume input::-moz-range-thumb,.ym-vol-track input::-moz-range-thumb,
 .ym-volume-pop input::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;
   background:#ffdb4d;cursor:pointer}
-.ym-now-seek input::-moz-range-track,.ym-now-volume input,.ym-vol-track input::-moz-range-track,
+.ym-now-seek input::-moz-range-track,.ym-now-volume input::-moz-range-track,.ym-vol-track input::-moz-range-track,
 .ym-volume-pop input::-moz-range-track{height:4px;border-radius:4px;background:#3d3d44}
 @media(max-width:520px){
   .radio-add{grid-template-columns:1fr!important}
@@ -282,7 +282,7 @@ body.ym-open{overflow:hidden!important}
   background:transparent;border-radius:999px;outline:none;cursor:pointer;
 }
 .ym-now-seek input::-webkit-slider-runnable-track,
-.ym-now-volume input,.ym-vol-track input::-webkit-slider-runnable-track,
+.ym-now-volume input::-webkit-slider-runnable-track,.ym-vol-track input::-webkit-slider-runnable-track,
 .ym-volume-pop input::-webkit-slider-runnable-track,
 .lyr-player input[type="range"]::-webkit-slider-runnable-track{
   height:4px;border-radius:999px;
@@ -290,7 +290,7 @@ body.ym-open{overflow:hidden!important}
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
 }
 .ym-now-seek input::-webkit-slider-thumb,
-.ym-now-volume input,.ym-vol-track input::-webkit-slider-thumb,
+.ym-now-volume input::-webkit-slider-thumb,.ym-vol-track input::-webkit-slider-thumb,
 .ym-volume-pop input::-webkit-slider-thumb,
 .lyr-player input[type="range"]::-webkit-slider-thumb{
   -webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border:0;border-radius:50%;
@@ -298,21 +298,21 @@ body.ym-open{overflow:hidden!important}
   transition:transform .12s ease,box-shadow .12s ease;
 }
 .ym-now-seek input:hover::-webkit-slider-thumb,
-.ym-now-volume input,.ym-vol-track input:hover::-webkit-slider-thumb,
+.ym-now-volume input:hover::-webkit-slider-thumb,.ym-vol-track input:hover::-webkit-slider-thumb,
 .ym-volume-pop input:hover::-webkit-slider-thumb,
 .lyr-player input[type="range"]:hover::-webkit-slider-thumb{
   transform:scale(1.12);box-shadow:0 0 0 4px rgba(255,219,77,.22),0 2px 8px rgba(0,0,0,.5);
 }
 .ym-now-seek input::-moz-range-track,
-.ym-now-volume input,.ym-vol-track input::-moz-range-track,
+.ym-now-volume input::-moz-range-track,.ym-vol-track input::-moz-range-track,
 .ym-volume-pop input::-moz-range-track,
 .lyr-player input[type="range"]::-moz-range-track{height:4px;border-radius:999px;background:#3d3d44}
 .ym-now-seek input::-moz-range-progress,
-.ym-now-volume input,.ym-vol-track input::-moz-range-progress,
+.ym-now-volume input::-moz-range-progress,.ym-vol-track input::-moz-range-progress,
 .ym-volume-pop input::-moz-range-progress,
 .lyr-player input[type="range"]::-moz-range-progress{height:4px;border-radius:999px;background:#ffdb4d}
 .ym-now-seek input::-moz-range-thumb,
-.ym-now-volume input,.ym-vol-track input::-moz-range-thumb,
+.ym-now-volume input::-moz-range-thumb,.ym-vol-track input::-moz-range-thumb,
 .ym-volume-pop input::-moz-range-thumb,
 .lyr-player input[type="range"]::-moz-range-thumb{
   width:14px;height:14px;border:0;border-radius:50%;background:#ffdb4d;
