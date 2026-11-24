@@ -1143,6 +1143,12 @@
     el.btnLike.classList.toggle('on', State.liked);
     el.btnLike.setAttribute('title', State.liked ? 'Убрать из избранного' : 'Нравится');
     el.btnLike.setAttribute('aria-label', State.liked ? 'Убрать из избранного' : 'Нравится');
+    ['ymNowLike', 'ymBarLike'].forEach(function (id) {
+      var button = document.getElementById(id);
+      if (!button) return;
+      button.classList.toggle('on', State.liked);
+      button.setAttribute('aria-pressed', State.liked ? 'true' : 'false');
+    });
   }
 
   function loadLiked() {

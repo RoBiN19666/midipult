@@ -1711,13 +1711,18 @@
         node.addEventListener('click', ymOpenNow);
       }
     });
-    [['ymNowPrev', 'btnPrev'], ['ymNowPlay', 'btnPlay'], ['ymNowNext', 'btnNext'],
-      ['ymNowLike', 'btnLike'], ['ymNowDislike', 'btnDislike']
+    [['ymNowPrev', 'btnPrev'], ['ymNowPlay', 'btnPlay'], ['ymNowNext', 'btnNext']
     ].forEach(function (pair) {
       var button = document.getElementById(pair[0]);
       var target = document.getElementById(pair[1]);
       if (button && target) button.addEventListener('click', function () { target.click(); });
     });
+    // Лайк/дизлайк зовём напрямую: кнопки вне модального диалога
+    // становятся inert, и программный click по ним не срабатывает.
+    var ymNowLike = document.getElementById('ymNowLike');
+    if (ymNowLike) ymNowLike.addEventListener('click', function () { toggleLike(); });
+    var ymNowDislike = document.getElementById('ymNowDislike');
+    if (ymNowDislike) ymNowDislike.addEventListener('click', function () { dislikeTrack(); });
     var ymNowQueue = document.getElementById('ymNowQueue');
     if (ymNowQueue) ymNowQueue.addEventListener('click', function () { openQueue(true); });
     var nowLyricsBox = document.getElementById('ymNowLyricsBox');
@@ -1839,13 +1844,16 @@
       });
     }
     [['ymBarPrev', 'btnPrev'], ['ymBarPlay', 'btnPlay'], ['ymBarNext', 'btnNext'],
-      ['ymBarLike', 'btnLike'], ['ymBarDislike', 'btnDislike'],
       ['ymBarMute', 'btnMute']
     ].forEach(function (pair) {
       var button = document.getElementById(pair[0]);
       var target = document.getElementById(pair[1]);
       if (button && target) button.addEventListener('click', function () { target.click(); });
     });
+    var ymBarLike = document.getElementById('ymBarLike');
+    if (ymBarLike) ymBarLike.addEventListener('click', function () { toggleLike(); });
+    var ymBarDislike = document.getElementById('ymBarDislike');
+    if (ymBarDislike) ymBarDislike.addEventListener('click', function () { dislikeTrack(); });
     var ymBarQueue = document.getElementById('ymBarQueue');
     if (ymBarQueue) ymBarQueue.addEventListener('click', function () { openQueue(true); });
     setInterval(function () { if (dialog.open) ymSyncBar(); }, 1000);
