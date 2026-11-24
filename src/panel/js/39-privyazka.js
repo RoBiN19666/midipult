@@ -821,20 +821,6 @@
     /* разделы */
     el.tabs.addEventListener('click', function (ev) {
       var btn = ev.target.closest('.tab');
-      if (!btn || !btn.dataset.tab) return;
-      // Тач: первый тап раскрывает вкладку с подписью, второй — переключает.
-      if (!isTouchTabs()) return;
-      if (btn.getAttribute('aria-pressed') === 'true') return;
-      if (btn.classList.contains('is-peek')) return;
-      ev.preventDefault();
-      ev.stopImmediatePropagation();
-      Array.prototype.forEach.call(el.tabs.children, function (other) {
-        other.classList.remove('is-peek');
-      });
-      btn.classList.add('is-peek');
-    }, true);
-    el.tabs.addEventListener('click', function (ev) {
-      var btn = ev.target.closest('.tab');
       if (btn && btn.dataset.tab) showTab(btn.dataset.tab);
     });
     window.addEventListener('hashchange', function () {

@@ -24,18 +24,24 @@
   window.addEventListener('resize', measureTabs);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureTabs);
 
-  // Тип ввода: у мыши работает наведение, у пальца — первый тап раскрывает.
+  // Тип ввода: у мыши — иконки с наведением, у пальца — обычные вкладки.
   var tabInputTouch = !!(window.matchMedia &&
     window.matchMedia('(hover: none), (pointer: coarse)').matches);
 
+  function applyTabInput() {
+    document.documentElement.classList.toggle('touch-ui', tabInputTouch);
+  }
+
+  applyTabInput();
+
   window.addEventListener('pointerdown', function (event) {
     if (!event.pointerType) return;
-    tabInputTouch = event.pointerType !== 'mouse';
+    var touch = event.pointerType !== 'mouse';
+    if (touch === tabInputTouch) return;
+    tabInputTouch = touch;
+    applyTabInput();
+    measureTabs();
   }, true);
-
-  function isTouchTabs() {
-    return tabInputTouch;
-  }
 
   function loadTabData(name) {
     if (name === 'home') {
