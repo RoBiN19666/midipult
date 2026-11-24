@@ -65,13 +65,21 @@
 
 ## Скриншоты
 
-| Дисплей | Звук и радио |
+| Дисплей | Кривая автояркости |
 |---|---|
-| ![Дисплей](docs/img/display.png) | ![Звук](docs/img/sound.png) |
+| ![Дисплей](docs/img/display.png) | ![Кривая автояркости](docs/img/display-curve.png) |
 
-| Нейросеть | Сценарии |
+| Терминал | Настройки |
 |---|---|
-| ![Нейросеть](docs/img/ai.png) | ![Сценарии](docs/img/scenarios.png) |
+| ![Терминал](docs/img/terminal.png) | ![Настройки](docs/img/settings.png) |
+
+| Звук и радио | Нейросеть |
+|---|---|
+| ![Звук](docs/img/sound.png) | ![Нейросеть](docs/img/ai.png) |
+
+| Сценарии |  |
+|---|---|
+| ![Сценарии](docs/img/scenarios.png) |  |
 
 ---
 
