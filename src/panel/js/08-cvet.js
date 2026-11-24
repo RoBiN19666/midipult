@@ -1395,13 +1395,17 @@
       duration.className = 'ym-duration';
       duration.textContent = ymTime(track.duration);
       row.appendChild(duration);
-      var play = document.createElement('button');
-      play.type = 'button';
-      play.className = 'btn icon-sm ghost';
-      play.setAttribute('aria-label', 'Воспроизвести');
-      play.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-play"/></svg>';
-      play.addEventListener('click', function () { ymPlayTrack(track); });
-      row.appendChild(play);
+      // Вся строка — кнопка воспроизведения: отдельный «плей» больше не нужен.
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
+      row.title = 'Воспроизвести';
+      row.addEventListener('click', function () { ymPlayTrack(track); });
+      row.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          ymPlayTrack(track);
+        }
+      });
       list.appendChild(row);
     });
     return list;
