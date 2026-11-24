@@ -40,3 +40,21 @@
   .files-row{grid-template-columns:24px minmax(0,1fr) auto;gap:7px}
   .files-row .files-meta{display:none}
 }
+.files-row .files-ico{display:flex;align-items:center;justify-content:center;width:20px;height:20px}
+.files-ico svg{width:17px;height:17px;display:block}
+.files-ico.is-dir{color:#f2c15c}
+.files-ico.is-file{color:#9aa7bd}
+.files-ico.is-text{color:#9ecbff}
+.files-ico.is-code{color:#8fd3ff}
+.files-ico.is-archive{color:#d9a066}
+.files-ico.is-image{color:#7ee0b8}
+.files-ico.is-audio{color:#c8a2ff}
+.files-ico.is-video{color:#ff9d7a}
+body.light .files-ico.is-dir{color:#b8860b}
+body.light .files-ico.is-file{color:#6b7280}
+body.light .files-ico.is-text{color:#2563eb}
+body.light .files-ico.is-code{color:#0e7490}
+body.light .files-ico.is-archive{color:#a16207}
+body.light .files-ico.is-image{color:#047857}
+body.light .files-ico.is-audio{color:#7c3aed}
+body.light .files-ico.is-video{color:#c2410c}

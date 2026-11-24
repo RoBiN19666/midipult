@@ -23,6 +23,37 @@
     if (el.filesNote) el.filesNote.textContent = text || '';
   }
 
+  function filesKind(item) {
+    var ext = '';
+    var match = /\.([a-z0-9]+)$/i.exec(item.name || '');
+    if (match) ext = match[1].toLowerCase();
+    if (item.kind === 'dir') return 'dir';
+    if (['zip', 'tar', 'gz', 'tgz', 'bz2', 'xz', '7z', 'rar', 'zst', 'deb', 'ipk', 'apk'].indexOf(ext) >= 0) return 'archive';
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'heic', 'avif'].indexOf(ext) >= 0) return 'image';
+    if (['mp3', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'aac', 'wma'].indexOf(ext) >= 0) return 'audio';
+    if (['mp4', 'mkv', 'avi', 'mov', 'webm', 'm4v'].indexOf(ext) >= 0) return 'video';
+    if (['txt', 'md', 'log', 'csv', 'conf', 'cfg', 'ini', 'json', 'xml', 'yaml', 'yml', 'toml', 'env', 'service', 'sh', 'py', 'js', 'css', 'html', 'htm', 'sql'].indexOf(ext) >= 0) return 'text';
+    if (['c', 'h', 'cpp', 'hpp', 'go', 'rs', 'java', 'kt', 'lua', 'php'].indexOf(ext) >= 0) return 'code';
+    return 'file';
+  }
+
+  function filesIcon(item) {
+    var kind = filesKind(item);
+    var paths = {
+      dir: '<path d="M3 7.2A2.2 2.2 0 0 1 5.2 5H9l2 2h7.8A2.2 2.2 0 0 1 21 9.2v8.6A2.2 2.2 0 0 1 18.8 20H5.2A2.2 2.2 0 0 1 3 17.8z"/>',
+      file: '<path d="M6.5 3.5h7L18 8v12.5h-11.5z"/><path d="M13.5 3.5V8H18"/>',
+      text: '<path d="M6.5 3.5h7L18 8v12.5h-11.5z"/><path d="M13.5 3.5V8H18"/><path d="M9 12h6M9 15.4h6M9 18.8h3.6"/>',
+      archive: '<rect x="4.5" y="4" width="15" height="16" rx="2"/><path d="M12 4v4M12 10v2M12 14v2M12 18v1M9.4 5.5h5.2"/>',
+      image: '<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4.8 17l4.2-4.2 3.3 3.3 2.4-2.4L19.2 18"/>',
+      audio: '<path d="M9 18V6.5l9-2v11.3"/><circle cx="6.8" cy="18" r="2.3"/><circle cx="15.8" cy="15.8" r="2.3"/>',
+      video: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M10.5 9.5l4.5 2.5-4.5 2.5z"/>',
+      code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12"/>'
+    };
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      (paths[kind] || paths.file) + '</svg>';
+  }
+
   function filesLoad(path) {
     var target = path || filesCurrent || '/data/mypult';
     filesSetNote('Читаю…');
@@ -57,8 +88,8 @@
           var row = document.createElement('div');
           row.className = 'files-row';
           var ico = document.createElement('span');
-          ico.className = 'files-ico';
-          ico.textContent = item.kind === 'dir' ? '▸' : '·';
+          ico.className = 'files-ico is-' + filesKind(item);
+          ico.innerHTML = filesIcon(item);
           var name = document.createElement('div');
           name.className = 'files-name';
           name.textContent = item.name;
