@@ -1,5 +1,7 @@
   /* ─────────── кривая автояркости ─────────── */
   var curvePoints = [];
+  var curveDrag = null;
+  var curveBound = false;
 
   function curveDefaults() {
     var lo = Number(State.displayMin) || 10;
@@ -7,40 +9,64 @@
     return [[0, lo], [50, Math.round((lo + hi) / 2)], [200, hi]];
   }
 
+  function curveGeom() {
+    var canvas = el.curveCanvas;
+    return {
+      width: canvas.width, height: canvas.height, pad: 26,
+      maxLux: 10000, maxLevel: 255
+    };
+  }
+
+  function curveLuxToX(lux, g) {
+    var span = Math.log10(g.maxLux + 1);
+    return g.pad + (g.width - g.pad - 10) *
+      Math.min(1, Math.log10(Math.max(0, lux) + 1) / span);
+  }
+
+  function curveXToLux(x, g) {
+    var span = g.width - g.pad - 10;
+    var ratio = span <= 0 ? 0 : (x - g.pad) / span;
+    ratio = Math.max(0, Math.min(1, ratio));
+    return Math.max(0, Math.round(Math.pow(10, ratio * Math.log10(g.maxLux + 1)) - 1));
+  }
+
+  function curveLevelToY(level, g) {
+    return g.height - g.pad - (g.height - g.pad - 12) *
+      Math.min(1, Math.max(0, level) / g.maxLevel);
+  }
+
+  function curveYToLevel(y, g) {
+    var span = g.height - g.pad - 12;
+    var ratio = span <= 0 ? 0 : (g.height - g.pad - y) / span;
+    ratio = Math.max(0, Math.min(1, ratio));
+    return Math.max(10, Math.min(255, Math.round(ratio * g.maxLevel)));
+  }
+
   function curveDraw() {
     var canvas = el.curveCanvas;
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
-    var width = canvas.width;
-    var height = canvas.height;
-    var pad = 26;
-    ctx.clearRect(0, 0, width, height);
+    var g = curveGeom();
+    ctx.clearRect(0, 0, g.width, g.height);
     ctx.strokeStyle = 'rgba(255,255,255,.08)';
     ctx.fillStyle = 'rgba(255,255,255,.45)';
     ctx.font = '10px sans-serif';
     ctx.lineWidth = 1;
-    var maxLux = 10000;
-    var maxLevel = 255;
-    function x(lux) {
-      var span = Math.log10(maxLux + 1);
-      return pad + (width - pad - 10) * Math.min(1, Math.log10(Math.max(0, lux) + 1) / span);
-    }
-    function y(level) {
-      return height - pad - (height - pad - 12) * Math.min(1, Math.max(0, level) / maxLevel);
-    }
     [0, 10, 100, 1000, 10000].forEach(function (lux) {
+      var x = curveLuxToX(lux, g);
       ctx.beginPath();
-      ctx.moveTo(x(lux), 12);
-      ctx.lineTo(x(lux), height - pad);
+      ctx.moveTo(x, 12);
+      ctx.lineTo(x, g.height - g.pad);
       ctx.stroke();
-      ctx.fillText(lux ? String(lux) : '0', x(lux) - 6, height - 8);
+      ctx.fillText(lux ? String(lux) : '0', x - 6, g.height - 8);
     });
     [10, 100, 255].forEach(function (level) {
+      var y = curveLevelToY(level, g);
       ctx.beginPath();
-      ctx.moveTo(pad, y(level));
-      ctx.lineTo(width - 10, y(level));
+      ctx.moveTo(g.pad, y);
+      ctx.lineTo(g.width - 10, y);
       ctx.stroke();
-      ctx.fillText(String(level), 2, y(level) + 3);
+      ctx.fillText(String(level), 2, y + 3);
     });
     var points = curvePoints.slice().sort(function (a, b) { return a[0] - b[0]; });
     if (!points.length) return;
@@ -48,16 +74,112 @@
     ctx.lineWidth = 2;
     ctx.beginPath();
     points.forEach(function (point, index) {
-      if (index === 0) ctx.moveTo(x(point[0]), y(point[1]));
-      else ctx.lineTo(x(point[0]), y(point[1]));
+      var x = curveLuxToX(point[0], g);
+      var y = curveLevelToY(point[1], g);
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     });
     ctx.stroke();
-    ctx.fillStyle = '#ffdb4d';
     points.forEach(function (point) {
+      var x = curveLuxToX(point[0], g);
+      var y = curveLevelToY(point[1], g);
+      ctx.fillStyle = point === curveDragPoint() ? '#ffffff' : '#ffdb4d';
       ctx.beginPath();
-      ctx.arc(x(point[0]), y(point[1]), 4, 0, Math.PI * 2);
+      ctx.arc(x, y, point === curveDragPoint() ? 6 : 4, 0, Math.PI * 2);
       ctx.fill();
     });
+  }
+
+  function curveDragPoint() {
+    return curveDrag ? curveDrag.point : null;
+  }
+
+  function curveCanvasPos(event) {
+    var canvas = el.curveCanvas;
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    return { x: (event.clientX - rect.left) * scaleX,
+             y: (event.clientY - rect.top) * scaleY };
+  }
+
+  function curvePointIndexAt(pos) {
+    var g = curveGeom();
+    var best = -1;
+    var bestDist = 14;
+    curvePoints.forEach(function (point, index) {
+      var dx = curveLuxToX(point[0], g) - pos.x;
+      var dy = curveLevelToY(point[1], g) - pos.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < bestDist) {
+        best = index;
+        bestDist = dist;
+      }
+    });
+    return best;
+  }
+
+  function curveMovePoint(pos) {
+    if (!curveDrag) return;
+    var g = curveGeom();
+    var point = curveDrag.point;
+    point[0] = Math.max(0, Math.min(100000, curveXToLux(pos.x, g)));
+    point[1] = curveYToLevel(pos.y, g);
+    curvePoints.sort(function (a, b) { return a[0] - b[0]; });
+    curveDraw();
+  }
+
+  function curveAddAt(pos) {
+    if (curvePoints.length >= 16) {
+      toast('Больше 16 точек не нужно', 'warn');
+      return;
+    }
+    var g = curveGeom();
+    var point = [Math.max(0, Math.min(100000, curveXToLux(pos.x, g))),
+                 curveYToLevel(pos.y, g)];
+    curvePoints.push(point);
+    curvePoints.sort(function (a, b) { return a[0] - b[0]; });
+    curveDrag = { point: point };
+    curveRender();
+    curveDraw();
+  }
+
+  function curveBindCanvas() {
+    if (curveBound || !el.curveCanvas) return;
+    curveBound = true;
+    var canvas = el.curveCanvas;
+    canvas.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+      var pos = curveCanvasPos(event);
+      var index = curvePointIndexAt(pos);
+      if (index >= 0) {
+        curveDrag = { point: curvePoints[index] };
+      } else {
+        curveAddAt(pos);
+      }
+      if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
+      curveDraw();
+    });
+    canvas.addEventListener('pointermove', function (event) {
+      if (!curveDrag) {
+        canvas.style.cursor = curvePointIndexAt(curveCanvasPos(event)) >= 0
+          ? 'grab' : 'crosshair';
+        return;
+      }
+      canvas.style.cursor = 'grabbing';
+      curveMovePoint(curveCanvasPos(event));
+    });
+    function finish() {
+      if (!curveDrag) return;
+      curveDrag = null;
+      canvas.style.cursor = 'crosshair';
+      curvePoints.sort(function (a, b) { return a[0] - b[0]; });
+      curveRender();
+      curveDraw();
+    }
+    canvas.addEventListener('pointerup', finish);
+    canvas.addEventListener('pointercancel', finish);
+    window.addEventListener('pointerup', finish);
   }
 
   function curveRender() {
@@ -94,8 +216,9 @@
       function apply() {
         var lx = Math.max(0, Math.min(100000, Number(lux.value) || 0));
         var lv = Math.max(10, Math.min(255, Math.round(Number(level.value) || 10)));
-        curvePoints[index] = [lx, lv];
-        point = curvePoints[index];
+        point[0] = lx;
+        point[1] = lv;
+        curvePoints.sort(function (a, b) { return a[0] - b[0]; });
         curveDraw();
       }
       lux.addEventListener('change', apply);
@@ -119,6 +242,7 @@
       return [Number(pair[0]) || 0, Number(pair[1]) || 10];
     });
     if (!curvePoints.length) curvePoints = curveDefaults();
+    curveBindCanvas();
     curveRender();
     curveDraw();
     if (el.curveDlg && el.curveDlg.showModal) el.curveDlg.showModal();
