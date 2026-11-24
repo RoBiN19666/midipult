@@ -12,32 +12,34 @@
   function curveGeom() {
     var canvas = el.curveCanvas;
     return {
-      width: canvas.width, height: canvas.height, pad: 26,
+      width: canvas.width, height: canvas.height,
+      left: 42, right: 16, top: 12, bottom: 26,
       maxLux: 10000, maxLevel: 255
     };
   }
 
   function curveLuxToX(lux, g) {
     var span = Math.log10(g.maxLux + 1);
-    return g.pad + (g.width - g.pad - 10) *
-      Math.min(1, Math.log10(Math.max(0, lux) + 1) / span);
+    var ratio = Math.min(1, Math.log10(Math.max(0, lux) + 1) / span);
+    return g.left + (g.width - g.left - g.right) * ratio;
   }
 
   function curveXToLux(x, g) {
-    var span = g.width - g.pad - 10;
-    var ratio = span <= 0 ? 0 : (x - g.pad) / span;
+    var span = g.width - g.left - g.right;
+    var ratio = span <= 0 ? 0 : (x - g.left) / span;
     ratio = Math.max(0, Math.min(1, ratio));
     return Math.max(0, Math.round(Math.pow(10, ratio * Math.log10(g.maxLux + 1)) - 1));
   }
 
   function curveLevelToY(level, g) {
-    return g.height - g.pad - (g.height - g.pad - 12) *
-      Math.min(1, Math.max(0, level) / g.maxLevel);
+    var span = g.height - g.top - g.bottom;
+    var ratio = Math.min(1, Math.max(0, level / g.maxLevel));
+    return g.top + span * (1 - ratio);
   }
 
   function curveYToLevel(y, g) {
-    var span = g.height - g.pad - 12;
-    var ratio = span <= 0 ? 0 : (g.height - g.pad - y) / span;
+    var span = g.height - g.top - g.bottom;
+    var ratio = span <= 0 ? 0 : (g.height - g.bottom - y) / span;
     ratio = Math.max(0, Math.min(1, ratio));
     return Math.max(10, Math.min(255, Math.round(ratio * g.maxLevel)));
   }
@@ -47,34 +49,43 @@
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
     var g = curveGeom();
+    var axis = 'rgba(255,255,255,.16)';
+    var grid = 'rgba(255,255,255,.055)';
     ctx.clearRect(0, 0, g.width, g.height);
-    ctx.strokeStyle = 'rgba(255,255,255,.08)';
-    ctx.fillStyle = 'rgba(255,255,255,.45)';
     ctx.font = '10px sans-serif';
     ctx.lineWidth = 1;
-    ctx.fillText('яркость', 2, 10);
-    ctx.textAlign = 'right';
-    ctx.fillText('lux', g.width - 10, 10);
-    ctx.textAlign = 'start';
-    [0, 10, 100, 1000, 10000].forEach(function (lux) {
+
+    var luxTicks = [0, 10, 100, 1000, 10000];
+    var levelTicks = [10, 100, 255];
+    luxTicks.forEach(function (lux) {
       var x = curveLuxToX(lux, g);
+      ctx.strokeStyle = grid;
       ctx.beginPath();
-      ctx.moveTo(x, 12);
-      ctx.lineTo(x, g.height - g.pad);
+      ctx.moveTo(x, g.top);
+      ctx.lineTo(x, g.height - g.bottom);
       ctx.stroke();
-      var label = lux ? String(lux) : '0';
-      ctx.textAlign = lux === g.maxLux ? 'right' : 'center';
-      ctx.fillText(label, Math.min(x, g.width - 12), g.height - 8);
+      ctx.fillStyle = 'rgba(255,255,255,.42)';
+      ctx.textAlign = lux === 0 ? 'left' : (lux === g.maxLux ? 'right' : 'center');
+      ctx.fillText(lux ? String(lux) : '0', x, g.height - 8);
     });
-    ctx.textAlign = 'start';
-    [10, 100, 255].forEach(function (level) {
+    levelTicks.forEach(function (level) {
       var y = curveLevelToY(level, g);
+      ctx.strokeStyle = grid;
       ctx.beginPath();
-      ctx.moveTo(g.pad, y);
-      ctx.lineTo(g.width - 10, y);
+      ctx.moveTo(g.left, y);
+      ctx.lineTo(g.width - g.right, y);
       ctx.stroke();
-      ctx.fillText(String(level), 2, y + 3);
+      ctx.fillStyle = 'rgba(255,255,255,.42)';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(level), g.left - 7, y + 3);
     });
+    ctx.strokeStyle = axis;
+    ctx.beginPath();
+    ctx.moveTo(g.left, g.top);
+    ctx.lineTo(g.left, g.height - g.bottom);
+    ctx.lineTo(g.width - g.right, g.height - g.bottom);
+    ctx.stroke();
+
     var points = curvePoints.slice().sort(function (a, b) { return a[0] - b[0]; });
     if (!points.length) return;
     ctx.strokeStyle = '#8b7bff';
@@ -90,10 +101,14 @@
     points.forEach(function (point) {
       var x = curveLuxToX(point[0], g);
       var y = curveLevelToY(point[1], g);
-      ctx.fillStyle = point === curveDragPoint() ? '#ffffff' : '#ffdb4d';
+      var active = point === curveDragPoint();
       ctx.beginPath();
-      ctx.arc(x, y, point === curveDragPoint() ? 6 : 4, 0, Math.PI * 2);
+      ctx.arc(x, y, active ? 6 : 4.5, 0, Math.PI * 2);
+      ctx.fillStyle = active ? '#ffffff' : '#ffdb4d';
       ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#0b0e16';
+      ctx.stroke();
     });
   }
 
