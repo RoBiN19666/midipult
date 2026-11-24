@@ -24,9 +24,12 @@
   window.addEventListener('resize', measureTabs);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureTabs);
 
-  // Тип ввода: у мыши — иконки с наведением, у пальца — обычные вкладки.
-  var tabInputTouch = !!(window.matchMedia &&
-    window.matchMedia('(hover: none), (pointer: coarse)').matches);
+  // Тип ввода: тачпад — это fine pointer, как мышь. Раньше проверка
+  // (pointer: coarse)/(hover: none) на некоторых ноутбуках ошибочно
+  // включала тач-раскладку, и положение меню не применялось.
+  var tabHasFine = !!(window.matchMedia && window.matchMedia('(any-pointer: fine)').matches);
+  var tabHasCoarse = !!(window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches);
+  var tabInputTouch = !tabHasFine && tabHasCoarse;
 
   function applyTabInput() {
     document.documentElement.classList.toggle('touch-ui', tabInputTouch);
@@ -39,6 +42,15 @@
     var touch = event.pointerType !== 'mouse';
     if (touch === tabInputTouch) return;
     tabInputTouch = touch;
+    applyTabInput();
+    measureTabs();
+  }, true);
+
+  // Движение тачпада тоже считается мышью (на гибридах pointerdown может
+  // прийти как touch от тачскрана, но тачпад шлёт pointerType=mouse).
+  window.addEventListener('pointermove', function (event) {
+    if (event.pointerType !== 'mouse' || !tabInputTouch) return;
+    tabInputTouch = false;
     applyTabInput();
     measureTabs();
   }, true);
