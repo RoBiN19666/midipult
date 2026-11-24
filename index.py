@@ -75,7 +75,10 @@ f.addEventListener('submit', function (e) {
 
 def page_headers(length):
     # Заголовки безопасности добавляет lighttpd глобально; здесь не дублируем.
+    # no-store обязателен: иначе браузер телефона может месяцами показывать
+    # старую панель после обновления.
     return ("Status: 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n"
+            "Cache-Control: no-store, max-age=0\r\n"
             "Content-Length: %d\r\n\r\n" % length).encode("latin-1")
 
 

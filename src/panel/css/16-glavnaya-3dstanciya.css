@@ -326,25 +326,27 @@
   .mobile-tabs-menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .mobile-tabs-menu[hidden]{display:none}
 
-  /* Главная на телефоне — один экран без вертикальной прокрутки. */
-  body[data-tab="home"]{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
-  body[data-tab="home"] .topbar{flex:0 0 auto}
+  /* Главная на телефоне: обычная прокрутка страницы.
+     Раньше body жёстко фиксировался на 100dvh с overflow:hidden, и на
+     телефонах с динамической адресной строкой низ карточки «Сейчас»
+     оказывался за пределами экрана без возможности прокрутить. */
+  body[data-tab="home"]{display:block;height:auto;min-height:100dvh;overflow:visible}
   body[data-tab="home"] .mobile-tabs-btn{flex:0 0 auto;margin-bottom:8px}
   body[data-tab="home"] .mobile-tabs-menu{
     position:absolute;left:12px;right:12px;top:166px;z-index:80;
     max-height:calc(100dvh - 180px);overflow:auto;margin:0;
   }
   body[data-tab="home"] main.grid{
-    flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column;
-    align-items:stretch;gap:10px;margin:8px auto 0;
-    padding:0 12px calc(6px + env(safe-area-inset-bottom));
-    overflow-y:auto;overscroll-behavior:contain;
+    display:flex;flex-direction:column;align-items:stretch;gap:10px;
+    margin:8px auto 0;width:100%;
+    padding:0 12px calc(16px + env(safe-area-inset-bottom));
+    overflow:visible;
   }
   body[data-tab="home"] .c-home-model{
-    flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column;padding:14px;
+    flex:0 0 auto;width:100%;display:flex;flex-direction:column;padding:14px;
   }
   body[data-tab="home"] .c-home-model h2{flex:0 0 auto}
-  body[data-tab="home"] .station-stage{flex:1 1 auto;min-height:150px;height:auto;margin-top:4px}
+  body[data-tab="home"] .station-stage{flex:0 0 auto;height:clamp(240px,42dvh,340px);margin-top:4px}
   body[data-tab="home"] .station-hint{display:none}
   body[data-tab="home"] .station-colors{margin-top:6px}
   body[data-tab="home"] .c-home-side{flex:0 0 auto;width:100%;padding:12px 14px}
