@@ -1,5 +1,5 @@
   /* ─────────── разделы ─────────── */
-  var TABS = ['home', 'display', 'sound', 'ai', 'network', 'scenarios', 'system'];
+  var TABS = ['home', 'display', 'sound', 'ai', 'network', 'scenarios', 'settings', 'system'];
   var TAB_KEY = 'mypult.tab';
   var START_KEY = 'mypult.start-system';
 
@@ -24,6 +24,11 @@
       loadNet();
       loadZb();
       loadIpv6();
+    } else if (name === 'settings') {
+      loadVoice();
+      loadAuth();
+      loadSounds();
+      loadPanel();
     } else if (name === 'system') {
       loadVoice();
       loadLogs();

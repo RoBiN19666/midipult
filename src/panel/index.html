@@ -75,6 +75,7 @@
   <button class="tab" data-tab="ai" aria-pressed="false">✦ Нейросеть</button>
   <button class="tab" data-tab="network" aria-pressed="false">⇄ Сеть</button>
   <button class="tab" data-tab="scenarios" aria-pressed="false">▦ Сценарии</button>
+  <button class="tab" data-tab="settings" aria-pressed="false">⚙ Настройки</button>
   <button class="tab" data-tab="system" aria-pressed="false">▤ Система</button>
 </nav>
 
@@ -831,7 +832,7 @@
   </section>
 
   <!-- ───────── индикация панели ───────── -->
-  <section class="card c-sys" id="cardPanel" data-group="system" aria-labelledby="h-panel" hidden>
+  <section class="card c-sys" id="cardPanel" data-group="settings" aria-labelledby="h-panel" hidden>
     <h2 id="h-panel"><span class="dot"></span>Индикация панели</h2>
     <div class="field">
       <div class="field-top"><label for="panelBright">Яркость панели</label><output id="panelBrightVal">—</output></div>
@@ -1009,7 +1010,7 @@
   </section>
 
   <!-- ───────── обслуживание ───────── -->
-  <section class="card c-sys" data-group="system" data-card-id="layout-presets" aria-labelledby="h-layout-presets">
+  <section class="card c-sys" data-group="settings" data-card-id="layout-presets" aria-labelledby="h-layout-presets">
     <h2 id="h-layout-presets"><span class="dot"></span>Раскладка</h2>
     <div class="seg-note">Пресеты порядка и размеров карточек. Для компьютера и телефона — отдельно; хранятся на станции.</div>
     <div class="row" style="margin-top:12px">
@@ -1048,7 +1049,7 @@
   </section>
 
   <!-- ───────── звуки ───────── -->
-  <section class="card c-sys" data-group="system" aria-labelledby="h-sounds">
+  <section class="card c-sys" data-group="settings" aria-labelledby="h-sounds">
     <h2 id="h-sounds"><span class="dot"></span>Звуки</h2>
     <div class="row sound-top-actions">
       <button class="btn sm ghost" id="btnSoundBackup">Скачать все</button>
@@ -1080,7 +1081,7 @@
   </section>
 
   <!-- ───────── PIN ───────── -->
-  <section class="card c-sys" data-group="system" aria-labelledby="h-pin">
+  <section class="card c-sys" data-group="settings" aria-labelledby="h-pin">
     <h2 id="h-pin"><span class="dot"></span>PIN</h2>
     <div class="row" style="margin-top:12px">
       <input id="pinNew" class="net-input" type="password" inputmode="numeric"
@@ -1097,7 +1098,7 @@
   </section>
 
   <!-- ───────── голосовой пульт (настройки) ───────── -->
-  <section class="card c-sys" data-group="system" data-card-id="voice" aria-labelledby="h-voice-settings">
+  <section class="card c-sys" data-group="settings" data-card-id="voice" aria-labelledby="h-voice-settings">
     <h2 id="h-voice-settings"><span class="dot"></span>Голосовой пульт<span class="exp-badge" title="Перехват фраз Алисы пока нестабилен: Алиса может успеть ответить первой, а продолжение без «Алисы» ловится не всегда.">экспериментально</span></h2>
 <div class="voice-panel" id="voicePanel">
           <div class="voice-panel-head">
