@@ -1727,6 +1727,7 @@
     <button type="button" class="btn sm ghost" id="btnCurveClose">Закрыть</button>
   </div>
   <div class="curve-body">
+    <div class="seg-note">Ось X — освещённость (lux, логарифмическая шкала), ось Y — яркость.</div>
     <canvas id="curveCanvas" width="360" height="190" aria-label="График кривой"></canvas>
     <div class="curve-head">
       <span>Освещённость, lux</span>
@@ -1740,7 +1741,7 @@
       <button type="button" class="btn sm ghost" id="btnCurveReset">Сброс</button>
       <button type="button" class="btn sm primary" id="btnCurveSave">Сохранить</button>
     </div>
-    <div class="seg-note">Ось X — освещённость (lux, лог. шкала), ось Y — яркость (10–255). ЛКМ по пустому месту — добавить, ПКМ по точке — удалить.</div>
+    <div class="seg-note">ЛКМ по пустому месту — добавить точку, ПКМ по точке — удалить; между точками яркость меняется плавно.</div>
   </div>
 </dialog>
 </body>

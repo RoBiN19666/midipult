@@ -306,8 +306,12 @@
     if (!curvePoints.length) curvePoints = curveDefaults();
     curveBindCanvas();
     curveRender();
-    curveDraw();
     if (el.curveDlg && el.curveDlg.showModal) el.curveDlg.showModal();
+    // Ширина канваса известна только после показа диалога: иначе первый
+    // кадр растягивается из дефолтных 300 px и выглядит мутным.
+    requestAnimationFrame(function () {
+      curveDraw();
+    });
   }
 
   function curveClose() {

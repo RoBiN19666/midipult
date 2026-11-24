@@ -2646,7 +2646,8 @@ body.light dialog.queue-dlg.ym-look{
 .curve-dlg-head b{font-size:17px;line-height:1.25;min-width:0}
 .curve-body{display:flex;flex-direction:column;gap:8px;padding:4px 16px 10px;
   overflow:visible;overscroll-behavior:contain}
-#curveDlg{height:auto;max-height:calc(100dvh - 24px);margin:auto;overflow-y:auto}
+#curveDlg{position:fixed;inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);
+  height:auto;max-height:calc(100dvh - 24px);margin:0;overflow-y:auto}
 #curveCanvas{width:100%;display:block;background:rgba(255,255,255,.03);border:1px solid var(--stroke);
   border-radius:10px;touch-action:none;cursor:crosshair}
 .curve-head,.curve-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;
@@ -13894,8 +13895,12 @@ body.light dialog.queue-dlg.ym-look{
     if (!curvePoints.length) curvePoints = curveDefaults();
     curveBindCanvas();
     curveRender();
-    curveDraw();
     if (el.curveDlg && el.curveDlg.showModal) el.curveDlg.showModal();
+    // Ширина канваса известна только после показа диалога: иначе первый
+    // кадр растягивается из дефолтных 300 px и выглядит мутным.
+    requestAnimationFrame(function () {
+      curveDraw();
+    });
   }
 
   function curveClose() {
@@ -17689,6 +17694,7 @@ body.light dialog.queue-dlg.ym-look{
     <button type="button" class="btn sm ghost" id="btnCurveClose">Закрыть</button>
   </div>
   <div class="curve-body">
+    <div class="seg-note">Ось X — освещённость (lux, логарифмическая шкала), ось Y — яркость.</div>
     <canvas id="curveCanvas" width="360" height="190" aria-label="График кривой"></canvas>
     <div class="curve-head">
       <span>Освещённость, lux</span>
@@ -17702,7 +17708,7 @@ body.light dialog.queue-dlg.ym-look{
       <button type="button" class="btn sm ghost" id="btnCurveReset">Сброс</button>
       <button type="button" class="btn sm primary" id="btnCurveSave">Сохранить</button>
     </div>
-    <div class="seg-note">Ось X — освещённость (lux, лог. шкала), ось Y — яркость (10–255). ЛКМ по пустому месту — добавить, ПКМ по точке — удалить.</div>
+    <div class="seg-note">ЛКМ по пустому месту — добавить точку, ПКМ по точке — удалить; между точками яркость меняется плавно.</div>
   </div>
 </dialog>
 </body>
