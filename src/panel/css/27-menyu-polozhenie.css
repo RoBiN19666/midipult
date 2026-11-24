@@ -16,8 +16,13 @@
   }
   html:not(.touch-ui) body[data-menu="left"] .tabs{left:12px;right:auto}
   html:not(.touch-ui) body[data-menu="right"] .tabs{right:12px;left:auto}
-  html:not(.touch-ui) body[data-menu="left"] main.grid{margin-left:84px}
-  html:not(.touch-ui) body[data-menu="right"] main.grid{margin-right:84px}
+  /* Симметричные отступы: контент остаётся по центру экрана, а не
+     сдвигается в сторону из-за рейки меню. */
+  html:not(.touch-ui) body[data-menu="left"] main.grid,
+  html:not(.touch-ui) body[data-menu="right"] main.grid{
+    padding-left:calc(var(--page-x) + 72px);
+    padding-right:calc(var(--page-x) + 72px);
+  }
   html:not(.touch-ui) body[data-menu="left"] .tab,
   html:not(.touch-ui) body[data-menu="right"] .tab{
     box-shadow:none;
@@ -47,8 +52,11 @@
   }
   html.touch-ui body[data-menu="left"] .tabs{left:10px;right:auto}
   html.touch-ui body[data-menu="right"] .tabs{right:10px;left:auto}
-  html.touch-ui body[data-menu="left"] main.grid{margin-left:170px}
-  html.touch-ui body[data-menu="right"] main.grid{margin-right:170px}
+  html.touch-ui body[data-menu="left"] main.grid,
+  html.touch-ui body[data-menu="right"] main.grid{
+    padding-left:calc(var(--page-x) + 150px);
+    padding-right:calc(var(--page-x) + 150px);
+  }
   html.touch-ui body[data-menu="left"] .tab,
   html.touch-ui body[data-menu="right"] .tab{
     width:auto;min-width:132px;justify-content:flex-start;
