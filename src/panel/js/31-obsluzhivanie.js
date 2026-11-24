@@ -268,6 +268,7 @@
   }
 
   function applyAutoConfig(auto, mode) {
+    if (!auto || !Object.keys(auto).length) return;
     var ringOn = !!auto.enabled;
     el.autoBright.checked = ringOn;
     el.autoBrightStatus.textContent = ringOn
@@ -275,9 +276,9 @@
 
     if (mode) State.displayManual = !!(mode.manual);
     State.displayAuto = !!auto.display_enabled;
-    State.displayMin = auto.display_min || 10;
-    State.displayMax = auto.display_max || 170;
-    State.displayCurve = auto.display_curve || [];
+    if (auto.display_min != null) State.displayMin = auto.display_min;
+    if (auto.display_max != null) State.displayMax = auto.display_max;
+    if (Array.isArray(auto.display_curve)) State.displayCurve = auto.display_curve;
     el.displayAuto.checked = State.displayAuto;
     el.displayAutoStatus.textContent = State.displayAuto
       ? ('вкл · ' + (State.displayManual ? 'пауза (ручной режим)'

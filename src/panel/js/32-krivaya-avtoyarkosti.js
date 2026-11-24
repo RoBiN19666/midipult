@@ -299,7 +299,7 @@
     });
   }
 
-  function curveOpen() {
+  function curveShow() {
     curvePoints = (State.displayCurve || []).map(function (pair) {
       return [Number(pair[0]) || 0, Number(pair[1]) || 10];
     });
@@ -311,6 +311,20 @@
     // кадр растягивается из дефолтных 300 px и выглядит мутным.
     requestAnimationFrame(function () {
       curveDraw();
+    });
+  }
+
+  function curveOpen() {
+    // Всегда берём кривую с сервера: в State она могла остаться от
+    // предыдущего ответа без поля display_curve.
+    return cgi('display.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      if (data && data.auto && Array.isArray(data.auto.display_curve) &&
+          data.auto.display_curve.length) {
+        State.displayCurve = data.auto.display_curve;
+      }
+      curveShow();
+    }).catch(function () {
+      curveShow();
     });
   }
 

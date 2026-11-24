@@ -12816,6 +12816,7 @@ body.light dialog.queue-dlg.ym-look{
   }
 
   function applyAutoConfig(auto, mode) {
+    if (!auto || !Object.keys(auto).length) return;
     var ringOn = !!auto.enabled;
     el.autoBright.checked = ringOn;
     el.autoBrightStatus.textContent = ringOn
@@ -12823,9 +12824,9 @@ body.light dialog.queue-dlg.ym-look{
 
     if (mode) State.displayManual = !!(mode.manual);
     State.displayAuto = !!auto.display_enabled;
-    State.displayMin = auto.display_min || 10;
-    State.displayMax = auto.display_max || 170;
-    State.displayCurve = auto.display_curve || [];
+    if (auto.display_min != null) State.displayMin = auto.display_min;
+    if (auto.display_max != null) State.displayMax = auto.display_max;
+    if (Array.isArray(auto.display_curve)) State.displayCurve = auto.display_curve;
     el.displayAuto.checked = State.displayAuto;
     el.displayAutoStatus.textContent = State.displayAuto
       ? ('вкл · ' + (State.displayManual ? 'пауза (ручной режим)'
@@ -13889,7 +13890,7 @@ body.light dialog.queue-dlg.ym-look{
     });
   }
 
-  function curveOpen() {
+  function curveShow() {
     curvePoints = (State.displayCurve || []).map(function (pair) {
       return [Number(pair[0]) || 0, Number(pair[1]) || 10];
     });
@@ -13901,6 +13902,20 @@ body.light dialog.queue-dlg.ym-look{
     // кадр растягивается из дефолтных 300 px и выглядит мутным.
     requestAnimationFrame(function () {
       curveDraw();
+    });
+  }
+
+  function curveOpen() {
+    // Всегда берём кривую с сервера: в State она могла остаться от
+    // предыдущего ответа без поля display_curve.
+    return cgi('display.py', {}, { timeout: 8000, silent: true }).then(function (data) {
+      if (data && data.auto && Array.isArray(data.auto.display_curve) &&
+          data.auto.display_curve.length) {
+        State.displayCurve = data.auto.display_curve;
+      }
+      curveShow();
+    }).catch(function () {
+      curveShow();
     });
   }
 
