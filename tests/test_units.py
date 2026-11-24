@@ -1257,6 +1257,46 @@ def test_voice_music_wave():
         voice_daemon.post = old_post
 
 
+def test_voice_music_transport():
+    old_path = voice_daemon.MUSIC_QUEUE_PATH
+    old_post = voice_daemon.post
+    old_fetch = voice_daemon.music_fetch
+    calls = []
+    try:
+        voice_daemon.MUSIC_QUEUE_PATH = os.path.join(
+            tempfile.mkdtemp(prefix="mypult-tr-"), "queue.json")
+        voice_daemon.post = lambda url, payload, timeout=None: (
+            calls.append((url, dict(payload))) or {})
+        voice_daemon.music_fetch = lambda service, mode: []
+        voice_daemon.music_queue_save({
+            "service": "youtube", "mode": "random", "index": 0,
+            "tracks": [{"id": "1", "title": "A"}, {"id": "2", "title": "B"}],
+            "started_at": 0, "duration": 0, "seen": False, "last_playing": 0,
+        })
+        check("транспорт: стоп", voice_daemon.transport_intent("стоп") == "stop")
+        check("транспорт: пауза", voice_daemon.transport_intent("пауза") == "pause")
+        check("транспорт: дальше", voice_daemon.transport_intent("дальше") == "next")
+        check("транспорт: назад", voice_daemon.transport_intent("назад") == "prev")
+        check("транспорт: продолжить",
+              voice_daemon.transport_intent("продолжи") == "resume")
+        check("транспорт: чужая фраза",
+              voice_daemon.transport_intent("как дела") is None)
+        check("транспорт: следующий трек",
+              voice_daemon.music_transport("next") == "")
+        check("транспорт: индекс стал 1",
+              int(voice_daemon.music_queue_load().get("index")) == 1)
+        voice_daemon.music_transport("pause")
+        check("транспорт: пауза ставит флаг",
+              voice_daemon.music_queue_load().get("paused") is True)
+        check("транспорт: стоп чистит очередь",
+              voice_daemon.music_transport("stop") == "" and
+              not voice_daemon.music_queue_load())
+    finally:
+        voice_daemon.MUSIC_QUEUE_PATH = old_path
+        voice_daemon.post = old_post
+        voice_daemon.music_fetch = old_fetch
+
+
 def test_voice_passive_wants():
     old_llm = voice_daemon.llm_enabled_cached
     old_info = voice_daemon.llm_info
@@ -2869,6 +2909,7 @@ def main():
         test_voice_music_intent,
         test_voice_music_play,
         test_voice_music_wave,
+        test_voice_music_transport,
         test_voice_native_phrase,
         test_status_probe_cache,
         test_lyrics_parse,

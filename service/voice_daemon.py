@@ -884,6 +884,15 @@ def handle(text, request_id=""):
         log("нейросеть: переключение <- %r" % text)
         return True
 
+    if music_wave_active():
+        action = transport_intent(text)
+        if action:
+            log("транспорт: %s <- %r" % (action, text))
+            problem = music_transport(action)
+            if problem:
+                say(problem)
+            return True
+
     if music_voice_on():
         music = music_intent(text)
         if not music and music_default() and bare_music_request(text):
@@ -1351,12 +1360,93 @@ def music_wave_start(service):
     return ""
 
 
+def music_wave_active():
+    queue = music_queue_load()
+    return bool(queue.get("tracks"))
+
+
+TRANSPORT_WORDS = (
+    ("stop", ("стоп", "хватит", "останови", "выключи музыку", "замолчи")),
+    ("pause", ("пауза", "паузу", "приостанови")),
+    ("resume", ("продолжи", "продолжай", "сними паузу")),
+    ("next", ("дальше", "следующ", "другую песню", "другой трек")),
+    ("prev", ("назад", "предыдущ")),
+)
+
+
+def transport_intent(text):
+    low = normalize(text)
+    if not low:
+        return None
+    for action, words in TRANSPORT_WORDS:
+        if any(word in low for word in words):
+            return action
+    return None
+
+
+def media_control(action):
+    try:
+        post(BASE + "/cgi-bin/media.py", {"action": action}, timeout=15)
+    except Exception as exc:  # noqa: BLE001
+        log("транспорт: %s не сработал: %s" % (action, exc))
+
+
+def music_transport(action):
+    """Стоп/пауза/дальше для нашей волны. Возвращает текст ошибки или ''."""
+    queue = music_queue_load()
+    if not queue.get("tracks"):
+        return "Волна не играет"
+    if action == "stop":
+        media_control("stop")
+        music_queue_clear()
+        log("волна: остановлена")
+        return ""
+    if action == "pause":
+        queue["paused"] = True
+        music_queue_save(queue)
+        media_control("pause")
+        log("волна: пауза")
+        return ""
+    if action == "resume":
+        queue["paused"] = False
+        queue["started_at"] = time.time()
+        queue["seen"] = True
+        queue["last_playing"] = time.time()
+        music_queue_save(queue)
+        media_control("play")
+        log("волна: продолжаю")
+        return ""
+    tracks = queue.get("tracks") or []
+    index = int(queue.get("index") or 0)
+    if action == "next":
+        index += 1
+        if index >= len(tracks):
+            try:
+                tracks = music_fetch(queue["service"], queue.get("mode"))
+            except Exception:  # noqa: BLE001
+                tracks = []
+            if not tracks:
+                return "Дальше нечего"
+            queue["tracks"] = tracks
+            index = 0
+    elif action == "prev":
+        index = max(0, index - 1)
+    queue["index"] = index
+    queue["paused"] = False
+    music_queue_save(queue)
+    try:
+        music_queue_play(queue)
+    except Exception as exc:  # noqa: BLE001
+        return "Не удалось переключить: %s" % str(exc)[:80]
+    return ""
+
+
 def music_wave_loop():
     """Переключать треки, когда текущий закончился: имитация волны."""
     while True:
         time.sleep(3)
         queue = music_queue_load()
-        if not queue or not queue.get("tracks"):
+        if not queue or not queue.get("tracks") or queue.get("paused"):
             continue
         try:
             snap = post(BASE + "/cgi-bin/player.py", {}, timeout=8) or {}
@@ -1430,6 +1520,8 @@ def passive_wants(text, llm_on=None):
         # «включи радио …» Алиса делает сама (см. perform).
         return intent[0] != "radio"
     if llm_switch_may_match(text):
+        return True
+    if music_wave_active() and transport_intent(text):
         return True
     if music_voice_on():
         if music_intent(text) or (music_default() and bare_music_request(text)):
