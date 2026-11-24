@@ -155,6 +155,20 @@ def now_playing_clear():
         pass
 
 
+SERVICE_STATES = {
+    "zvuk": "/data/mypult/zvuk_state.json",
+    "youtube": "/data/mypult/youtube_state.json",
+    "soundcloud": "/data/mypult/soundcloud_state.json",
+}
+
+
+def clear_other_states(current):
+    """Запустили один сервис — сбрасываем «сейчас играет» у остальных."""
+    for name, path in SERVICE_STATES.items():
+        if name != current:
+            write_json(path, {})
+
+
 def write_json(path, data, mode=0o600, **kwargs):
     """Атомарно записать JSON: уникальный временный файл + rename."""
     folder = os.path.dirname(path)

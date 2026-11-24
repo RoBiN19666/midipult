@@ -147,6 +147,7 @@ def _play(data):
         "stream": local,
     }
     _save_state(state)
+    common.clear_other_states("zvuk")
     common.now_playing({"service": "zvuk", "id": track_id,
                         "title": title, "artist": artist,
                         "cover": str(data.get("cover") or ""),

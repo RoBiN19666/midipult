@@ -11664,6 +11664,10 @@ body.light dialog.queue-dlg.ym-look{
       if (!found) return;
       panes.forEach(function (pane) { pane.hidden = pane.dataset.providerPane !== name; });
       store.set('musicProvider', name);
+      // Статус соседнего сервиса мог устареть: обновляем при открытии вкладки.
+      if (name === 'zvuk' && typeof zvukLoadStatus === 'function') zvukLoadStatus();
+      else if (name === 'ext' && typeof extLoadStatus === 'function') extLoadStatus();
+      else if (name === 'spotify' && typeof spotifyLoadStatus === 'function') spotifyLoadStatus();
     }
     tabs.forEach(function (tab) {
       tab.addEventListener('click', function () {

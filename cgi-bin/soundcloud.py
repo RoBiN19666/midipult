@@ -192,6 +192,7 @@ def main():
                             "title": title, "artist": artist,
                             "cover": str(data.get("cover") or ""),
                             "duration": common.to_int(data.get("duration"), 0)})
+        common.clear_other_states("soundcloud")
         common.ok(playing=True, track=state)
         return
 
