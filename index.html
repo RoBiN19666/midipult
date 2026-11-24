@@ -4677,9 +4677,15 @@ body.light dialog.queue-dlg.ym-look{
   /* ─────────── кастомные выпадающие списки ─────────── */
   var ddCounter = 0;
   var ddPlacers = [];
+  var ddSync = [];
 
   function refreshDropdowns() {
     Array.prototype.forEach.call(ddPlacers, function (fn) {
+      try { fn(); } catch (e) {}
+    });
+    // Значение селекта могли выставить программно: change при этом не
+    // приходит, и подпись кастомного списка оставалась старой.
+    ddSync.forEach(function (fn) {
       try { fn(); } catch (e) {}
     });
   }
@@ -4822,6 +4828,8 @@ body.light dialog.queue-dlg.ym-look{
       if (open) { render(); place(); }
       else { place(); }
     }
+    ddSync.push(sync);
+    sync();
 
     button.addEventListener('click', function () {
       if (open) close(); else openPanel();
@@ -10206,6 +10214,9 @@ body.light dialog.queue-dlg.ym-look{
         el.voiceMusicDefault.value = data.music_default || '';
         el.voiceMusicDefault.disabled = !data.music_voice;
       }
+      // Селекты усилены кастомными списками: после программной установки
+      // значения нужно обновить их подписи, иначе видно старый пункт.
+      if (typeof refreshDropdowns === 'function') refreshDropdowns();
     }).catch(function (err) {
       el.voiceDaemonStatus.textContent = err.message;
     });

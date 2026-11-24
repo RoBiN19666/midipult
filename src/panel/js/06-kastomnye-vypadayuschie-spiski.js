@@ -1,9 +1,15 @@
   /* ─────────── кастомные выпадающие списки ─────────── */
   var ddCounter = 0;
   var ddPlacers = [];
+  var ddSync = [];
 
   function refreshDropdowns() {
     Array.prototype.forEach.call(ddPlacers, function (fn) {
+      try { fn(); } catch (e) {}
+    });
+    // Значение селекта могли выставить программно: change при этом не
+    // приходит, и подпись кастомного списка оставалась старой.
+    ddSync.forEach(function (fn) {
       try { fn(); } catch (e) {}
     });
   }
@@ -146,6 +152,8 @@
       if (open) { render(); place(); }
       else { place(); }
     }
+    ddSync.push(sync);
+    sync();
 
     button.addEventListener('click', function () {
       if (open) close(); else openPanel();

@@ -73,6 +73,9 @@
         el.voiceMusicDefault.value = data.music_default || '';
         el.voiceMusicDefault.disabled = !data.music_voice;
       }
+      // Селекты усилены кастомными списками: после программной установки
+      // значения нужно обновить их подписи, иначе видно старый пункт.
+      if (typeof refreshDropdowns === 'function') refreshDropdowns();
     }).catch(function (err) {
       el.voiceDaemonStatus.textContent = err.message;
     });
