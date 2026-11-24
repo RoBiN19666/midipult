@@ -1928,17 +1928,30 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
 .c-led .led-hint{text-align:center}
 .c-led .led-controls{justify-content:center}
 .c-led .chips{justify-content:center}
-.mobile-tabs-btn{display:none;width:100%;max-width:520px;margin:0 auto 12px;height:44px;
-  align-items:center;justify-content:space-between;gap:10px;padding:0 16px;
-  border-radius:14px;border:1px solid var(--stroke);background:rgba(18,22,34,.9);
-  color:var(--text);font:inherit;font-size:14px;cursor:pointer}
-.mobile-tabs-menu{display:none;gap:4px;width:100%;max-width:520px;margin:0 auto 12px;
-  padding:6px;border-radius:14px;border:1px solid var(--stroke);background:#121724;
-  box-shadow:0 18px 40px rgba(0,0,0,.5)}
-.mobile-tabs-menu[hidden]{display:none}
-.mobile-tabs-menu button{height:40px;text-align:left;padding:0 12px;border:0;border-radius:10px;
-  background:transparent;color:var(--text);font:inherit;font-size:14px}
-.mobile-tabs-menu button[aria-pressed="true"]{background:rgba(124,92,255,.22)}
+.mobile-tabs-btn{display:none;width:100%;max-width:560px;margin:0 auto 12px;height:48px;
+  align-items:center;gap:10px;padding:0 16px;
+  border-radius:16px;border:1px solid var(--stroke);
+  background:linear-gradient(160deg,rgba(124,92,255,.16),rgba(255,255,255,.04));
+  color:var(--text);font:inherit;font-size:15px;font-weight:600;cursor:pointer;
+  box-shadow:0 8px 24px rgba(0,0,0,.28)}
+.mobile-tabs-btn .alarm-caret{margin-left:auto;transition:transform .22s}
+.mobile-tabs-btn[aria-expanded="true"] .alarm-caret{transform:rotate(180deg)}
+.mobile-tabs-menu{display:none;position:fixed;z-index:120;gap:6px;padding:8px;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  border-radius:16px;border:1px solid var(--stroke);
+  background:rgba(16,20,32,.97);backdrop-filter:blur(12px);
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  overflow:auto;overscroll-behavior:contain}
+.mobile-tabs-menu[hidden]{display:none!important}
+.mobile-tabs-menu:not([hidden]){animation:mobileMenuIn .16s ease}
+@keyframes mobileMenuIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.mobile-tabs-menu button{height:42px;text-align:left;padding:0 12px;border:1px solid transparent;
+  border-radius:12px;background:rgba(255,255,255,.04);color:var(--text);
+  font:inherit;font-size:13px;display:flex;align-items:center;gap:8px}
+.mobile-tabs-menu button:hover{background:rgba(255,255,255,.09)}
+.mobile-tabs-menu button[aria-pressed="true"]{
+  background:linear-gradient(135deg,rgba(124,92,255,.55),rgba(34,211,238,.28));
+  border-color:rgba(124,92,255,.4);color:#fff}
 @media(max-width:900px){
   .c-home-model,.c-home-side{grid-column:span 12}
   .station-stage{height:430px}
@@ -1962,10 +1975,6 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
      оказывался за пределами экрана без возможности прокрутить. */
   body[data-tab="home"]{display:block;height:auto;min-height:100dvh;overflow:visible}
   body[data-tab="home"] .mobile-tabs-btn{flex:0 0 auto;margin-bottom:8px}
-  body[data-tab="home"] .mobile-tabs-menu{
-    position:absolute;left:12px;right:12px;top:166px;z-index:80;
-    max-height:calc(100dvh - 180px);overflow:auto;margin:0;
-  }
   body[data-tab="home"] main.grid{
     display:flex;flex-direction:column;align-items:stretch;gap:10px;
     margin:8px auto 0;width:100%;
@@ -17346,11 +17355,30 @@ body.light dialog.queue-dlg.ym-look{
       });
       menu.appendChild(item);
     });
+    function placeMenu() {
+      if (menu.hidden) return;
+      var rect = button.getBoundingClientRect();
+      var width = Math.min(Math.max(rect.width, 240), window.innerWidth - 24);
+      var left = Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
+      var top = rect.bottom + 8;
+      menu.style.left = Math.round(left) + 'px';
+      menu.style.top = Math.round(top) + 'px';
+      menu.style.width = Math.round(width) + 'px';
+      menu.style.maxHeight = Math.max(120, window.innerHeight - top - 12) + 'px';
+    }
+
     button.addEventListener('click', function (event) {
       event.stopPropagation();
       menu.hidden = !menu.hidden;
       button.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+      if (!menu.hidden) placeMenu();
     });
+    window.addEventListener('resize', placeMenu);
+    window.addEventListener('scroll', function () {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    }, true);
     menu.addEventListener('click', function (event) { event.stopPropagation(); });
     document.addEventListener('click', function (event) {
       if (!event.target.closest('#btnMobileTabs') && !event.target.closest('#mobileTabsMenu')) {

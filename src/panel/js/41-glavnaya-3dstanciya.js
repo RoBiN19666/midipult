@@ -1033,11 +1033,30 @@
       });
       menu.appendChild(item);
     });
+    function placeMenu() {
+      if (menu.hidden) return;
+      var rect = button.getBoundingClientRect();
+      var width = Math.min(Math.max(rect.width, 240), window.innerWidth - 24);
+      var left = Math.min(Math.max(12, rect.left), window.innerWidth - width - 12);
+      var top = rect.bottom + 8;
+      menu.style.left = Math.round(left) + 'px';
+      menu.style.top = Math.round(top) + 'px';
+      menu.style.width = Math.round(width) + 'px';
+      menu.style.maxHeight = Math.max(120, window.innerHeight - top - 12) + 'px';
+    }
+
     button.addEventListener('click', function (event) {
       event.stopPropagation();
       menu.hidden = !menu.hidden;
       button.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+      if (!menu.hidden) placeMenu();
     });
+    window.addEventListener('resize', placeMenu);
+    window.addEventListener('scroll', function () {
+      if (menu.hidden) return;
+      menu.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+    }, true);
     menu.addEventListener('click', function (event) { event.stopPropagation(); });
     document.addEventListener('click', function (event) {
       if (!event.target.closest('#btnMobileTabs') && !event.target.closest('#mobileTabsMenu')) {
