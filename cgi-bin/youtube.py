@@ -238,12 +238,17 @@ def main():
             _stop_hls()
             _save_state({})
             raise RuntimeError("Поток не запустился: %s" % exc)
+        common.now_playing({"service": "youtube", "id": track_id,
+                            "title": title, "artist": artist,
+                            "cover": str(data.get("cover") or ""),
+                            "duration": common.to_int(data.get("duration"), 0)})
         common.ok(playing=True, track=state)
         return
 
     if action == "stop":
         _stop_hls()
         _save_state({})
+        common.now_playing_clear()
         common.ok(playing=False)
         return
 

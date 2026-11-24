@@ -1240,7 +1240,7 @@ def music_play(intent):
         else:
             payload = {"action": "play", "id": track.get("id"),
                        "title": track.get("title"),
-                       "artist": track.get("artist"),
+                       "artist": track.get("artist") or track.get("artists"),
                        "cover": track.get("cover"),
                        "duration": track.get("duration")}
         post(BASE + "/cgi-bin/%s.py" % service, payload, timeout=90)
@@ -1285,7 +1285,8 @@ def music_payload(service, track):
         return {"action": "play", "url": track.get("url"),
                 "title": track.get("title"), "artist": track.get("artist")}
     return {"action": "play", "id": track.get("id"),
-            "title": track.get("title"), "artist": track.get("artist"),
+            "title": track.get("title"),
+            "artist": track.get("artist") or track.get("artists"),
             "cover": track.get("cover"), "duration": track.get("duration")}
 
 

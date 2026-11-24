@@ -135,6 +135,26 @@ def read_json(path, default=None):
         return default
 
 
+NOW_PLAYING_PATH = "/data/mypult/now_playing.json"
+
+
+def now_playing(data=None):
+    """Название/обложка нашего потока: Glagol их в playerState не отдаёт."""
+    if data is None:
+        return read_json(NOW_PLAYING_PATH, {}) or {}
+    payload = dict(data or {})
+    payload["at"] = time.time()
+    write_json(NOW_PLAYING_PATH, payload, mode=0o600)
+    return payload
+
+
+def now_playing_clear():
+    try:
+        os.unlink(NOW_PLAYING_PATH)
+    except OSError:
+        pass
+
+
 def write_json(path, data, mode=0o600, **kwargs):
     """Атомарно записать JSON: уникальный временный файл + rename."""
     folder = os.path.dirname(path)

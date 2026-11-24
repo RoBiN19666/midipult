@@ -55,7 +55,7 @@ def snapshot(force=False):
         age = 0.0
     player = state.get("playerState") or {}
     extra = player.get("extra") or {}
-    return {
+    result = {
         "playing": bool(state.get("playing")),
         "alice": state.get("aliceState"),
         "volume": state.get("volume"),
@@ -73,6 +73,21 @@ def snapshot(force=False):
         "next_id": ((player.get("entityInfo") or {}).get("next") or {}).get("id"),
         "age": round(age, 2),
     }
+    # Glagol не отдаёт название и обложку для наших внешних потоков:
+    # подставляем данные из отметки сервиса, если длительность совпадает.
+    marker = common.now_playing()
+    if result["playing"] and marker:
+        mark_duration = float(marker.get("duration") or 0)
+        player_duration = float(result.get("duration") or 0)
+        same = (not mark_duration or not player_duration or
+                abs(mark_duration - player_duration) <= 2)
+        fresh = time.time() - float(marker.get("at") or 0) < 6 * 3600
+        if same and fresh:
+            result["title"] = marker.get("title") or result["title"]
+            result["artist"] = marker.get("artist") or result["artist"]
+            result["cover"] = marker.get("cover") or result["cover"]
+            result["id"] = marker.get("id") or result["id"]
+    return result
 
 
 def main():

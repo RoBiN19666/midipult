@@ -188,11 +188,16 @@ def main():
         if last_error is not None:
             _save_state({})
             raise RuntimeError("Поток не запустился: %s" % last_error)
+        common.now_playing({"service": "soundcloud", "id": track_id,
+                            "title": title, "artist": artist,
+                            "cover": str(data.get("cover") or ""),
+                            "duration": common.to_int(data.get("duration"), 0)})
         common.ok(playing=True, track=state)
         return
 
     if action == "stop":
         _save_state({})
+        common.now_playing_clear()
         common.ok(playing=False)
         return
 

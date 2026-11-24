@@ -147,6 +147,10 @@ def _play(data):
         "stream": local,
     }
     _save_state(state)
+    common.now_playing({"service": "zvuk", "id": track_id,
+                        "title": title, "artist": artist,
+                        "cover": str(data.get("cover") or ""),
+                        "duration": common.to_int(data.get("duration"), 0)})
     return {"playing": True, "track": state}
 
 
@@ -182,6 +186,7 @@ def main():
 
     if action == "stop":
         _clear_state()
+        common.now_playing_clear()
         common.ok(playing=False, track={})
         return
 
