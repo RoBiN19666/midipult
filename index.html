@@ -3447,7 +3447,18 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
       <div class="zvuk-search">
         <input id="zvukQuery" class="net-input" placeholder="Трек, альбом или исполнитель" autocomplete="off">
         <button class="btn sm" id="btnZvukSearch">Найти</button>
+      </div>
+      <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">
+        <select id="zvukMood" class="net-input" style="max-width:150px" aria-label="Настроение волны">
+          <option value="">Волна</option>
+          <option value="pop">Поп</option>
+          <option value="rock">Рок</option>
+          <option value="calm">Спокойное</option>
+          <option value="dance">Танцевальное</option>
+          <option value="new">Новое</option>
+        </select>
         <button class="btn sm ghost" id="btnZvukWave">Мой поток</button>
+        <button class="btn sm ghost" id="btnZvukWaveStop">Стоп волны</button>
       </div>
       <div class="zvuk-now" id="zvukNow"></div>
       <div class="zvuk-results" id="zvukResults"></div>
@@ -3458,6 +3469,22 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
       <div class="zvuk-search">
         <input id="extQuery" class="net-input" placeholder="Трек или исполнитель — ищем в двух сервисах" autocomplete="off">
         <button class="btn sm" id="btnExtSearch">Найти</button>
+      </div>
+      <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">
+        <select id="extWaveService" class="net-input" style="max-width:140px" aria-label="Сервис волны">
+          <option value="youtube">YouTube</option>
+          <option value="soundcloud">SoundCloud</option>
+        </select>
+        <select id="extMood" class="net-input" style="max-width:150px" aria-label="Настроение волны">
+          <option value="">Волна</option>
+          <option value="pop">Поп</option>
+          <option value="rock">Рок</option>
+          <option value="calm">Спокойное</option>
+          <option value="dance">Танцевальное</option>
+          <option value="new">Новое</option>
+        </select>
+        <button class="btn sm ghost" id="btnExtWave">Волна</button>
+        <button class="btn sm ghost" id="btnExtWaveStop">Стоп волны</button>
       </div>
       <div class="zvuk-status" id="extStatus">Готово к поиску</div>
       <div class="zvuk-now" id="extNow"></div>
@@ -12119,10 +12146,15 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
   }
 
   function zvukWave() {
-    zvukSetStatus('Запускаю «Мой поток»…');
-    cgi('zvuk.py', { action: 'wave', count: 15 }, { timeout: 30000 })
-      .then(function (data) { zvukRender(data.tracks || []); zvukSetStatus('Мой поток готов'); })
-      .catch(function (err) { zvukSetStatus('Ошибка: ' + err.message, 'bad'); });
+    var mood = el.zvukMood ? el.zvukMood.value : '';
+    zvukSetStatus('Запускаю волну…');
+    return cgi('wave.py', { action: 'start', service: 'zvuk', mode: 'wave', mood: mood },
+      { timeout: 90000 })
+      .then(function (data) {
+        zvukSetStatus(data.title ? ('Играет: ' + data.title) : 'Волна запущена');
+        if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
+      })
+      .catch(function (err) { zvukSetStatus('Волна: ' + err.message, 'bad'); });
   }
 
   /* ─────────── YouTube Music / Spotify ─────────── */
@@ -16607,6 +16639,9 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
     });
     if (el.btnZvukSearch) el.btnZvukSearch.addEventListener('click', zvukSearch);
     if (el.btnZvukWave) el.btnZvukWave.addEventListener('click', zvukWave);
+    if (el.btnZvukWaveStop) el.btnZvukWaveStop.addEventListener('click', waveStop);
+    if (el.btnExtWave) el.btnExtWave.addEventListener('click', extWave);
+    if (el.btnExtWaveStop) el.btnExtWaveStop.addEventListener('click', waveStop);
     if (el.btnZvukSite) el.btnZvukSite.addEventListener('click', function () {
       window.open('https://zvuk.com/', '_blank', 'noopener');
     });
@@ -18285,7 +18320,8 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
       'filesNote', 'filesList', 'filesEditor', 'filesEditorName', 'filesText',
       'btnFilesSave', 'btnFilesEditorClose', 'btnFilesRename',
       'zvukToken', 'btnZvukSave', 'btnZvukClear', 'zvukStatus', 'zvukQuery',
-      'btnZvukSearch', 'btnZvukWave', 'zvukResults', 'zvukNow', 'btnZvukSite', 'btnZvukProfile',
+      'btnZvukSearch', 'btnZvukWave', 'btnZvukWaveStop', 'zvukMood', 'zvukResults', 'zvukNow', 'btnZvukSite', 'btnZvukProfile',
+      'btnExtWave', 'btnExtWaveStop', 'extMood', 'extWaveService',
       'spotifyId', 'spotifySecret', 'btnSpotifySave', 'btnSpotifyClear', 'spotifyStatus',
       'spotifyQuery', 'btnSpotifySearch', 'spotifyResults',
       'extQuery', 'btnExtSearch', 'extStatus', 'extNow', 'extResults',
@@ -18405,6 +18441,33 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
     init();
   }
 })();
+  /* ─────────── волна сервисов ─────────── */
+  function waveStop() {
+    return cgi('wave.py', { action: 'stop' }, { timeout: 30000 }).then(function () {
+      toast('Волна остановлена', 'ok');
+      if (typeof extSetStatus === 'function') extSetStatus('Волна остановлена');
+      if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
+    }).catch(function (err) {
+      toast('Волна: ' + err.message, 'bad');
+    });
+  }
+
+  function extWave() {
+    var service = el.extWaveService ? el.extWaveService.value : 'youtube';
+    var mood = el.extMood ? el.extMood.value : '';
+    if (typeof extSetStatus === 'function') extSetStatus('Запускаю волну…');
+    return cgi('wave.py', {
+      action: 'start', service: service, mode: 'wave', mood: mood
+    }, { timeout: 120000 }).then(function (data) {
+      if (typeof extSetStatus === 'function') {
+        extSetStatus(data.title ? ('Играет: ' + data.title) : 'Волна запущена', 'ok');
+      }
+      if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
+    }).catch(function (err) {
+      if (typeof extSetStatus === 'function') extSetStatus('Волна: ' + err.message, 'bad');
+      toast('Волна: ' + err.message, 'bad');
+    });
+  }
 </script>
 <noscript><p style="text-align:center;color:#f88">Для работы пульта нужен JavaScript.</p></noscript>
 <dialog id="filesDlg" class="files-dlg" aria-labelledby="filesTitle">

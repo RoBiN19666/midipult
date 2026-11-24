@@ -134,9 +134,14 @@
   }
 
   function zvukWave() {
-    zvukSetStatus('Запускаю «Мой поток»…');
-    cgi('zvuk.py', { action: 'wave', count: 15 }, { timeout: 30000 })
-      .then(function (data) { zvukRender(data.tracks || []); zvukSetStatus('Мой поток готов'); })
-      .catch(function (err) { zvukSetStatus('Ошибка: ' + err.message, 'bad'); });
+    var mood = el.zvukMood ? el.zvukMood.value : '';
+    zvukSetStatus('Запускаю волну…');
+    return cgi('wave.py', { action: 'start', service: 'zvuk', mode: 'wave', mood: mood },
+      { timeout: 90000 })
+      .then(function (data) {
+        zvukSetStatus(data.title ? ('Играет: ' + data.title) : 'Волна запущена');
+        if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
+      })
+      .catch(function (err) { zvukSetStatus('Волна: ' + err.message, 'bad'); });
   }
 

@@ -36,6 +36,10 @@ try:
 except Exception:  # noqa: BLE001
     alarmd = None
 try:
+    import musicd_client
+except Exception:  # noqa: BLE001
+    musicd_client = None
+try:
     import voicecfg  # noqa: E402
 except Exception:  # noqa: BLE001
     voicecfg = None
@@ -903,7 +907,6 @@ def handle(text, request_id=""):
                 # Без названия: волна Звука или случайный поток у остальных.
                 problem = music_wave_start(music["service"])
             else:
-                music_queue_clear()
                 problem = music_play(music)
             if problem:
                 say(problem)
@@ -1212,7 +1215,7 @@ def music_service_ready(service):
     return ready
 
 
-def music_play(intent):
+def music_play_direct(intent):
     """Включить трек из сервиса. Возвращает текст ошибки или пустую строку."""
     service = str((intent or {}).get("service") or "")
     query = str((intent or {}).get("query") or "").strip() or "музыка"
@@ -1249,6 +1252,24 @@ def music_play(intent):
     except Exception as exc:  # noqa: BLE001
         return "%s не ответил: %s" % (name, str(exc)[:120])
     log("музыка запущена: %s <- %r" % (service, query))
+    return ""
+
+
+def music_play(intent):
+    """Seed-волна: запрошенный трек, затем похожее через musicd."""
+    service = str((intent or {}).get("service") or "").strip().lower()
+    query = str((intent or {}).get("query") or "").strip() or "музыка"
+    if musicd_client is None:
+        return music_play_direct(intent)
+    try:
+        result = musicd_client.call("start", {
+            "service": service, "mode": "seed", "query": query,
+        }, timeout=120)
+    except Exception as exc:  # noqa: BLE001
+        log("seed: musicd недоступен: %s" % str(exc)[:120])
+        return music_play_direct(intent)
+    if result.get("error"):
+        return "%s: %s" % (MUSIC_NAMES.get(service, service), result["error"])
     return ""
 
 
@@ -1333,37 +1354,28 @@ def music_queue_play(queue):
 
 
 def music_wave_start(service):
-    """Запустить «волну»: для Звука персональную, иначе случайный поиск."""
+    """Волна через musicd: персональная Звука или подборка остальных."""
     name = MUSIC_NAMES.get(service, service)
     if service == "spotify":
         return "Spotify пока не поддерживается: нужен Spotify Connect"
-    if not music_service_ready(service):
-        if service == "zvuk":
-            return "Сбер Звук не настроен: вставьте токен в карточке «Сбер Звук»"
-        return "%s не настроен: нет yt-dlp или ffmpeg" % name
-    mode = "wave" if service == "zvuk" else "random"
+    if musicd_client is None:
+        return "musicd не установлен"
     try:
-        tracks = music_fetch(service, mode)
-    except urllib.error.HTTPError as exc:
-        return "%s: %s" % (name, music_error_text(exc))
+        result = musicd_client.call("start", {"service": service, "mode": "wave"}, timeout=120)
     except Exception as exc:  # noqa: BLE001
         return "%s не ответил: %s" % (name, str(exc)[:120])
-    if not tracks:
-        return "Ничего не нашёл: %s" % name
-    queue = {"service": service, "mode": mode, "tracks": tracks,
-             "index": 0, "started_at": 0, "duration": 0, "seen": False,
-             "last_playing": 0}
-    try:
-        music_queue_play(queue)
-    except Exception as exc:  # noqa: BLE001
-        music_queue_clear()
-        return "%s не ответил: %s" % (name, str(exc)[:120])
+    if result.get("error"):
+        return "%s: %s" % (name, result["error"])
     return ""
 
 
 def music_wave_active():
-    queue = music_queue_load()
-    return bool(queue.get("tracks"))
+    if musicd_client is None:
+        return False
+    try:
+        return bool(musicd_client.status().get("active"))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 TRANSPORT_WORDS = (
@@ -1393,52 +1405,16 @@ def media_control(action):
 
 
 def music_transport(action):
-    """Стоп/пауза/дальше для нашей волны. Возвращает текст ошибки или ''."""
-    queue = music_queue_load()
-    if not queue.get("tracks"):
+    """Транспорт волны через musicd."""
+    if musicd_client is None:
         return "Волна не играет"
-    if action == "stop":
-        media_control("stop")
-        music_queue_clear()
-        log("волна: остановлена")
-        return ""
-    if action == "pause":
-        queue["paused"] = True
-        music_queue_save(queue)
-        media_control("pause")
-        log("волна: пауза")
-        return ""
-    if action == "resume":
-        queue["paused"] = False
-        queue["started_at"] = time.time()
-        queue["seen"] = True
-        queue["last_playing"] = time.time()
-        music_queue_save(queue)
-        media_control("play")
-        log("волна: продолжаю")
-        return ""
-    tracks = queue.get("tracks") or []
-    index = int(queue.get("index") or 0)
-    if action == "next":
-        index += 1
-        if index >= len(tracks):
-            try:
-                tracks = music_fetch(queue["service"], queue.get("mode"))
-            except Exception:  # noqa: BLE001
-                tracks = []
-            if not tracks:
-                return "Дальше нечего"
-            queue["tracks"] = tracks
-            index = 0
-    elif action == "prev":
-        index = max(0, index - 1)
-    queue["index"] = index
-    queue["paused"] = False
-    music_queue_save(queue)
     try:
-        music_queue_play(queue)
+        result = musicd_client.call(action, {}, timeout=60)
     except Exception as exc:  # noqa: BLE001
-        return "Не удалось переключить: %s" % str(exc)[:80]
+        return "Волна: %s" % str(exc)[:120]
+    if result.get("error"):
+        return result["error"]
+    log("волна: %s" % action)
     return ""
 
 
@@ -1653,7 +1629,6 @@ def main():
     except Exception:  # noqa: BLE001
         pass
     threading.Thread(target=llm_cache_loop, daemon=True).start()
-    threading.Thread(target=music_wave_loop, daemon=True).start()
     if alarmd is not None:
         try:
             alarmd.start()

@@ -1224,57 +1224,48 @@ def test_voice_music_play():
 
 
 def test_voice_music_wave():
-    old_path = voice_daemon.MUSIC_QUEUE_PATH
-    old_ready = voice_daemon.music_service_ready
-    old_post = voice_daemon.post
+    old_client = voice_daemon.musicd_client
     calls = []
+
+    class FakeClient:
+        def call(self, action, payload=None, timeout=None):
+            calls.append((action, dict(payload or {})))
+            return {"ok": True}
+
+        def status(self):
+            return {"active": True}
+
+    voice_daemon.musicd_client = FakeClient()
     try:
-        voice_daemon.MUSIC_QUEUE_PATH = os.path.join(
-            tempfile.mkdtemp(prefix="mypult-wave-"), "queue.json")
-        voice_daemon.music_service_ready = lambda service: True
-
-        def fake_post(url, payload, timeout=None):
-            calls.append((url.rsplit("/", 1)[-1], dict(payload)))
-            if payload.get("action") == "search":
-                return {"tracks": [
-                    {"id": "1", "title": "A", "duration": 100},
-                    {"id": "2", "title": "B", "duration": 120},
-                ]}
-            return {}
-
-        voice_daemon.post = fake_post
-        check("музыка: волна YouTube запускается",
+        check("музыка: волна YouTube через musicd",
               voice_daemon.music_wave_start("youtube") == "")
-        queue = voice_daemon.music_queue_load()
-        check("музыка: в очереди два трека",
-              len(queue.get("tracks") or []) == 2, str(queue))
-        check("музыка: играет первый", int(queue.get("index") or 0) == 0)
-        check("музыка: поиск и play вызваны",
-              [payload["action"] for _, payload in calls] == ["search", "play"],
-              str(calls))
-        voice_daemon.music_queue_clear()
+        check("музыка: start с mode=wave",
+              calls[-1][0] == "start" and calls[-1][1].get("mode") == "wave"
+              and calls[-1][1].get("service") == "youtube", str(calls))
+        check("музыка: seed-запрос уходит в musicd",
+              voice_daemon.music_play({"service": "youtube", "query": "джаз"}) == ""
+              and calls[-1][1].get("mode") == "seed"
+              and calls[-1][1].get("query") == "джаз", str(calls))
+        check("музыка: волна активна по статусу musicd",
+              voice_daemon.music_wave_active() is True)
     finally:
-        voice_daemon.MUSIC_QUEUE_PATH = old_path
-        voice_daemon.music_service_ready = old_ready
-        voice_daemon.post = old_post
+        voice_daemon.musicd_client = old_client
 
 
 def test_voice_music_transport():
-    old_path = voice_daemon.MUSIC_QUEUE_PATH
-    old_post = voice_daemon.post
-    old_fetch = voice_daemon.music_fetch
+    old_client = voice_daemon.musicd_client
     calls = []
+
+    class FakeClient:
+        def call(self, action, payload=None, timeout=None):
+            calls.append(action)
+            return {"ok": True}
+
+        def status(self):
+            return {"active": True}
+
+    voice_daemon.musicd_client = FakeClient()
     try:
-        voice_daemon.MUSIC_QUEUE_PATH = os.path.join(
-            tempfile.mkdtemp(prefix="mypult-tr-"), "queue.json")
-        voice_daemon.post = lambda url, payload, timeout=None: (
-            calls.append((url, dict(payload))) or {})
-        voice_daemon.music_fetch = lambda service, mode: []
-        voice_daemon.music_queue_save({
-            "service": "youtube", "mode": "random", "index": 0,
-            "tracks": [{"id": "1", "title": "A"}, {"id": "2", "title": "B"}],
-            "started_at": 0, "duration": 0, "seen": False, "last_playing": 0,
-        })
         check("транспорт: стоп", voice_daemon.transport_intent("стоп") == "stop")
         check("транспорт: пауза", voice_daemon.transport_intent("пауза") == "pause")
         check("транспорт: дальше", voice_daemon.transport_intent("дальше") == "next")
@@ -1283,20 +1274,14 @@ def test_voice_music_transport():
               voice_daemon.transport_intent("продолжи") == "resume")
         check("транспорт: чужая фраза",
               voice_daemon.transport_intent("как дела") is None)
-        check("транспорт: следующий трек",
-              voice_daemon.music_transport("next") == "")
-        check("транспорт: индекс стал 1",
-              int(voice_daemon.music_queue_load().get("index")) == 1)
+        check("транспорт: следующий через musicd",
+              voice_daemon.music_transport("next") == "" and calls[-1] == "next")
         voice_daemon.music_transport("pause")
-        check("транспорт: пауза ставит флаг",
-              voice_daemon.music_queue_load().get("paused") is True)
-        check("транспорт: стоп чистит очередь",
-              voice_daemon.music_transport("stop") == "" and
-              not voice_daemon.music_queue_load())
+        check("транспорт: пауза через musicd", calls[-1] == "pause")
+        voice_daemon.music_transport("stop")
+        check("транспорт: стоп через musicd", calls[-1] == "stop")
     finally:
-        voice_daemon.MUSIC_QUEUE_PATH = old_path
-        voice_daemon.post = old_post
-        voice_daemon.music_fetch = old_fetch
+        voice_daemon.musicd_client = old_client
 
 
 def test_zvuk_token_extract():

@@ -493,7 +493,18 @@
       <div class="zvuk-search">
         <input id="zvukQuery" class="net-input" placeholder="Трек, альбом или исполнитель" autocomplete="off">
         <button class="btn sm" id="btnZvukSearch">Найти</button>
+      </div>
+      <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">
+        <select id="zvukMood" class="net-input" style="max-width:150px" aria-label="Настроение волны">
+          <option value="">Волна</option>
+          <option value="pop">Поп</option>
+          <option value="rock">Рок</option>
+          <option value="calm">Спокойное</option>
+          <option value="dance">Танцевальное</option>
+          <option value="new">Новое</option>
+        </select>
         <button class="btn sm ghost" id="btnZvukWave">Мой поток</button>
+        <button class="btn sm ghost" id="btnZvukWaveStop">Стоп волны</button>
       </div>
       <div class="zvuk-now" id="zvukNow"></div>
       <div class="zvuk-results" id="zvukResults"></div>
@@ -504,6 +515,22 @@
       <div class="zvuk-search">
         <input id="extQuery" class="net-input" placeholder="Трек или исполнитель — ищем в двух сервисах" autocomplete="off">
         <button class="btn sm" id="btnExtSearch">Найти</button>
+      </div>
+      <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap">
+        <select id="extWaveService" class="net-input" style="max-width:140px" aria-label="Сервис волны">
+          <option value="youtube">YouTube</option>
+          <option value="soundcloud">SoundCloud</option>
+        </select>
+        <select id="extMood" class="net-input" style="max-width:150px" aria-label="Настроение волны">
+          <option value="">Волна</option>
+          <option value="pop">Поп</option>
+          <option value="rock">Рок</option>
+          <option value="calm">Спокойное</option>
+          <option value="dance">Танцевальное</option>
+          <option value="new">Новое</option>
+        </select>
+        <button class="btn sm ghost" id="btnExtWave">Волна</button>
+        <button class="btn sm ghost" id="btnExtWaveStop">Стоп волны</button>
       </div>
       <div class="zvuk-status" id="extStatus">Готово к поиску</div>
       <div class="zvuk-now" id="extNow"></div>

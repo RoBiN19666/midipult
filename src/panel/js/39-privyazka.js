@@ -637,6 +637,9 @@
     });
     if (el.btnZvukSearch) el.btnZvukSearch.addEventListener('click', zvukSearch);
     if (el.btnZvukWave) el.btnZvukWave.addEventListener('click', zvukWave);
+    if (el.btnZvukWaveStop) el.btnZvukWaveStop.addEventListener('click', waveStop);
+    if (el.btnExtWave) el.btnExtWave.addEventListener('click', extWave);
+    if (el.btnExtWaveStop) el.btnExtWaveStop.addEventListener('click', waveStop);
     if (el.btnZvukSite) el.btnZvukSite.addEventListener('click', function () {
       window.open('https://zvuk.com/', '_blank', 'noopener');
     });
