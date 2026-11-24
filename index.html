@@ -5755,6 +5755,7 @@ body.light dialog.queue-dlg.ym-look{
 
   function ymPlayTrack(track) {
     extYieldToOther();
+    if (typeof zvukShowNow === 'function') zvukShowNow(null);
     cgi('ymusic.py', {
       play: track.title || 'трек', id: track.id || '', type: 'track'
     }, { timeout: 20000 })
@@ -11589,6 +11590,8 @@ body.light dialog.queue-dlg.ym-look{
       .then(function (data) {
         zvukSetStatus('Играет: ' + ((data.track && data.track.title) || track.title || ''), 'ok');
         zvukShowNow(data.track || track);
+        // Запустили Звук — чужой «сейчас играет» у YouTube/SoundCloud убираем.
+        if (typeof extYieldToOther === 'function') extYieldToOther();
       })
       .catch(function (err) {
         zvukSetStatus('Ошибка: ' + err.message, 'bad');
@@ -11997,6 +12000,7 @@ body.light dialog.queue-dlg.ym-look{
       extApplyPlayer(played, source);
       State.extRemote = false;
       setProvDot('ext', 'ok');
+      if (typeof zvukShowNow === 'function') zvukShowNow(null);
     }).catch(function (err) {
       // Ошибка запуска не должна оставлять «сейчас играет» и «Остановить».
       extClearPlayer();

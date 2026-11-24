@@ -84,6 +84,8 @@
       .then(function (data) {
         zvukSetStatus('Играет: ' + ((data.track && data.track.title) || track.title || ''), 'ok');
         zvukShowNow(data.track || track);
+        // Запустили Звук — чужой «сейчас играет» у YouTube/SoundCloud убираем.
+        if (typeof extYieldToOther === 'function') extYieldToOther();
       })
       .catch(function (err) {
         zvukSetStatus('Ошибка: ' + err.message, 'bad');

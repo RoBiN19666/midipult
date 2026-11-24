@@ -836,6 +836,7 @@
 
   function ymPlayTrack(track) {
     extYieldToOther();
+    if (typeof zvukShowNow === 'function') zvukShowNow(null);
     cgi('ymusic.py', {
       play: track.title || 'трек', id: track.id || '', type: 'track'
     }, { timeout: 20000 })

@@ -172,7 +172,7 @@ def _start_hls(track_id, stream_url):
 
 
 def _state():
-    return common.read_json(STATE_PATH, {}) or {}
+    return common.service_state("youtube")
 
 
 def _save_state(data):

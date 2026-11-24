@@ -79,7 +79,7 @@ def _search(query, limit=12):
 
 
 def _state():
-    return common.read_json(STATE_PATH, {}) or {}
+    return common.service_state("soundcloud")
 
 
 def _save_state(data):

@@ -352,6 +352,7 @@
       extApplyPlayer(played, source);
       State.extRemote = false;
       setProvDot('ext', 'ok');
+      if (typeof zvukShowNow === 'function') zvukShowNow(null);
     }).catch(function (err) {
       // Ошибка запуска не должна оставлять «сейчас играет» и «Остановить».
       extClearPlayer();

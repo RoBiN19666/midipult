@@ -169,6 +169,37 @@ def clear_other_states(current):
             write_json(path, {})
 
 
+def player_snapshot():
+    """Снимок плеера через CGI: не тянем glagol в каждый сервисный статус."""
+    try:
+        with urllib.request.urlopen(
+                "http://127.0.0.1:8055/cgi-bin/player.py", timeout=4) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def service_state(name):
+    """Состояние сервиса, только если сейчас играет действительно он."""
+    path = SERVICE_STATES.get(name)
+    if not path:
+        return {}
+    data = read_json(path, {}) or {}
+    if not data:
+        return {}
+    marker = now_playing()
+    playing_service = str(marker.get("service") or "")
+    if playing_service and playing_service != name:
+        return {}
+    snap = player_snapshot()
+    if snap.get("playing"):
+        title = str(data.get("title") or "").strip().lower()
+        current = str(snap.get("title") or "").strip().lower()
+        if title and current and title not in current and current not in title:
+            return {}
+    return data
+
+
 def write_json(path, data, mode=0o600, **kwargs):
     """Атомарно записать JSON: уникальный временный файл + rename."""
     folder = os.path.dirname(path)
