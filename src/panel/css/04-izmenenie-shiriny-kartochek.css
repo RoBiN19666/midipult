@@ -8,5 +8,9 @@
 .card:hover .card-resize,.card-resize:focus-visible{opacity:.85}
 body.card-resizing,body.card-resizing *{cursor:nwse-resize!important;user-select:none}
 @media(max-width:760px){.card-resize{display:none}}
+/* Тач: наведения нет, поэтому уголок показываем всегда и делаем крупнее. */
+html.touch-ui .card-resize{opacity:.55;width:28px;height:28px;right:0;bottom:0}
+html.touch-ui .card-resize:active{opacity:.95}
+html.touch-ui .card-resize::before{width:12px;height:12px;right:6px;bottom:6px}
 
 
