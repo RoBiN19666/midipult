@@ -949,7 +949,6 @@
     var on = el.displayAuto.checked ? 1 : 0;
     var warning = '';
     return cgi('display.py', { display_auto_brightness: on }, { timeout: 10000 })
-      { timeout: 10000 })
       .then(function (data) {
         applyAutoConfig(data.auto || {}, data.mode || {});
         if (on) {
