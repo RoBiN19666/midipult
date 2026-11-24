@@ -292,6 +292,15 @@ def chunk_text(text, limit=1700):
     return chunks
 
 
+def answer_append(state):
+    """append=0 только когда Алиса говорит или думает.
+
+    При закрытом диалоге maind молча проглатывает директиву с append=0,
+    поэтому там нужна обычная очередь речи.
+    """
+    return 0 if str(state or "").strip().upper() in ("BUSY", "SPEAKING") else 1
+
+
 def say(text, append=1):
     if not text:
         return
@@ -473,6 +482,44 @@ def is_repeat(event, last, now):
     return age < REANNOUNCE_WINDOW and event.get("phase") in ("busy", "speaking")
 
 
+_LLM_SNAPSHOT = {"at": 0.0, "info": {}}
+LLM_CACHE_TTL = 15.0
+
+
+def refresh_llm_snapshot():
+    """Обновить снимок настроек нейросети. HTTP — только здесь, в фоне."""
+    try:
+        info = llm_info()
+    except Exception:  # noqa: BLE001
+        info = {}
+    if info:
+        _LLM_SNAPSHOT["info"] = info
+        _LLM_SNAPSHOT["at"] = time.time()
+    return _LLM_SNAPSHOT["info"]
+
+
+def llm_snapshot():
+    """Последний снимок без HTTP: на пути к отмене нельзя ждать CGI."""
+    return _LLM_SNAPSHOT.get("info") or {}
+
+
+def llm_enabled_cached():
+    info = llm_snapshot()
+    if not info:
+        return False
+    if "voice_enabled" in info:
+        return bool(info.get("voice_enabled"))
+    if "enabled" in info:
+        return bool(info.get("enabled"))
+    return bool((info.get("config") or {}).get("enabled"))
+
+
+def llm_cache_loop():
+    while True:
+        refresh_llm_snapshot()
+        time.sleep(LLM_CACHE_TTL)
+
+
 def llm_enabled():
     try:
         info = get(BASE + "/cgi-bin/llm.py?info=1")
@@ -548,9 +595,9 @@ def llm_info():
         return {}
 
 
-def llm_profile_target(text):
+def llm_profile_target(text, info=None):
     """Найти профиль LLM по фразе: имя, провайдер или известный синоним."""
-    info = llm_info()
+    info = llm_info() if info is None else info
     for profile in info.get("profiles") or []:
         candidates = [profile.get("name"), profile.get("provider"), profile.get("id")]
         candidates += list(LLM_ALIASES.get(profile.get("provider") or "", ()))
@@ -840,13 +887,14 @@ def handle(text, request_id=""):
         log("команда: %s %s <- %r" % (intent[0], intent[1], text))
         return perform(*intent)
 
-    if llm_enabled() and len(normalize(text)) > 2:
+    llm_on = llm_enabled_cached() if llm_snapshot() else llm_enabled()
+    if llm_on and len(normalize(text)) > 2:
         # «свет» — зона реле через «Дом с Алисой», в нейросеть не отправляем.
         if "свет" in normalize(text):
             log("свет: не отдаю в LLM")
             return False
         log("llm <- %r" % text)
-        info = llm_info()
+        info = llm_snapshot() or llm_info()
         long_answer = int(info.get("max_tokens") or 260) >= 600
         custom_prompt = str(info.get("system_prompt") or "").strip()
         if custom_prompt:
@@ -876,10 +924,15 @@ def handle(text, request_id=""):
         worker = threading.Thread(target=ask_model, daemon=True)
         started_at = time.time()
         worker.start()
-        # «Стоп» в момент распознавания приходит до старта её TTS — повторяем
-        # через секунду, когда директива уже активна.
-        time.sleep(1.2)
-        cancel_native_dialog()
+        if mic_mode_now() == "alice":
+            # В alice-режиме отмена уже ушла из passive_main; не тратим
+            # секунду на сон и не запускаем лишний процесс CLI.
+            cancel_native_dialog(fast=True)
+        else:
+            # «Стоп» в момент распознавания приходит до старта её TTS —
+            # повторяем через секунду, когда директива уже активна.
+            time.sleep(1.2)
+            cancel_native_dialog()
         worker.join(30)
 
         if "error" in box:
@@ -888,11 +941,14 @@ def handle(text, request_id=""):
         answer = box.get("answer")
         if answer:
             generation = time.time() - started_at
-            cancel_native_dialog()
+            if mic_mode_now() == "alice":
+                cancel_native_dialog(fast=True)
+            else:
+                cancel_native_dialog()
             # Чистим очередь TTS Алисы: на unmute её недоигранная фраза
             # возобновляется, и наш ответ встаёт за ней.
             hush_native()
-            say(answer)
+            say(answer, append=answer_append(alice_state()))
             log("llm answer: %d символов, генерация %.1f с"
                 % (len(answer), generation))
             # issue #2: после ответа слушаем продолжение без «Алисы».
@@ -1025,7 +1081,7 @@ def llm_switch_may_match(text):
                ("нейросет", "профил", "переключ", "включ", "выключ",
                 "отключ", "запуст")):
         return False
-    return bool(llm_profile_target(low))
+    return bool(llm_profile_target(low, llm_snapshot()))
 
 
 def passive_wants(text, llm_on=None):
@@ -1043,7 +1099,7 @@ def passive_wants(text, llm_on=None):
         return True
     if "свет" in low or native_keep(text):
         return False
-    return llm_enabled() if llm_on is None else bool(llm_on)
+    return llm_enabled_cached() if llm_on is None else bool(llm_on)
 
 
 def native_phrase(timeout_ms=25000):
@@ -1106,14 +1162,14 @@ def passive_main():
         if not passive_wants(text):
             log("Алисе: %r" % text)
             continue
-        # Отменяем до того, как придёт отложенный ответ Алисы AI.
+        # Сначала отмена — это единственное, что должно успеть до BUSY.
         # Глушим Алису сразу: отмена через Luna может опоздать на пару
         # секунд, а тишина в динамике — нет. say() вернёт звук перед TTS.
+        cancel_native_dialog(fast=True)
         try:
             post(BASE + "/cgi-bin/volume.py", {"mute": 1}, timeout=5)
         except Exception:  # noqa: BLE001
             pass
-        cancel_native_dialog(fast=True)
         log("перехват: %r (%s, alice=%s)"
             % (text, event.get("phase") or "?", alice_state() or "?"))
         try:
@@ -1161,6 +1217,12 @@ def main():
                                      if voicecfg else "continuous"))
     except Exception:  # noqa: BLE001
         pass
+    # Снимок нейросети нужен до первой фразы: на пути к отмене HTTP нельзя.
+    try:
+        refresh_llm_snapshot()
+    except Exception:  # noqa: BLE001
+        pass
+    threading.Thread(target=llm_cache_loop, daemon=True).start()
     if alarmd is not None:
         try:
             alarmd.start()

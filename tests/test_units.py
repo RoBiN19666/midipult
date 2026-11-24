@@ -1121,12 +1121,47 @@ def test_voice_auto_follow_up():
         voice_daemon.mic_mode_now = old_mode
 
 
+def test_voice_llm_cache():
+    old_info = voice_daemon.llm_info
+    old_snapshot = dict(voice_daemon._LLM_SNAPSHOT)
+    try:
+        voice_daemon.llm_info = lambda: {
+            "enabled": True, "profiles": [{"name": "DeepSeek", "provider": "deepseek"}]}
+        voice_daemon.refresh_llm_snapshot()
+        check("голос: снимок LLM видит включённую сеть",
+              voice_daemon.llm_enabled_cached() is True)
+
+        def broken():
+            raise OSError("no net")
+
+        voice_daemon.llm_info = broken
+        check("голос: включённость берётся из кэша без HTTP",
+              voice_daemon.llm_enabled_cached() is True)
+        check("голос: профиль ищется по кэшу",
+              bool(voice_daemon.llm_profile_target(
+                  "включи дипсик", voice_daemon.llm_snapshot())))
+    finally:
+        voice_daemon.llm_info = old_info
+        voice_daemon._LLM_SNAPSHOT.clear()
+        voice_daemon._LLM_SNAPSHOT.update(old_snapshot)
+
+
+def test_voice_answer_append():
+    check("голос: append=0 при BUSY", voice_daemon.answer_append("BUSY") == 0)
+    check("голос: append=0 при SPEAKING",
+          voice_daemon.answer_append("speaking") == 0)
+    check("голос: обычная очередь при IDLE",
+          voice_daemon.answer_append("IDLE") == 1)
+    check("голос: обычная очередь при пустом состоянии",
+          voice_daemon.answer_append("") == 1)
+
+
 def test_voice_passive_wants():
-    old_llm = voice_daemon.llm_enabled
+    old_llm = voice_daemon.llm_enabled_cached
     old_info = voice_daemon.llm_info
     try:
         voice_daemon.llm_info = lambda: {"profiles": []}
-        voice_daemon.llm_enabled = lambda: True
+        voice_daemon.llm_enabled_cached = lambda: True
         check("alice: вопрос уходит в нейросеть",
               voice_daemon.passive_wants("как дела"))
         check("alice: команда пульта забирается",
@@ -1139,13 +1174,13 @@ def test_voice_passive_wants():
               not voice_daemon.passive_wants("стоп"))
         check("alice: время остаётся Алисе",
               not voice_daemon.passive_wants("сколько времени"))
-        voice_daemon.llm_enabled = lambda: False
+        voice_daemon.llm_enabled_cached = lambda: False
         check("alice: без нейросети вопрос не забираем",
               not voice_daemon.passive_wants("как дела"))
         check("alice: без нейросети команды всё равно наши",
               voice_daemon.passive_wants("включи впн"))
     finally:
-        voice_daemon.llm_enabled = old_llm
+        voice_daemon.llm_enabled_cached = old_llm
         voice_daemon.llm_info = old_info
 
 
@@ -2722,6 +2757,8 @@ def main():
         test_voice_follow_up_closes_alice,
         test_voice_auto_follow_up,
         test_voice_passive_wants,
+        test_voice_llm_cache,
+        test_voice_answer_append,
         test_voice_native_phrase,
         test_status_probe_cache,
         test_lyrics_parse,
