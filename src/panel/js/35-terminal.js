@@ -1,178 +1,148 @@
-  /* ─────────── терминал ─────────── */
-  var TERM_KEY = 'mypult.term.sid';
-  var TERM_HIST = 'mypult.term.history';
-  var termCwd = '/data/myweb';
-  var termBusy = false;
-  var termHistory = [];
-  var termHistIndex = 0;
-  var termSid = '';
+  /* ─────────── интерактивный терминал ─────────── */
+  var term = null;
+  var termFit = null;
+  var termWs = null;
+  var termAssets = null;
 
-  function termInitSid() {
-    try {
-      termSid = localStorage.getItem(TERM_KEY) || '';
-    } catch (e) {}
-    if (!/^[a-z0-9]{8,32}$/.test(termSid)) {
-      var stamp = Date.now().toString(36) + Math.floor((window.performance && performance.now ? performance.now() : 0) * 1000).toString(36);
-      termSid = ('t' + stamp).replace(/[^a-z0-9]/g, '').slice(0, 24);
-      try { localStorage.setItem(TERM_KEY, termSid); } catch (e) {}
-    }
-    try {
-      var saved = JSON.parse(localStorage.getItem(TERM_HIST) || '[]');
-      if (Array.isArray(saved)) termHistory = saved.slice(-100);
-    } catch (e) { termHistory = []; }
-    termHistIndex = termHistory.length;
-  }
-
-  function termShortCwd() {
-    if (termCwd === '/data/myweb') return '~';
-    return termCwd || '/';
-  }
-
-  function termPrompt() {
-    if (el.termPrompt) el.termPrompt.textContent = 'root@midi:' + termShortCwd() + '#';
-  }
-
-  function termScroll() {
-    if (el.termOut) el.termOut.scrollTop = el.termOut.scrollHeight;
-  }
-
-  function termAppend(text, cls) {
-    if (!el.termOut || !text) return;
-    var node = document.createElement(cls ? 'span' : 'span');
-    if (cls) node.className = cls;
-    node.textContent = text;
-    el.termOut.appendChild(node);
-    if (el.termOut.textContent.length > 240000) {
-      el.termOut.textContent = el.termOut.textContent.slice(-160000);
-    }
-    termScroll();
-  }
-
-  function termClear() {
-    if (el.termOut) el.termOut.textContent = '';
-    if (el.termHint) el.termHint.textContent = '';
-    termPrompt();
-  }
-
-  function termHistorySave(cmd) {
-    if (!cmd) return;
-    if (termHistory[termHistory.length - 1] !== cmd) termHistory.push(cmd);
-    termHistory = termHistory.slice(-100);
-    try { localStorage.setItem(TERM_HIST, JSON.stringify(termHistory)); } catch (e) {}
-    termHistIndex = termHistory.length;
-  }
-
-  function termRun() {
-    if (termBusy || !el.termInput) return;
-    var cmd = (el.termInput.value || '').trim();
-    if (!cmd) return;
-    if (cmd === 'clear' || cmd === 'cls') {
-      el.termInput.value = '';
-      termClear();
-      return;
-    }
-    termBusy = true;
-    el.termInput.value = '';
-    if (el.termHint) el.termHint.textContent = '';
-    el.termInput.disabled = true;
-    if (el.btnTermRun) el.btnTermRun.disabled = true;
-    termAppend((el.termOut && el.termOut.textContent ? '\n' : '') +
-      'root@midi:' + termShortCwd() + '# ' + cmd + '\n', 'term-cmd');
-    termHistorySave(cmd);
-    return cgi('terminal.py', { cmd: cmd, sid: termSid }, { timeout: 40000 })
-      .then(function (data) {
-        if (data && typeof data.cwd === 'string' && data.cwd) termCwd = data.cwd;
-        var out = (data && data.out) || '';
-        if (out) termAppend(out.replace(/\s+$/, '\n'));
-        if (data && typeof data.code === 'number' && data.code !== 0) {
-          termAppend('[код ' + data.code + ']\n', 'term-code');
-        }
-        termPrompt();
-      })
-      .catch(function (err) {
-        termAppend('ошибка: ' + err.message + '\n', 'term-code');
-      })
-      .then(function () {
-        termBusy = false;
-        if (el.termInput) {
-          el.termInput.disabled = false;
-          el.termInput.focus();
-        }
-        if (el.btnTermRun) el.btnTermRun.disabled = false;
-      });
-  }
-
-  function termComplete() {
-    if (!el.termInput || termBusy) return;
-    var line = el.termInput.value;
-    return cgi('terminal.py', { complete: line, sid: termSid },
-      { timeout: 8000, silent: true }).then(function (data) {
-        if (!data) return;
-        if (typeof data.value === 'string') {
-          el.termInput.value = data.value;
-          var end = data.value.length;
-          try { el.termInput.setSelectionRange(end, end); } catch (e) {}
-        }
-        if (el.termHint) el.termHint.textContent = '';
-        var items = data.items || [];
-        if (items.length > 1) {
-          // Как в шелле: список совпадений печатаем в вывод.
-          termAppend(items.slice(0, 48).join('  ') + '\n', 'term-hintline');
-        }
-      }).catch(function () { /* дополнение не критично */ });
-  }
-
-  function termKeydown(event) {
-    if (event.key === 'Tab') {
-      event.preventDefault();
-      termComplete();
-      return;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      termRun();
-      return;
-    }
-    if (event.key === 'Escape') {
-      if (el.termHint) el.termHint.textContent = '';
-      return;
-    }
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      if (!termHistory.length) return;
-      event.preventDefault();
-      if (event.key === 'ArrowUp') termHistIndex = Math.max(0, termHistIndex - 1);
-      else termHistIndex = Math.min(termHistory.length, termHistIndex + 1);
-      if (el.termInput) {
-        el.termInput.value = termHistIndex >= termHistory.length
-          ? '' : termHistory[termHistIndex];
-        var end = el.termInput.value.length;
-        try { el.termInput.setSelectionRange(end, end); } catch (e) {}
+  function termLoadAssets() {
+    if (window.Terminal && window.FitAddon) return Promise.resolve();
+    if (termAssets) return termAssets;
+    termAssets = new Promise(function (resolve, reject) {
+      if (!document.querySelector('link[data-xterm]')) {
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/assets/xterm/xterm.css';
+        link.dataset.xterm = '1';
+        document.head.appendChild(link);
       }
+      function addon() {
+        var fit = document.createElement('script');
+        fit.src = '/assets/xterm/addon-fit.js';
+        fit.onload = function () { resolve(); };
+        fit.onerror = function () { reject(new Error('не загрузился addon-fit')); };
+        document.head.appendChild(fit);
+      }
+      var script = document.createElement('script');
+      script.src = '/assets/xterm/xterm.js';
+      script.onload = addon;
+      script.onerror = function () { reject(new Error('не загрузился xterm.js')); };
+      document.head.appendChild(script);
+    });
+    return termAssets;
+  }
+
+  function termSetStatus(text, kind) {
+    if (el.termStatus) el.termStatus.textContent = text;
+    if (el.termDlgStatus) el.termDlgStatus.textContent = text;
+    if (el.termDlgStatus) el.termDlgStatus.className = 'seg-note' + (kind ? ' ' + kind : '');
+  }
+
+  function termSend(payload) {
+    if (termWs && termWs.readyState === 1) {
+      termWs.send(JSON.stringify(payload));
     }
+  }
+
+  function termResize() {
+    if (!term || !termFit) return;
+    try { termFit.fit(); } catch (e) { return; }
+    termSend({ type: 'resize', cols: term.cols, rows: term.rows });
+  }
+
+  function termDisconnect() {
+    if (termWs) {
+      try { termWs.close(); } catch (e) {}
+      termWs = null;
+    }
+  }
+
+  function termConnect() {
+    termDisconnect();
+    var scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+    termSetStatus('подключаюсь…');
+    var socket;
+    try {
+      socket = new WebSocket(scheme + '://' + location.host + '/term');
+    } catch (e) {
+      termSetStatus('ошибка: ' + e.message, 'bad');
+      return;
+    }
+    termWs = socket;
+    socket.onopen = function () {
+      termSetStatus('подключено');
+      termResize();
+      if (term) term.focus();
+    };
+    socket.onmessage = function (event) {
+      if (term) term.write(event.data);
+    };
+    socket.onerror = function () {
+      termSetStatus('нет соединения: включён ли PIN?', 'bad');
+    };
+    socket.onclose = function () {
+      termSetStatus('закрыто');
+    };
+  }
+
+  function termEnsureTerm() {
+    if (term) return;
+    term = new Terminal({
+      fontSize: 13,
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+      cursorBlink: true,
+      convertEol: true,
+      scrollback: 4000,
+      theme: {
+        background: '#070a10',
+        foreground: '#cfe3ff',
+        cursor: '#22d3ee',
+        selectionBackground: 'rgba(124,92,255,.35)'
+      }
+    });
+    termFit = new FitAddon.FitAddon();
+    term.loadAddon(termFit);
+    term.open(el.termHost);
+    term.onData(function (data) { termSend({ type: 'input', data: data }); });
+    term.onResize(function (size) {
+      termSend({ type: 'resize', cols: size.cols, rows: size.rows });
+    });
+  }
+
+  function termOpen() {
+    return termLoadAssets().then(function () {
+      if (!el.termDlg) return;
+      if (!el.termDlg.open) el.termDlg.showModal();
+      termEnsureTerm();
+      requestAnimationFrame(function () {
+        termResize();
+        termConnect();
+      });
+    }).catch(function (err) {
+      termSetStatus('терминал: ' + err.message, 'bad');
+    });
+  }
+
+  function termFinish() {
+    termSend({ type: 'close' });
+    termDisconnect();
+    termSetStatus('сессия завершена');
+    if (term) term.reset();
+  }
+
+  function termCloseDialog() {
+    termDisconnect();
+    if (el.termDlg && el.termDlg.open) el.termDlg.close();
+    termSetStatus('не запущен');
   }
 
   function termInit() {
-    termInitSid();
-    termPrompt();
-    if (el.termWindow) {
-      el.termWindow.addEventListener('click', function (event) {
-        if (event.target.closest('button')) return;
-        if (el.termInput) el.termInput.focus();
-      });
+    if (el.btnTermOpen) el.btnTermOpen.addEventListener('click', termOpen);
+    if (el.btnTermFinish) el.btnTermFinish.addEventListener('click', termFinish);
+    if (el.btnTermClose) el.btnTermClose.addEventListener('click', termCloseDialog);
+    if (el.termDlg) {
+      el.termDlg.addEventListener('close', function () { termDisconnect(); });
     }
-    if (el.termInput) {
-      el.termInput.addEventListener('input', function () {
-        if (el.termHint) el.termHint.textContent = '';
-      });
-    }
-    if (el.termOut && !el.termOut.textContent) {
-      el.termOut.textContent = '';
-    }
-    cgi('terminal.py', { sid: termSid }, { timeout: 8000, silent: true })
-      .then(function (data) {
-        if (data && data.cwd) {
-          termCwd = data.cwd;
-          termPrompt();
-        }
-      }).catch(function () { /* сервер ответит при первой команде */ });
+    window.addEventListener('resize', function () {
+      if (el.termDlg && el.termDlg.open) termResize();
+    });
   }

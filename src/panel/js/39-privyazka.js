@@ -709,8 +709,6 @@
     el.btnPoweroff.addEventListener('click', doPoweroff);
     el.autoBright.addEventListener('change', toggleAutoBright);
     el.displayAuto.addEventListener('change', toggleDisplayAuto);
-    if (el.btnTermClear) el.btnTermClear.addEventListener('click', termClear);
-    if (el.termInput) el.termInput.addEventListener('keydown', termKeydown);
     if (el.btnDisplayCurve) el.btnDisplayCurve.addEventListener('click', curveOpen);
     if (el.btnCurveClose) el.btnCurveClose.addEventListener('click', curveClose);
     if (el.btnCurveAdd) el.btnCurveAdd.addEventListener('click', curveAdd);

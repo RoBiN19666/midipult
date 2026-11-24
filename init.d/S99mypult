@@ -498,6 +498,20 @@ start_vpn_auto() {
 # -------------------------------------------------------------------- main ---
 mkdir -p "$RUNDIR" 2>/dev/null
 
+start_termd() {
+    [ -f /data/mypult/termd.py ] || return 0
+    if pid_matches /tmp/mypult-termd.pid "termd.py"; then
+        return 0
+    fi
+    if is_listening 8898; then
+        return 0
+    fi
+    nohup /opt/bin/python3 /data/mypult/termd.py >>/tmp/mypult.log 2>&1 &
+    echo $! > /tmp/mypult-termd.pid
+    sleep 1
+    log "termd: запущен на 8898"
+}
+
 case "$1" in
     start)
         wait_root || exit 1
@@ -509,6 +523,7 @@ case "$1" in
         restore_volume
         start_voice
         start_state
+        start_termd
         start_ring_backlight
         start_dns_auto
         start_vpn_auto
@@ -523,6 +538,7 @@ case "$1" in
         start_web
         start_voice
         start_state
+        start_termd
         ;;
     watch)
         start_watchdog
@@ -541,6 +557,7 @@ case "$1" in
         restore_volume
         start_voice
         start_state
+        start_termd
         start_ring_backlight
         start_dns_auto
         start_vpn_auto
@@ -558,6 +575,7 @@ case "$1" in
         restore_volume
         start_voice
         start_state
+        start_termd
         start_watchdog
         ;;
     status)

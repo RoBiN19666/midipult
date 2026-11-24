@@ -1195,16 +1195,10 @@
 
   <section class="card c-term" data-group="system" aria-labelledby="h-term">
     <h2 id="h-term"><span class="dot"></span>Терминал</h2>
-    <div class="seg-note">Команды выполняются от root на колонке. Без TTY: vim, top и другие интерактивные программы не работают. Если PIN выключен, терминал доступен всем в локальной сети.</div>
-    <div class="term-window" id="termWindow">
-      <pre class="term-out" id="termOut" aria-live="polite"></pre>
-      <div class="term-hint" id="termHint"></div>
-      <div class="term-line">
-        <span class="term-prompt" id="termPrompt">#</span>
-        <input id="termInput" type="text" autocomplete="off" spellcheck="false"
-               autocapitalize="off" placeholder="ls -la">
-        <button class="btn sm ghost term-clear" id="btnTermClear" type="button">Очистить</button>
-      </div>
+    <div class="seg-note">Интерактивный терминал от root: top, vim, mc, Ctrl+C. Запускается только по кнопке; нужен включённый PIN.</div>
+    <div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" id="btnTermOpen" type="button">Запустить терминал</button>
+      <span class="seg-note" id="termStatus">не запущен</span>
     </div>
   </section>
 
@@ -1761,6 +1755,16 @@
     </div>
   </div>
 </dialog>
+<dialog id="termDlg" class="term-dlg" aria-labelledby="termDlgTitle">
+  <div class="term-dlg-head">
+    <b id="termDlgTitle">Терминал — root</b>
+    <span class="seg-note" id="termDlgStatus"></span>
+    <button class="btn sm ghost" id="btnTermFinish" type="button">Завершить</button>
+    <button class="btn sm ghost" id="btnTermClose" type="button">Закрыть</button>
+  </div>
+  <div class="term-host" id="termHost"></div>
+</dialog>
+
 <dialog id="curveDlg" class="alarm-dlg" aria-labelledby="curveDlgTitle">
   <div class="curve-dlg-head">
     <b id="curveDlgTitle">Кривая автояркости</b>
