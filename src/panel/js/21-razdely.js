@@ -6,7 +6,7 @@
   // Свёрнутое меню — только иконки; ширину раскрытия считаем по тексту,
   // чтобы CSS мог плавно анимировать width.
   function measureTabs() {
-    if (!el.tabs || window.innerWidth < 981) return;
+    if (!el.tabs || window.innerWidth < 761) return;
     Array.prototype.forEach.call(el.tabs.children, function (tab) {
       var label = tab.querySelector ? tab.querySelector('.tab-label') : null;
       if (!label) return;
@@ -23,6 +23,19 @@
 
   window.addEventListener('resize', measureTabs);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureTabs);
+
+  // Тип ввода: у мыши работает наведение, у пальца — первый тап раскрывает.
+  var tabInputTouch = !!(window.matchMedia &&
+    window.matchMedia('(hover: none), (pointer: coarse)').matches);
+
+  window.addEventListener('pointerdown', function (event) {
+    if (!event.pointerType) return;
+    tabInputTouch = event.pointerType !== 'mouse';
+  }, true);
+
+  function isTouchTabs() {
+    return tabInputTouch;
+  }
 
   function loadTabData(name) {
     if (name === 'home') {
@@ -276,6 +289,7 @@
       card.classList.toggle('is-hidden', card.dataset.group !== name);
     });
     Array.prototype.forEach.call(el.tabs.children, function (btn) {
+      btn.classList.remove('is-peek');
       btn.setAttribute('aria-pressed', String(btn.dataset.tab === name));
     });
     State.tab = name;

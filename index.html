@@ -2669,11 +2669,15 @@ body.light dialog.queue-dlg.ym-look{
 .tab .tab-icon svg{width:18px;height:18px;display:block}
 .tab .tab-label{white-space:nowrap}
 
-@media(min-width:981px){
-  .tabs{padding:8px;gap:6px;border-radius:22px}
+@media(min-width:761px){
+  .tabs{
+    display:flex;width:max-content;max-width:100%;padding:8px;gap:6px;
+    border-radius:22px;overflow-x:auto;
+  }
   .tab{
     width:52px;min-width:52px;height:50px;padding:0;border-radius:16px;
     gap:0;justify-content:flex-start;overflow:hidden;
+    background:transparent;border:0;font-size:13px;
     transition:width .28s cubic-bezier(.22,.7,.3,1), background .2s,
       box-shadow .2s, color .2s;
   }
@@ -2684,6 +2688,28 @@ body.light dialog.queue-dlg.ym-look{
     font-size:13px;font-weight:600;
     transition:opacity .16s ease, max-width .28s, padding .28s;
   }
+  .tab[aria-pressed="true"], .tab.is-peek{
+    width:var(--tab-open, 140px);color:var(--text);
+    background:rgba(255,255,255,.07);
+    box-shadow:0 8px 22px rgba(0,0,0,.35);
+  }
+  .tab[aria-pressed="true"]{
+    color:#fff;
+    background:linear-gradient(135deg,rgba(124,92,255,.55),rgba(34,211,238,.28));
+    box-shadow:0 8px 22px rgba(124,92,255,.35), inset 0 1px 0 rgba(255,255,255,.16);
+  }
+  .tab[aria-pressed="true"] .tab-label, .tab.is-peek .tab-label{
+    max-width:180px;opacity:1;padding-right:14px;
+  }
+  .tab[aria-pressed="true"] .tab-icon svg{transform:scale(1.06)}
+  .tab.is-peek .tab-icon svg{transform:scale(1.06)}
+  .tab:focus-visible{
+    width:var(--tab-open, 140px);outline:2px solid rgba(124,92,255,.7);outline-offset:2px;
+  }
+  .tab:focus-visible .tab-label{max-width:180px;opacity:1;padding-right:14px}
+}
+
+@media(min-width:761px) and (hover:hover) and (pointer:fine){
   .tab:hover{
     width:var(--tab-open, 140px);color:var(--text);
     background:rgba(255,255,255,.07);
@@ -2691,23 +2717,6 @@ body.light dialog.queue-dlg.ym-look{
   }
   .tab:hover .tab-icon svg{transform:scale(1.1)}
   .tab:hover .tab-label{max-width:180px;opacity:1;padding-right:14px}
-  .tab[aria-pressed="true"]{
-    width:var(--tab-open, 140px);color:#fff;
-    background:linear-gradient(135deg,rgba(124,92,255,.55),rgba(34,211,238,.28));
-    box-shadow:0 8px 22px rgba(124,92,255,.35), inset 0 1px 0 rgba(255,255,255,.16);
-  }
-  .tab[aria-pressed="true"] .tab-label{max-width:180px;opacity:1;padding-right:14px}
-  .tab[aria-pressed="true"] .tab-icon svg{transform:scale(1.06)}
-  .tab:focus-visible{
-    width:var(--tab-open, 140px);outline:2px solid rgba(124,92,255,.7);
-    outline-offset:2px;
-  }
-  .tab:focus-visible .tab-label{max-width:180px;opacity:1;padding-right:14px}
-}
-
-@media(max-width:980px){
-  .tab{gap:6px}
-  .tab .tab-label{font-size:12px}
 }
 </style>
 </head>
@@ -10552,7 +10561,7 @@ body.light dialog.queue-dlg.ym-look{
   // Свёрнутое меню — только иконки; ширину раскрытия считаем по тексту,
   // чтобы CSS мог плавно анимировать width.
   function measureTabs() {
-    if (!el.tabs || window.innerWidth < 981) return;
+    if (!el.tabs || window.innerWidth < 761) return;
     Array.prototype.forEach.call(el.tabs.children, function (tab) {
       var label = tab.querySelector ? tab.querySelector('.tab-label') : null;
       if (!label) return;
@@ -10569,6 +10578,19 @@ body.light dialog.queue-dlg.ym-look{
 
   window.addEventListener('resize', measureTabs);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(measureTabs);
+
+  // Тип ввода: у мыши работает наведение, у пальца — первый тап раскрывает.
+  var tabInputTouch = !!(window.matchMedia &&
+    window.matchMedia('(hover: none), (pointer: coarse)').matches);
+
+  window.addEventListener('pointerdown', function (event) {
+    if (!event.pointerType) return;
+    tabInputTouch = event.pointerType !== 'mouse';
+  }, true);
+
+  function isTouchTabs() {
+    return tabInputTouch;
+  }
 
   function loadTabData(name) {
     if (name === 'home') {
@@ -10822,6 +10844,7 @@ body.light dialog.queue-dlg.ym-look{
       card.classList.toggle('is-hidden', card.dataset.group !== name);
     });
     Array.prototype.forEach.call(el.tabs.children, function (btn) {
+      btn.classList.remove('is-peek');
       btn.setAttribute('aria-pressed', String(btn.dataset.tab === name));
     });
     State.tab = name;
@@ -16180,6 +16203,20 @@ body.light dialog.queue-dlg.ym-look{
     });
 
     /* разделы */
+    el.tabs.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.tab');
+      if (!btn || !btn.dataset.tab) return;
+      // Тач: первый тап раскрывает вкладку с подписью, второй — переключает.
+      if (!isTouchTabs()) return;
+      if (btn.getAttribute('aria-pressed') === 'true') return;
+      if (btn.classList.contains('is-peek')) return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      Array.prototype.forEach.call(el.tabs.children, function (other) {
+        other.classList.remove('is-peek');
+      });
+      btn.classList.add('is-peek');
+    }, true);
     el.tabs.addEventListener('click', function (ev) {
       var btn = ev.target.closest('.tab');
       if (btn && btn.dataset.tab) showTab(btn.dataset.tab);
