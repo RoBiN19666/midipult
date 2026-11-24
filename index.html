@@ -2497,6 +2497,7 @@ details[open] > *:not(summary){animation:detailsIn .2s ease-out}
 .prov-tab{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;
   border:1px solid var(--stroke);background:rgba(255,255,255,.045);color:var(--muted);
   font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.prov-tab[hidden]{display:none!important}
 .prov-tab:hover{color:var(--text);background:rgba(255,255,255,.08)}
 .prov-tab[aria-pressed="true"]{color:var(--text);border-color:rgba(124,92,255,.6);
   background:rgba(124,92,255,.18)}
@@ -3030,7 +3031,7 @@ body.light dialog.queue-dlg.ym-look{
       <button type="button" class="prov-tab" role="tab" data-provider="ext" aria-controls="provPaneExt" aria-pressed="false">
         <span class="prov-dot" data-prov-dot="ext"></span>YouTube + SoundCloud
       </button>
-      <button type="button" class="prov-tab" role="tab" data-provider="spotify" aria-controls="provPaneSpotify" aria-pressed="false">
+      <button type="button" class="prov-tab" role="tab" data-provider="spotify" aria-controls="provPaneSpotify" aria-pressed="false" hidden>
         <span class="prov-dot" data-prov-dot="spotify"></span>Spotify
       </button>
     </div>
@@ -11660,6 +11661,7 @@ body.light dialog.queue-dlg.ym-look{
     function show(name) {
       var found = false;
       tabs.forEach(function (tab) {
+        if (tab.hidden) return;
         var on = tab.dataset.provider === name;
         tab.setAttribute('aria-pressed', on ? 'true' : 'false');
         if (on) found = true;
@@ -11682,7 +11684,7 @@ body.light dialog.queue-dlg.ym-look{
     // оставляем окно сервисов с пустым содержимым.
     var saved = store.get('musicProvider', 'yandex');
     if (saved === 'youtube' || saved === 'soundcloud') saved = 'ext';
-    if (!tabs.some(function (tab) { return tab.dataset.provider === saved; })) saved = 'yandex';
+    if (!tabs.some(function (tab) { return tab.dataset.provider === saved && !tab.hidden; })) saved = 'yandex';
     show(saved);
     var open = document.getElementById('btnProviderYm');
     if (open) open.addEventListener('click', function () { ymOpen(); });

@@ -12,6 +12,7 @@
     function show(name) {
       var found = false;
       tabs.forEach(function (tab) {
+        if (tab.hidden) return;
         var on = tab.dataset.provider === name;
         tab.setAttribute('aria-pressed', on ? 'true' : 'false');
         if (on) found = true;
@@ -34,7 +35,7 @@
     // оставляем окно сервисов с пустым содержимым.
     var saved = store.get('musicProvider', 'yandex');
     if (saved === 'youtube' || saved === 'soundcloud') saved = 'ext';
-    if (!tabs.some(function (tab) { return tab.dataset.provider === saved; })) saved = 'yandex';
+    if (!tabs.some(function (tab) { return tab.dataset.provider === saved && !tab.hidden; })) saved = 'yandex';
     show(saved);
     var open = document.getElementById('btnProviderYm');
     if (open) open.addEventListener('click', function () { ymOpen(); });

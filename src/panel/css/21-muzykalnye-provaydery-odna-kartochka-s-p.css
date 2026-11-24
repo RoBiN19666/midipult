@@ -4,6 +4,7 @@
 .prov-tab{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;
   border:1px solid var(--stroke);background:rgba(255,255,255,.045);color:var(--muted);
   font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.prov-tab[hidden]{display:none!important}
 .prov-tab:hover{color:var(--text);background:rgba(255,255,255,.08)}
 .prov-tab[aria-pressed="true"]{color:var(--text);border-color:rgba(124,92,255,.6);
   background:rgba(124,92,255,.18)}
