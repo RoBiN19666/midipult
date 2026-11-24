@@ -2801,6 +2801,13 @@ body.light dialog.queue-dlg.ym-look{
   }
 
   /* Планшет: вкладки с подписями тоже можно ставить снизу и сбоку. */
+  html.touch-ui body[data-menu="top"] .tabs{
+    display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+    width:100%;max-width:100%;margin:0 auto 16px;padding:8px;gap:8px;
+  }
+  html.touch-ui body[data-menu="top"] .tab{
+    width:auto;min-width:104px;flex:0 1 auto;
+  }
   html.touch-ui body[data-menu="bottom"] .tabs{
     position:fixed;top:auto;bottom:12px;left:50%;transform:translateX(-50%);
     display:flex;flex-wrap:wrap;justify-content:center;
