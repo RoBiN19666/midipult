@@ -183,6 +183,20 @@
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
     window.addEventListener('pointerup', finish);
+    // ПКМ по точке удаляет её; ЛКМ по пустому месту — добавляет.
+    canvas.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+      var index = curvePointIndexAt(curveCanvasPos(event));
+      if (index < 0) return;
+      if (curvePoints.length <= 2) {
+        toast('Нужно минимум две точки', 'warn');
+        return;
+      }
+      curvePoints.splice(index, 1);
+      curveDrag = null;
+      curveRender();
+      curveDraw();
+    });
   }
 
   function curveRender() {
