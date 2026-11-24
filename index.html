@@ -2646,8 +2646,9 @@ body.light dialog.queue-dlg.ym-look{
 .curve-dlg-head b{font-size:17px;line-height:1.25;min-width:0}
 .curve-body{display:flex;flex-direction:column;gap:8px;padding:4px 16px 10px;
   overflow:visible;overscroll-behavior:contain}
-#curveDlg{position:fixed;inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);
-  height:auto;max-height:calc(100dvh - 24px);margin:0;overflow-y:auto}
+#curveDlg{display:block;position:fixed;inset:auto;left:50%;top:50%!important;
+  transform:translate(-50%,-50%);height:fit-content;max-height:calc(100dvh - 24px);
+  margin:0;overflow-y:auto}
 #curveCanvas{width:100%;display:block;background:rgba(255,255,255,.03);border:1px solid var(--stroke);
   border-radius:10px;touch-action:none;cursor:crosshair}
 .curve-head,.curve-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;
