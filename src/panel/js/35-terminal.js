@@ -113,9 +113,11 @@
           var end = data.value.length;
           try { el.termInput.setSelectionRange(end, end); } catch (e) {}
         }
-        if (el.termHint) {
-          var items = data.items || [];
-          el.termHint.textContent = items.length > 1 ? items.join('  ') : '';
+        if (el.termHint) el.termHint.textContent = '';
+        var items = data.items || [];
+        if (items.length > 1) {
+          // Как в шелле: список совпадений печатаем в вывод.
+          termAppend(items.slice(0, 48).join('  ') + '\n', 'term-hintline');
         }
       }).catch(function () { /* дополнение не критично */ });
   }

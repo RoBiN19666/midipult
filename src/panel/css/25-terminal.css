@@ -1,9 +1,8 @@
 .c-term{overflow:hidden;display:flex;flex-direction:column}
 .c-term > h2,.c-term > .seg-note,.c-term > .card-head{flex:0 0 auto}
 .term-window{
-  display:flex;flex-direction:column;flex:0 0 auto;
-  height:clamp(180px, 40dvh, 520px);
-  min-height:120px;margin-top:10px;padding:12px 14px 8px;
+  position:relative;display:block;flex:0 0 auto;
+  height:clamp(180px, 40dvh, 520px);min-height:120px;margin-top:10px;
   background:#070a10;border:1px solid var(--stroke);border-radius:14px;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 12px 32px rgba(0,0,0,.25);
   overflow:hidden;
@@ -11,20 +10,20 @@
 /* После ручного изменения высоты карточки терминал тянется за ней. */
 .c-term[data-rows] .term-window{flex:1 1 auto;height:100%;min-height:110px;max-height:none}
 .term-out{
-  flex:1 1 auto;min-height:0;overflow:auto;margin:0;padding:0 2px 6px;
+  position:absolute;left:14px;right:14px;top:10px;bottom:40px;
+  overflow:auto;margin:0;padding:0 2px 4px;
   background:transparent;border:0;
   font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
   color:#cfe3ff;white-space:pre-wrap;word-break:break-word;overscroll-behavior:contain;
 }
 .term-out .term-cmd{color:#9d8fff}
 .term-out .term-code{color:#ff9d7a;opacity:.9}
-.term-hint{
-  flex:0 0 auto;max-height:32px;overflow:hidden;padding:0 2px 4px;
-  font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  color:#7d8aa5;white-space:nowrap;text-overflow:ellipsis;
+.term-out .term-hintline{color:#7d8aa5}
+.term-hint{display:none}
+.term-line{
+  position:absolute;left:14px;right:14px;bottom:6px;height:30px;
+  display:flex;align-items:center;gap:8px;
 }
-.term-hint:empty{display:none}
-.term-line{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-top:6px}
 .term-prompt{
   flex:0 0 auto;color:#22d3ee;font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
