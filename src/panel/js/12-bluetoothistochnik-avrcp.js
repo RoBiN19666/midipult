@@ -210,10 +210,14 @@
     }
     if (!State.seeking) updateMediaProgress();
     if (el.mediaKind) {
-      el.mediaKind.textContent = State.extTrack
-      ? ((State.extSource || 'Стриминг') + ' · сейчас музыка')
-      : (data.kind === 'FmRadio' ? 'сейчас радио' :
-        (data.kind === 'Track' ? 'сейчас музыка' : ''));
+      var serviceNames = { zvuk: 'Сбер Звук', youtube: 'YouTube', soundcloud: 'SoundCloud' };
+      var waveService = serviceNames[data.service] || '';
+      el.mediaKind.textContent = waveService
+        ? (waveService + ' · волна')
+        : (State.extTrack
+          ? ((State.extSource || 'Стриминг') + ' · сейчас музыка')
+          : (data.kind === 'FmRadio' ? 'сейчас радио' :
+            (data.kind === 'Track' ? 'сейчас музыка' : '')));
     }
     if (data.title) {
       if (data.title !== State.mediaTitle) {

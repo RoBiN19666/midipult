@@ -87,6 +87,7 @@ def snapshot(force=False):
             result["artist"] = marker.get("artist") or result["artist"]
             result["cover"] = marker.get("cover") or result["cover"]
             result["id"] = marker.get("id") or result["id"]
+            result["service"] = marker.get("service") or ""
     return result
 
 
