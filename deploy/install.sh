@@ -99,7 +99,7 @@ for asset in favicon.ico icon-192.png icon-512.png icon.png icon-circle.png; do
 done
 if [ -d "$SRC/assets" ]; then
     mkdir -p "$STAGE/assets"
-    cp -f "$SRC/assets/"* "$STAGE/assets/" 2>/dev/null || warn "не скопировались assets"
+    cp -Rf "$SRC/assets/"* "$STAGE/assets/" 2>/dev/null || warn "не скопировались assets"
 fi
 rm -f "$STAGE/icon.svg"
 # Мёртвые ассеты старого FBX-рендера: убираем и из staging, и из живого рута
@@ -145,6 +145,8 @@ if [ -f "$SRC/service/voice_daemon.py" ]; then
     cp -f "$SRC/service/discovery.py" /data/mypult/discovery.py 2>/dev/null || true
     cp -f "$SRC/service/alarmd.py" /data/mypult/alarmd.py 2>/dev/null || true
     cp -f "$SRC/service/clockanimd.py" /data/mypult/clockanimd.py 2>/dev/null || true
+    cp -f "$SRC/service/termd.py" /data/mypult/termd.py 2>/dev/null || true
+    chmod 700 /data/mypult/termd.py 2>/dev/null
     chmod 600 /data/mypult/clockanimd.py 2>/dev/null
     sed -i 's/\r$//' /data/mypult/clockanimd.py 2>/dev/null
     chmod 600 /data/mypult/alarmd.py 2>/dev/null
