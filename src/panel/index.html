@@ -167,6 +167,7 @@
     <div class="row display-auto" style="margin-top:10px">
       <label class="llm-toggle"><input type="checkbox" id="displayAuto"><span>Автояркость дисплея по свету</span></label>
       <span class="seg-note" id="displayAutoStatus">выкл</span>
+      <button type="button" class="btn ghost sm" id="btnDisplayCurve">Кривая</button>
     </div>
     <div class="display-preview" id="displayPreview">
       <svg class="seg7" id="seg7" viewBox="0 0 480 180" role="img" aria-label="Семисегментный дисплей">
@@ -1718,6 +1719,22 @@
       </div>
       <textarea id="filesText" spellcheck="false"></textarea>
     </div>
+  </div>
+</dialog>
+<dialog id="curveDlg" class="alarm-dlg" aria-labelledby="curveDlgTitle">
+  <div class="alm-head">
+    <b id="curveDlgTitle">Кривая автояркости</b>
+    <button type="button" class="btn sm ghost" id="btnCurveClose">Закрыть</button>
+  </div>
+  <div class="curve-body">
+    <canvas id="curveCanvas" width="360" height="170" aria-label="График кривой"></canvas>
+    <div class="curve-rows" id="curveRows"></div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px">
+      <button type="button" class="btn sm ghost" id="btnCurveAdd">Добавить точку</button>
+      <button type="button" class="btn sm ghost" id="btnCurveReset">Сброс</button>
+      <button type="button" class="btn sm primary" id="btnCurveSave">Сохранить</button>
+    </div>
+    <div class="seg-note">Точки: освещённость (lux) → яркость (10–255). Между точками яркость меняется плавно.</div>
   </div>
 </dialog>
 </body>

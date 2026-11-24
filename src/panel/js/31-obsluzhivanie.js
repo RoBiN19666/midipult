@@ -275,6 +275,9 @@
 
     if (mode) State.displayManual = !!(mode.manual);
     State.displayAuto = !!auto.display_enabled;
+    State.displayMin = auto.display_min || 10;
+    State.displayMax = auto.display_max || 170;
+    State.displayCurve = auto.display_curve || [];
     el.displayAuto.checked = State.displayAuto;
     el.displayAutoStatus.textContent = State.displayAuto
       ? ('вкл · ' + (State.displayManual ? 'пауза (ручной режим)'
@@ -945,7 +948,7 @@
   function toggleDisplayAuto() {
     var on = el.displayAuto.checked ? 1 : 0;
     var warning = '';
-    return cgi('display.py', { display_auto_brightness: on, display_min: 10, display_max: 170 },
+    return cgi('display.py', { display_auto_brightness: on }, { timeout: 10000 })
       { timeout: 10000 })
       .then(function (data) {
         applyAutoConfig(data.auto || {}, data.mode || {});

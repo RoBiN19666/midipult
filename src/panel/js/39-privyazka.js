@@ -709,6 +709,11 @@
     el.btnPoweroff.addEventListener('click', doPoweroff);
     el.autoBright.addEventListener('change', toggleAutoBright);
     el.displayAuto.addEventListener('change', toggleDisplayAuto);
+    if (el.btnDisplayCurve) el.btnDisplayCurve.addEventListener('click', curveOpen);
+    if (el.btnCurveClose) el.btnCurveClose.addEventListener('click', curveClose);
+    if (el.btnCurveAdd) el.btnCurveAdd.addEventListener('click', curveAdd);
+    if (el.btnCurveReset) el.btnCurveReset.addEventListener('click', curveReset);
+    if (el.btnCurveSave) el.btnCurveSave.addEventListener('click', curveSave);
     el.btnBackup.addEventListener('click', downloadBackup);
     el.btnUpdateCheck.addEventListener('click', function () { loadUpdateInfo(true, true); });
     if (el.updChannel) {

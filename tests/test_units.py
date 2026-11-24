@@ -1328,6 +1328,17 @@ def test_zvuk_stale_state():
         zvuk._player_snapshot = old_snap
 
 
+def test_display_curve():
+    curve = [[0, 10], [50, 90], [200, 170]]
+    check("дисплей: кривая в темноте", display.curve_level(0, curve) == 10)
+    check("дисплей: кривая 50 lux", display.curve_level(50, curve) == 90)
+    check("дисплей: кривая ярко", display.curve_level(5000, curve) == 170)
+    check("дисплей: чистка и сортировка кривой",
+          display.clean_curve([{"lux": 10, "level": 40}, [5, 20]]) == [[5, 20], [10, 40]])
+    check("дисплей: кривая по умолчанию из min/max",
+          display.default_display_curve(10, 170) == [[0, 10], [50, 90], [200, 170]])
+
+
 def test_voice_passive_wants():
     old_llm = voice_daemon.llm_enabled_cached
     old_info = voice_daemon.llm_info
@@ -2943,6 +2954,7 @@ def main():
         test_voice_music_transport,
         test_zvuk_token_extract,
         test_zvuk_stale_state,
+        test_display_curve,
         test_voice_native_phrase,
         test_status_probe_cache,
         test_lyrics_parse,

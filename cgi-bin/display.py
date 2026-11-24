@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import glob
 import json
+import math
 from datetime import datetime, timezone
 import os
 import re
@@ -300,9 +301,70 @@ def ring_current():
     return values
 
 
+def default_display_curve(min_level=10, max_level=170):
+    """Кривая по умолчанию: темно → min, 200 lux → max."""
+    mid = int(round((int(min_level) + int(max_level)) / 2))
+    return [[0, int(min_level)], [50, mid], [200, int(max_level)]]
+
+
+def clean_curve(raw):
+    """Привести кривую к [[lux, level], …]: 2–16 точек, по возрастанию lux."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            return []
+    if not isinstance(raw, list):
+        return []
+    points = []
+    for item in raw:
+        if isinstance(item, dict):
+            lux, level = item.get("lux"), item.get("level")
+        elif isinstance(item, (list, tuple)) and len(item) >= 2:
+            lux, level = item[0], item[1]
+        else:
+            continue
+        try:
+            lux = max(0.0, min(float(lux), 100000.0))
+            level = max(10, min(int(float(level)), 255))
+        except (TypeError, ValueError):
+            continue
+        points.append([lux, level])
+    points.sort(key=lambda pair: pair[0])
+    result = []
+    for point in points:
+        if result and abs(point[0] - result[-1][0]) < 1e-6:
+            result[-1] = point
+        else:
+            result.append(point)
+    return result[:16]
+
+
+def curve_level(lux, curve):
+    """Яркость по кривой: линейно между точками в логарифме освещённости."""
+    if not curve:
+        return None
+    try:
+        lum = math.log10(max(0.0, float(lux)) + 1.0)
+    except (TypeError, ValueError):
+        return None
+    if lum <= math.log10(curve[0][0] + 1.0):
+        return int(curve[0][1])
+    if lum >= math.log10(curve[-1][0] + 1.0):
+        return int(curve[-1][1])
+    for left, right in zip(curve, curve[1:]):
+        x1 = math.log10(left[0] + 1.0)
+        x2 = math.log10(right[0] + 1.0)
+        if x1 <= lum <= x2:
+            ratio = (lum - x1) / (x2 - x1) if x2 > x1 else 0.0
+            return int(round(left[1] + (right[1] - left[1]) * ratio))
+    return int(curve[-1][1])
+
+
 def load_auto():
     defaults = {"enabled": False, "min": 10, "max": 150,
-                "display_enabled": False, "display_min": 10, "display_max": 170}
+                "display_enabled": False, "display_min": 10, "display_max": 170,
+                "display_curve": []}
     try:
         with open(AUTO_PATH, "r", encoding="utf-8") as fh:
             data = json.load(fh)
@@ -316,6 +378,9 @@ def load_auto():
     defaults["display_min"] = max(10, min(int(defaults.get("display_min", 10)), 255))
     defaults["display_max"] = max(defaults["display_min"],
                                   min(int(defaults.get("display_max", 170)), 255))
+    curve = clean_curve(defaults.get("display_curve"))
+    defaults["display_curve"] = curve or default_display_curve(
+        defaults["display_min"], defaults["display_max"])
     return defaults
 
 
@@ -364,8 +429,12 @@ def display_auto_apply():
     lux = ambient_lux()
     if lux is None:
         return {"applied": False, "reason": "sensor"}
-    ratio = max(0.0, min(lux / 200.0, 1.0)) ** 0.6
-    level = int(round(config["display_min"] + (config["display_max"] - config["display_min"]) * ratio))
+    level = curve_level(lux, config.get("display_curve"))
+    if level is None:
+        ratio = max(0.0, min(lux / 200.0, 1.0)) ** 0.6
+        level = int(round(config["display_min"] +
+                          (config["display_max"] - config["display_min"]) * ratio))
+    level = max(10, min(int(level), 255))
     payload = luna_clock(level)
     if payload:
         save_state(read_all())
@@ -932,6 +1001,21 @@ def main():
             config["min"] = common.to_int(data.get("min"), config["min"], 0, 255)
         if data.get("max") is not None:
             config["max"] = common.to_int(data.get("max"), config["max"], 0, 255)
+        save_auto(config)
+        common.ok(auto=load_auto())
+        return
+
+    if data.get("display_curve") is not None or data.get("display_curve_reset") is not None:
+        config = load_auto()
+        if common.truthy(data.get("display_curve_reset")):
+            config["display_curve"] = default_display_curve(
+                config["display_min"], config["display_max"])
+        else:
+            curve = clean_curve(data.get("display_curve"))
+            if len(curve) < 2:
+                common.fail(400, "нужно минимум две точки: lux и яркость")
+                return
+            config["display_curve"] = curve
         save_auto(config)
         common.ok(auto=load_auto())
         return
