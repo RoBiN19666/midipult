@@ -2258,8 +2258,11 @@ body.booting main.grid,body.booting .tabs,body.booting footer{visibility:hidden}
   .ym-vol:hover .ym-vol-pop,.ym-vol:focus-within .ym-vol-pop,.ym-vol.open .ym-vol-pop{
     transform:none}
 }
-.ym-vol-track{display:grid;place-items:center;width:34px;height:112px}
-.ym-vol-track input{width:108px;height:16px;transform:rotate(-90deg)}
+.ym-vol-track{position:relative;display:grid;place-items:center;width:34px;height:112px}
+.ym-vol-track input{
+  position:absolute;left:0;right:0;top:0;bottom:0;margin:auto;
+  width:108px;height:16px;transform:rotate(-90deg);
+}
 .ym-vol-pop output{font-size:12px;color:#b8b8c1;font-variant-numeric:tabular-nums}
 .ym-now-bottom{margin-top:auto;flex:0 0 auto}
 /* На широком экране плеер заполняет высоту: обложка и текст сверху,
