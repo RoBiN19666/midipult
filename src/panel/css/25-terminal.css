@@ -1,22 +1,40 @@
 .c-term{overflow:hidden}
+.term-window{
+  display:flex;flex-direction:column;height:clamp(240px, 46dvh, 640px);
+  margin-top:10px;padding:12px 14px 8px;
+  background:#070a10;border:1px solid var(--stroke);border-radius:14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 12px 32px rgba(0,0,0,.25);
+  overflow:hidden;
+}
 .term-out{
-  margin:10px 0 0;padding:12px 14px;min-height:140px;max-height:360px;overflow:auto;
-  background:#070a10;border:1px solid var(--stroke);border-radius:12px;
+  flex:1 1 auto;min-height:0;overflow:auto;margin:0;padding:0 2px 6px;
+  background:transparent;border:0;
   font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
   color:#cfe3ff;white-space:pre-wrap;word-break:break-word;overscroll-behavior:contain;
 }
 .term-out .term-cmd{color:#9d8fff}
 .term-out .term-code{color:#ff9d7a;opacity:.9}
-.term-line{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.term-hint{
+  flex:0 0 auto;max-height:32px;overflow:hidden;padding:0 2px 4px;
+  font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color:#7d8aa5;white-space:nowrap;text-overflow:ellipsis;
+}
+.term-hint:empty{display:none}
+.term-line{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding-top:6px}
 .term-prompt{
-  flex:0 0 auto;color:#22d3ee;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  flex:0 0 auto;color:#22d3ee;font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  max-width:46%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.term-line .net-input{
-  flex:1 1 220px;min-width:0;height:38px;
-  font:13px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+.term-line input{
+  flex:1 1 auto;min-width:0;height:28px;padding:0;border:0;background:transparent;
+  color:#e6efff;caret-color:#22d3ee;outline:none;
+  font:13px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
 }
+.term-line input::placeholder{color:#46536b}
+.term-line input:focus{outline:none}
+.term-clear{flex:0 0 auto;height:26px;padding:0 8px;font-size:11px;opacity:.55}
+.term-clear:hover{opacity:1}
 @media(max-width:560px){
-  .term-line .net-input{flex-basis:100%}
-  .term-prompt{max-width:100%}
+  .term-window{height:clamp(220px, 52dvh, 520px)}
+  .term-prompt{max-width:40%}
 }

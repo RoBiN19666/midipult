@@ -76,6 +76,48 @@ def log_command(sid, cmd, code):
         pass
 
 
+def _command_names():
+    names = set()
+    for folder in ("/opt/bin", "/opt/sbin", "/bin", "/sbin", "/usr/bin", "/usr/sbin"):
+        try:
+            names.update(os.listdir(folder))
+        except OSError:
+            pass
+    return sorted(names)
+
+
+def complete_line(line, cwd):
+    """Дополнение как в терминале: команды в первом слове, пути дальше."""
+    text = str(line or "")
+    stripped = text.rstrip()
+    if not stripped:
+        return {"value": text, "items": [], "cwd": cwd}
+    token = "" if text.endswith(" ") else stripped.split(" ")[-1]
+    base = stripped[:len(stripped) - len(token)] if token else stripped
+    if " " not in text.strip() and not text.endswith(" "):
+        matches = [name for name in _command_names() if name.startswith(token)]
+        prefix = os.path.commonprefix(matches)
+        if len(matches) == 1:
+            return {"value": prefix + " ", "items": matches[:80], "cwd": cwd}
+        return {"value": prefix or token, "items": matches[:80], "cwd": cwd}
+    raw = os.path.expanduser(token)
+    dir_part, name = os.path.split(raw)
+    search = dir_part if os.path.isabs(dir_part) else (
+        os.path.join(cwd, dir_part) if dir_part else cwd)
+    items = []
+    try:
+        for entry in sorted(os.listdir(search)):
+            if not entry.startswith(name):
+                continue
+            suffix = "/" if os.path.isdir(os.path.join(search, entry)) else ""
+            items.append((dir_part.rstrip("/") + "/" + entry + suffix)
+                         if dir_part else entry + suffix)
+    except OSError:
+        items = []
+    prefix = os.path.commonprefix(items)
+    return {"value": base + (prefix or token), "items": items[:80], "cwd": cwd}
+
+
 def run_command(cmd, cwd, sid):
     """Выполнить команду в bash, вернуть (вывод, код, новый cwd)."""
     os.makedirs(SESS_DIR, exist_ok=True)
@@ -113,6 +155,9 @@ def main():
     cmd = str(data.get("cmd") or "").strip()
     cwd_file = os.path.join(SESS_DIR, "cwd-%s" % sid)
     cwd = read_text(cwd_file, WORKDIR)
+    if data.get("complete") is not None:
+        common.ok(**complete_line(data.get("complete"), cwd))
+        return
     if not cmd:
         common.ok(cwd=cwd, out="", code=0)
         return

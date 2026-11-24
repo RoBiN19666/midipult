@@ -50,6 +50,7 @@
 
   function termClear() {
     if (el.termOut) el.termOut.textContent = '';
+    if (el.termHint) el.termHint.textContent = '';
     termPrompt();
   }
 
@@ -72,6 +73,7 @@
     }
     termBusy = true;
     el.termInput.value = '';
+    if (el.termHint) el.termHint.textContent = '';
     el.termInput.disabled = true;
     if (el.btnTermRun) el.btnTermRun.disabled = true;
     termAppend((el.termOut && el.termOut.textContent ? '\n' : '') +
@@ -100,10 +102,37 @@
       });
   }
 
+  function termComplete() {
+    if (!el.termInput || termBusy) return;
+    var line = el.termInput.value;
+    return cgi('terminal.py', { complete: line, sid: termSid },
+      { timeout: 8000, silent: true }).then(function (data) {
+        if (!data) return;
+        if (typeof data.value === 'string') {
+          el.termInput.value = data.value;
+          var end = data.value.length;
+          try { el.termInput.setSelectionRange(end, end); } catch (e) {}
+        }
+        if (el.termHint) {
+          var items = data.items || [];
+          el.termHint.textContent = items.length > 1 ? items.join('  ') : '';
+        }
+      }).catch(function () { /* дополнение не критично */ });
+  }
+
   function termKeydown(event) {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      termComplete();
+      return;
+    }
     if (event.key === 'Enter') {
       event.preventDefault();
       termRun();
+      return;
+    }
+    if (event.key === 'Escape') {
+      if (el.termHint) el.termHint.textContent = '';
       return;
     }
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
@@ -123,6 +152,17 @@
   function termInit() {
     termInitSid();
     termPrompt();
+    if (el.termWindow) {
+      el.termWindow.addEventListener('click', function (event) {
+        if (event.target.closest('button')) return;
+        if (el.termInput) el.termInput.focus();
+      });
+    }
+    if (el.termInput) {
+      el.termInput.addEventListener('input', function () {
+        if (el.termHint) el.termHint.textContent = '';
+      });
+    }
     if (el.termOut && !el.termOut.textContent) {
       el.termOut.textContent = '';
     }
