@@ -2679,6 +2679,17 @@ body.light dialog.queue-dlg.ym-look{
   .curve-row .curve-del{min-width:74px;padding:0 8px}
   .curve-head{font-size:10px}
 }
+:root{
+  --menu-hover-bg:rgba(255,255,255,.07);
+  --menu-fly-bg:#121724;
+  --menu-fly-shadow:0 10px 26px rgba(0,0,0,.45);
+}
+body.light{
+  --menu-hover-bg:#f6efe4;
+  --menu-fly-bg:#f6efe4;
+  --menu-fly-shadow:0 10px 26px rgba(78,58,38,.16);
+}
+
 .tab .tab-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
 .tab .tab-icon svg{width:18px;height:18px;display:block}
 .tab .tab-label{white-space:nowrap}
@@ -2723,7 +2734,7 @@ body.light dialog.queue-dlg.ym-look{
 @media(min-width:761px) and (hover:hover) and (pointer:fine){
   html:not(.touch-ui) .tab:hover{
     width:var(--tab-open, 140px);color:var(--text);
-    background:rgba(255,255,255,.07);
+    background:var(--menu-hover-bg);
     box-shadow:0 8px 22px rgba(0,0,0,.35);
   }
   html:not(.touch-ui) .tab:hover .tab-icon svg{transform:scale(1.1)}
@@ -2811,8 +2822,8 @@ html:not(.touch-ui) .tab[aria-pressed="true"]:hover{
      прозрачным пятном поверх страницы. */
   html:not(.touch-ui) body[data-menu="left"] .tab:hover,
   html:not(.touch-ui) body[data-menu="right"] .tab:hover{
-    background:#121724;
-    box-shadow:0 10px 26px rgba(0,0,0,.45);
+    background:var(--menu-fly-bg);
+    box-shadow:var(--menu-fly-shadow);
   }
   html:not(.touch-ui) body[data-menu="right"] .tab-label{padding-left:0;padding-right:0}
   html:not(.touch-ui) body[data-menu="right"] .tab:hover .tab-label{
@@ -2912,7 +2923,6 @@ body.light .tabs{
   box-shadow:0 12px 32px rgba(78,58,38,.10), inset 0 1px 0 rgba(255,255,255,.9);
 }
 body.light .tab{color:#625b52}
-body.light .tab:hover{background:rgba(76,62,48,.07);color:#20242c}
 body.light .tab[aria-pressed="true"]{
   color:#fff;
   background:linear-gradient(135deg,#6a4df5,#3a7bd5);
@@ -2921,14 +2931,6 @@ body.light .tab[aria-pressed="true"]{
 body.light .tab[aria-pressed="true"]:hover{
   background:linear-gradient(135deg,#5f43ee,#2f6fd0);
   box-shadow:0 10px 24px rgba(91,75,219,.32), inset 0 1px 0 rgba(255,255,255,.3);
-}
-/* Выехавшая вкладка в боковой рейке должна быть плотной, не прозрачной. */
-body.light .tab:hover{
-  background:#f6efe4;
-  box-shadow:0 10px 26px rgba(78,58,38,.16);
-}
-body.light .tab[aria-pressed="true"]:hover{
-  background:linear-gradient(135deg,#5f43ee,#2f6fd0);
 }
 
 body.light .term-dlg{

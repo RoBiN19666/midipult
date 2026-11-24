@@ -5,7 +5,6 @@ body.light .tabs{
   box-shadow:0 12px 32px rgba(78,58,38,.10), inset 0 1px 0 rgba(255,255,255,.9);
 }
 body.light .tab{color:#625b52}
-body.light .tab:hover{background:rgba(76,62,48,.07);color:#20242c}
 body.light .tab[aria-pressed="true"]{
   color:#fff;
   background:linear-gradient(135deg,#6a4df5,#3a7bd5);
@@ -14,14 +13,6 @@ body.light .tab[aria-pressed="true"]{
 body.light .tab[aria-pressed="true"]:hover{
   background:linear-gradient(135deg,#5f43ee,#2f6fd0);
   box-shadow:0 10px 24px rgba(91,75,219,.32), inset 0 1px 0 rgba(255,255,255,.3);
-}
-/* Выехавшая вкладка в боковой рейке должна быть плотной, не прозрачной. */
-body.light .tab:hover{
-  background:#f6efe4;
-  box-shadow:0 10px 26px rgba(78,58,38,.16);
-}
-body.light .tab[aria-pressed="true"]:hover{
-  background:linear-gradient(135deg,#5f43ee,#2f6fd0);
 }
 
 body.light .term-dlg{

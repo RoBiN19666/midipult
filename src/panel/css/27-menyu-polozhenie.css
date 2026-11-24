@@ -26,8 +26,8 @@
      прозрачным пятном поверх страницы. */
   html:not(.touch-ui) body[data-menu="left"] .tab:hover,
   html:not(.touch-ui) body[data-menu="right"] .tab:hover{
-    background:#121724;
-    box-shadow:0 10px 26px rgba(0,0,0,.45);
+    background:var(--menu-fly-bg);
+    box-shadow:var(--menu-fly-shadow);
   }
   html:not(.touch-ui) body[data-menu="right"] .tab-label{padding-left:0;padding-right:0}
   html:not(.touch-ui) body[data-menu="right"] .tab:hover .tab-label{

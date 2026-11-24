@@ -1,3 +1,14 @@
+:root{
+  --menu-hover-bg:rgba(255,255,255,.07);
+  --menu-fly-bg:#121724;
+  --menu-fly-shadow:0 10px 26px rgba(0,0,0,.45);
+}
+body.light{
+  --menu-hover-bg:#f6efe4;
+  --menu-fly-bg:#f6efe4;
+  --menu-fly-shadow:0 10px 26px rgba(78,58,38,.16);
+}
+
 .tab .tab-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
 .tab .tab-icon svg{width:18px;height:18px;display:block}
 .tab .tab-label{white-space:nowrap}
@@ -42,7 +53,7 @@
 @media(min-width:761px) and (hover:hover) and (pointer:fine){
   html:not(.touch-ui) .tab:hover{
     width:var(--tab-open, 140px);color:var(--text);
-    background:rgba(255,255,255,.07);
+    background:var(--menu-hover-bg);
     box-shadow:0 8px 22px rgba(0,0,0,.35);
   }
   html:not(.touch-ui) .tab:hover .tab-icon svg{transform:scale(1.1)}
