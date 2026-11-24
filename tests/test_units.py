@@ -2023,6 +2023,10 @@ def test_update_beta_channel():
           update.version_key("0.6.94-beta") < update.version_key("0.6.94"))
     check("update: с беты на стабильную — обновление",
           update.update_available("0.6.93", "0.6.94-beta", "stable", False, True))
+    check("update: с беты 0.7.0 на стабильную 0.6.94 — откат",
+          update.update_available("0.6.94", "0.7.0", "stable", False, True))
+    check("update: та же стабильная не предлагается",
+          not update.update_available("0.6.94", "0.6.94", "stable", False, True))
     check("update: стабильная не обновление на бете",
           not update.update_available("0.6.93", "0.6.94-beta", "beta", False, True))
     check("update: стабильная новее беты — обновление",

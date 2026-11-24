@@ -133,6 +133,11 @@ def wanted_update(target, current, chan, current_beta=False):
         return False
     if newer(target, current):
         return True
+    # Возврат на стабильную: текущая версия новее стабильной (бета 0.7.0
+    # при стабильной 0.6.94). Флаг installed_prerelease может потеряться,
+    # если установка шла старым update.py, поэтому сравниваем версии.
+    if chan == "stable" and newer(current, target):
+        return True
     return (chan == "stable" and (is_prerelease(current) or current_beta)
             and version_key(target) != version_key(current))
 
