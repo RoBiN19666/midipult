@@ -14,7 +14,7 @@
     if (!canvas) return;
     var dpr = window.devicePixelRatio || 1;
     var cssW = Math.max(240, Math.round(canvas.clientWidth || 320));
-    var cssH = 190;
+    var cssH = cssW >= 620 ? 300 : (cssW >= 470 ? 240 : 190);
     var pixelW = Math.round(cssW * dpr);
     var pixelH = Math.round(cssH * dpr);
     if (canvas.width !== pixelW || canvas.height !== pixelH) {
@@ -71,7 +71,7 @@
     var axis = 'rgba(255,255,255,.16)';
     var grid = 'rgba(255,255,255,.055)';
     ctx.clearRect(0, 0, g.width, g.height);
-    ctx.font = '10px sans-serif';
+    ctx.font = (g.width >= 620 ? 12 : 10) + 'px sans-serif';
     ctx.lineWidth = 1;
     ctx.fillStyle = 'rgba(255,255,255,.5)';
     ctx.textAlign = 'left';

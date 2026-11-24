@@ -2657,7 +2657,7 @@ body.light dialog.queue-dlg.ym-look{
   overflow:visible;overscroll-behavior:contain}
 #curveDlg{display:block;position:fixed;inset:auto;left:50%;top:50%!important;
   transform:translate(-50%,-50%);height:fit-content;max-height:calc(100dvh - 24px);
-  margin:0;overflow-y:auto}
+  margin:0;overflow-y:auto;width:min(760px,94vw)}
 #curveCanvas{width:100%;display:block;background:rgba(255,255,255,.03);border:1px solid var(--stroke);
   border-radius:10px;touch-action:none;cursor:crosshair}
 .curve-head,.curve-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;
@@ -13752,7 +13752,7 @@ body.light dialog.queue-dlg.ym-look{
     if (!canvas) return;
     var dpr = window.devicePixelRatio || 1;
     var cssW = Math.max(240, Math.round(canvas.clientWidth || 320));
-    var cssH = 190;
+    var cssH = cssW >= 620 ? 300 : (cssW >= 470 ? 240 : 190);
     var pixelW = Math.round(cssW * dpr);
     var pixelH = Math.round(cssH * dpr);
     if (canvas.width !== pixelW || canvas.height !== pixelH) {
@@ -13809,7 +13809,7 @@ body.light dialog.queue-dlg.ym-look{
     var axis = 'rgba(255,255,255,.16)';
     var grid = 'rgba(255,255,255,.055)';
     ctx.clearRect(0, 0, g.width, g.height);
-    ctx.font = '10px sans-serif';
+    ctx.font = (g.width >= 620 ? 12 : 10) + 'px sans-serif';
     ctx.lineWidth = 1;
     ctx.fillStyle = 'rgba(255,255,255,.5)';
     ctx.textAlign = 'left';
