@@ -2853,6 +2853,13 @@ html:not(.touch-ui) .tab[aria-pressed="true"]:hover{
   html:not(.touch-ui) body[data-menu="right"] .tab:hover .tab-label{
     max-width:180px;opacity:1;padding-right:14px;
   }
+  /* В боковых рейках наведение на активную тоже не должно терять
+     градиент: подсвечиваем ярче, чем обычное наведение. */
+  html:not(.touch-ui) body[data-menu="left"] .tab[aria-pressed="true"]:hover,
+  html:not(.touch-ui) body[data-menu="right"] .tab[aria-pressed="true"]:hover{
+    background:linear-gradient(135deg,rgba(124,92,255,.75),rgba(34,211,238,.42));
+    box-shadow:0 10px 26px rgba(124,92,255,.5), inset 0 1px 0 rgba(255,255,255,.22);
+  }
 
   /* Планшет: вкладки с подписями тоже можно ставить снизу и сбоку. */
   html.touch-ui body[data-menu="top"] .tabs{
