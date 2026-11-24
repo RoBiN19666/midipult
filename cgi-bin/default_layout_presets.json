@@ -26,13 +26,13 @@
           "h-sc-mine",
           "h-update",
           "h-voice-settings",
-          "h-maint",
-          "h-backup",
-          "h-pin",
-          "h-files",
-          "h-sounds",
           "h-logs",
+          "h-files",
+          "h-backup",
+          "h-maint",
+          "h-sounds",
           "h-panel",
+          "h-pin",
           "h-layout-presets"
         ],
         "spans": {
@@ -52,17 +52,17 @@
           "h-update": 6,
           "h-logs": 6,
           "h-maint": 6,
-          "h-backup": 4,
-          "h-pin": 4,
-          "h-files": 4,
-          "h-sounds": 6,
-          "h-voice-settings": 6,
+          "h-backup": 3,
+          "h-pin": 3,
+          "h-files": 3,
+          "h-sounds": 5,
+          "h-voice-settings": 7,
           "h-llm": 12,
           "h-zigbee": 6,
           "h-net": 6,
           "h-vpn": 6,
           "h-bt": 6,
-          "h-layout-presets": 6
+          "h-layout-presets": 4
         },
         "rows": {
           "h-alarm": 4,
@@ -74,14 +74,14 @@
           "h-sc-mine": 13,
           "h-sys": 11,
           "h-hw": 11,
-          "h-update": 6,
-          "h-logs": 11,
+          "h-update": 8,
+          "h-logs": 9,
           "h-maint": 4,
-          "h-backup": 6,
+          "h-backup": 5,
           "h-pin": 6,
-          "h-files": 6,
-          "h-sounds": 16,
-          "h-voice-settings": 10,
+          "h-files": 5,
+          "h-sounds": 17,
+          "h-voice-settings": 11,
           "h-home": 12,
           "h-tts": 10,
           "h-led": 19,
@@ -90,10 +90,10 @@
           "h-vpn": 6,
           "h-bt": 6,
           "h-clock": 19,
-          "h-layout-presets": 5
+          "h-layout-presets": 6
         }
       },
-      "updated": 1795296078
+      "updated": 1795545750
     }
   ]
 }
