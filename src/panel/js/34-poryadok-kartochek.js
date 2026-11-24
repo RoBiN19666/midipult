@@ -422,6 +422,13 @@
       if (window.innerWidth <= 760 || event.button !== 0) return;
       event.preventDefault();
       event.stopPropagation();
+      // На тач-экране без захвата указателя браузер начинает скролл и
+      // присылает pointercancel — ресайз обрывается.
+      try {
+        if (event.target && event.target.setPointerCapture) {
+          event.target.setPointerCapture(event.pointerId);
+        }
+      } catch (e) {}
       var grid = card.parentElement;
       var gridStyle = getComputedStyle(grid);
       var columns = (gridStyle.gridTemplateColumns || '').split(' ').filter(Boolean).length || 12;
