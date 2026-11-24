@@ -20,6 +20,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -97,13 +98,29 @@ def account(force=False):
     raise RuntimeError("Яндекс Музыка не приняла токен станции")
 
 
+def _authorized(path, form=None):
+    """Запрос с OAuth; при 401 сбрасывает кэш токена и пробует ещё раз."""
+    for attempt in (0, 1):
+        token, uid = account(force=bool(attempt))
+        try:
+            return _request(token, path(uid), form=form)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 401 and attempt == 0:
+                try:
+                    os.remove(CACHE)
+                except OSError:
+                    pass
+                continue
+            raise
+    raise RuntimeError("Яндекс Музыка не приняла токен станции")
+
+
 def likes(force=False):
     cached = _cache_read(LIKES_CACHE)
     if (not force and cached.get("ids") is not None
             and time.time() - float(cached.get("ts") or 0) < 60):
         return set(str(item) for item in cached["ids"])
-    token, uid = account()
-    data = _request(token, "/users/%s/likes/tracks" % uid)
+    data = _authorized(lambda uid: "/users/%s/likes/tracks" % uid)
     library = (data.get("result") or {}).get("library") or {}
     ids = {str(item.get("id")) for item in (library.get("tracks") or [])
            if isinstance(item, dict)}
@@ -115,17 +132,15 @@ def likes(force=False):
 
 
 def set_like(track_id, on):
-    token, uid = account()
     action = "add-multiple" if on else "remove"
-    _request(token, "/users/%s/likes/tracks/%s" % (uid, action),
-             form={"track-ids": str(track_id)})
+    _authorized(lambda uid: "/users/%s/likes/tracks/%s" % (uid, action),
+                form={"track-ids": str(track_id)})
     return str(track_id) in likes(force=True)
 
 
 def set_dislike(track_id):
-    token, uid = account()
-    _request(token, "/users/%s/dislikes/tracks/add-multiple" % uid,
-             form={"track-ids": str(track_id)})
+    _authorized(lambda uid: "/users/%s/dislikes/tracks/add-multiple" % uid,
+                form={"track-ids": str(track_id)})
     return True
 
 
