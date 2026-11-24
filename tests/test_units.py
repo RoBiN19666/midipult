@@ -2934,6 +2934,10 @@ def test_layout_presets_sanitize():
     check("раскладка: имя обрезается и чистится",
           layout_presets.clean_name("  Мой   дом  ") == "Мой дом"
           and len(layout_presets.clean_name("x" * 80)) == 40)
+    check("раскладка: положение меню сохраняется",
+          layout_presets.clean_layout({"menu": "left"})["menu"] == "left")
+    check("раскладка: мусорное положение меню → top",
+          layout_presets.clean_layout({"menu": "hack"})["menu"] == "top")
 
 
 def main():

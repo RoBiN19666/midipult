@@ -378,7 +378,8 @@
         return {
           order: order,
           spans: loadMap(SPANS_KEY),
-          rows: loadMap(ROWS_KEY)
+          rows: loadMap(ROWS_KEY),
+          menu: document.body.dataset.menu || 'top'
         };
       },
       apply: function (layout) {
@@ -398,6 +399,9 @@
         });
         saveMap(SPANS_KEY, layout.spans || {});
         saveMap(ROWS_KEY, layout.rows || {});
+        if (layout.menu && typeof applyMenuPosition === 'function') {
+          applyMenuPosition(layout.menu);
+        }
         applySizes();
         saveCardOrder();
         updateMoveButtons();

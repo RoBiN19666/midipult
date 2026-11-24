@@ -29,6 +29,7 @@ MAX_PRESETS = 40
 NAME_MAX = 40
 ID_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 MODES = ("wide", "phone")
+MENU_POSITIONS = ("top", "bottom", "left", "right")
 
 
 def load_presets():
@@ -48,9 +49,12 @@ def save_presets(presets):
 
 def clean_layout(raw):
     """Только безопасные идентификаторы карточек и размеры в допустимых пределах."""
-    layout = {"order": [], "spans": {}, "rows": {}}
+    layout = {"order": [], "spans": {}, "rows": {}, "menu": "top"}
     if not isinstance(raw, dict):
         return layout
+    menu = str(raw.get("menu") or "").strip().lower()
+    if menu in MENU_POSITIONS:
+        layout["menu"] = menu
     order = raw.get("order")
     if isinstance(order, list):
         for item in order[:200]:
