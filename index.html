@@ -2771,6 +2771,31 @@ body.light dialog.queue-dlg.ym-look{
   .term-dlg{width:100vw;height:100dvh;border-radius:0;border:0}
   .term-dlg-head b{font-size:13px}
 }
+/* Положение меню: только для мыши и достаточно широкого экрана.
+   На телефоне и тач-планшете правила не применяются. */
+@media(min-width:761px){
+  html:not(.touch-ui) body[data-menu="bottom"] .tabs{
+    position:fixed;top:auto;bottom:14px;left:50%;transform:translateX(-50%);
+    margin:0;z-index:95;max-width:calc(100vw - 24px);
+  }
+  html:not(.touch-ui) body[data-menu="bottom"] main.grid{
+    padding-bottom:96px;
+  }
+  html:not(.touch-ui) body[data-menu="left"] .tabs,
+  html:not(.touch-ui) body[data-menu="right"] .tabs{
+    position:fixed;top:50%;transform:translateY(-50%);
+    flex-direction:column;margin:0;z-index:95;width:max-content;
+    max-height:calc(100dvh - 32px);overflow:visible;
+  }
+  html:not(.touch-ui) body[data-menu="left"] .tabs{left:12px;right:auto}
+  html:not(.touch-ui) body[data-menu="right"] .tabs{right:12px;left:auto}
+  html:not(.touch-ui) body[data-menu="left"] main.grid{margin-left:84px}
+  html:not(.touch-ui) body[data-menu="right"] main.grid{margin-right:84px}
+  html:not(.touch-ui) body[data-menu="left"] .tab,
+  html:not(.touch-ui) body[data-menu="right"] .tab{
+    box-shadow:none;
+  }
+}
 </style>
 </head>
 <body class="booting">
@@ -3780,6 +3805,20 @@ body.light dialog.queue-dlg.ym-look{
   </section>
 
   <!-- ───────── обслуживание ───────── -->
+  <section class="card" data-group="settings" aria-labelledby="h-menu">
+    <h2 id="h-menu"><span class="dot"></span>Меню</h2>
+    <label class="voice-setting" style="margin-top:10px">
+      <span>Положение меню</span>
+      <select id="menuPosition" class="net-input">
+        <option value="top">Сверху</option>
+        <option value="bottom">Снизу</option>
+        <option value="left">Слева</option>
+        <option value="right">Справа</option>
+      </select>
+      <small class="seg-note">только для мыши и широкого экрана; на телефоне остаётся прежнее меню</small>
+    </label>
+  </section>
+
   <section class="card c-sys" data-group="settings" data-card-id="layout-presets" aria-labelledby="h-layout-presets">
     <h2 id="h-layout-presets"><span class="dot"></span>Раскладка</h2>
     <div class="seg-note">Пресеты порядка и размеров карточек. Для компьютера и телефона — отдельно; хранятся на станции.</div>
@@ -15341,6 +15380,27 @@ body.light dialog.queue-dlg.ym-look{
       if (el.termDlg && el.termDlg.open) termResize();
     });
   }
+  /* ─────────── положение меню ─────────── */
+  var MENU_POS_KEY = 'mypult.menuPos';
+  var MENU_POSITIONS = ['top', 'bottom', 'left', 'right'];
+
+  function applyMenuPosition(value) {
+    var pos = MENU_POSITIONS.indexOf(value) >= 0 ? value : 'top';
+    document.body.dataset.menu = pos;
+    try { localStorage.setItem(MENU_POS_KEY, pos); } catch (e) {}
+    if (el.menuPosition) el.menuPosition.value = pos;
+  }
+
+  function menuPositionInit() {
+    var saved = 'top';
+    try { saved = localStorage.getItem(MENU_POS_KEY) || 'top'; } catch (e) {}
+    applyMenuPosition(saved);
+    if (el.menuPosition) {
+      el.menuPosition.addEventListener('change', function () {
+        applyMenuPosition(this.value);
+      });
+    }
+  }
   /* ─────────── версия ─────────── */
   function loadVersion() {
     return fetch('/version.json', { cache: 'no-store' }).then(function (res) {
@@ -17910,7 +17970,7 @@ body.light dialog.queue-dlg.ym-look{
     'voiceMicMode', 'voiceMicNote', 'voicePanel',
       'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote',
       'btnTermOpen', 'termStatus', 'termDlg', 'termDlgStatus', 'btnTermFinish',
-      'btnTermClose', 'termHost',
+      'btnTermClose', 'termHost', 'menuPosition',
       'cardPanel', 'panelBright', 'panelBrightVal', 'btnPanelOff', 'btnPanelRestore', 'panelStatus',
       'radioChips', 'btnRadioPrev', 'btnRadioStop', 'btnRadioNext', 'radioStatus',
       'radioName', 'btnRadioAdd', 'radioUrl', 'btnRadioStream',
@@ -17958,6 +18018,7 @@ body.light dialog.queue-dlg.ym-look{
     bind();
     buildMobileTabs();
     measureTabs();
+    menuPositionInit();
     termInit();
     initHome();
     initRingMusic();

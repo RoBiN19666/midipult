@@ -1,0 +1,25 @@
+/* Положение меню: только для мыши и достаточно широкого экрана.
+   На телефоне и тач-планшете правила не применяются. */
+@media(min-width:761px){
+  html:not(.touch-ui) body[data-menu="bottom"] .tabs{
+    position:fixed;top:auto;bottom:14px;left:50%;transform:translateX(-50%);
+    margin:0;z-index:95;max-width:calc(100vw - 24px);
+  }
+  html:not(.touch-ui) body[data-menu="bottom"] main.grid{
+    padding-bottom:96px;
+  }
+  html:not(.touch-ui) body[data-menu="left"] .tabs,
+  html:not(.touch-ui) body[data-menu="right"] .tabs{
+    position:fixed;top:50%;transform:translateY(-50%);
+    flex-direction:column;margin:0;z-index:95;width:max-content;
+    max-height:calc(100dvh - 32px);overflow:visible;
+  }
+  html:not(.touch-ui) body[data-menu="left"] .tabs{left:12px;right:auto}
+  html:not(.touch-ui) body[data-menu="right"] .tabs{right:12px;left:auto}
+  html:not(.touch-ui) body[data-menu="left"] main.grid{margin-left:84px}
+  html:not(.touch-ui) body[data-menu="right"] main.grid{margin-right:84px}
+  html:not(.touch-ui) body[data-menu="left"] .tab,
+  html:not(.touch-ui) body[data-menu="right"] .tab{
+    box-shadow:none;
+  }
+}

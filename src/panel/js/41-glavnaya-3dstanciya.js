@@ -1383,7 +1383,7 @@
     'voiceMicMode', 'voiceMicNote', 'voicePanel',
       'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote',
       'btnTermOpen', 'termStatus', 'termDlg', 'termDlgStatus', 'btnTermFinish',
-      'btnTermClose', 'termHost',
+      'btnTermClose', 'termHost', 'menuPosition',
       'cardPanel', 'panelBright', 'panelBrightVal', 'btnPanelOff', 'btnPanelRestore', 'panelStatus',
       'radioChips', 'btnRadioPrev', 'btnRadioStop', 'btnRadioNext', 'radioStatus',
       'radioName', 'btnRadioAdd', 'radioUrl', 'btnRadioStream',
@@ -1431,6 +1431,7 @@
     bind();
     buildMobileTabs();
     measureTabs();
+    menuPositionInit();
     termInit();
     initHome();
     initRingMusic();
