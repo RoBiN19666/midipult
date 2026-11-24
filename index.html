@@ -2741,6 +2741,28 @@ body.light dialog.queue-dlg.ym-look{
   html.touch-ui .tab-label{max-width:none;opacity:1;padding-right:0;font-size:13px}
   html.touch-ui .tab-icon svg{width:18px;height:18px}
 }
+.c-term{overflow:hidden}
+.term-out{
+  margin:10px 0 0;padding:12px 14px;min-height:140px;max-height:360px;overflow:auto;
+  background:#070a10;border:1px solid var(--stroke);border-radius:12px;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  color:#cfe3ff;white-space:pre-wrap;word-break:break-word;overscroll-behavior:contain;
+}
+.term-out .term-cmd{color:#9d8fff}
+.term-out .term-code{color:#ff9d7a;opacity:.9}
+.term-line{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.term-prompt{
+  flex:0 0 auto;color:#22d3ee;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.term-line .net-input{
+  flex:1 1 220px;min-width:0;height:38px;
+  font:13px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media(max-width:560px){
+  .term-line .net-input{flex-basis:100%}
+  .term-prompt{max-width:100%}
+}
 </style>
 </head>
 <body class="booting">
@@ -3907,6 +3929,19 @@ body.light dialog.queue-dlg.ym-look{
       <button class="btn sm" id="btnFilesOpen">Открыть менеджер</button>
     </div>
     <div class="seg-note" style="margin-top:8px">Запись разрешена только в <code>/data/mypult</code> и <code>/tmp</code>.</div>
+  </section>
+
+  <section class="card c-term" data-group="system" aria-labelledby="h-term">
+    <h2 id="h-term"><span class="dot"></span>Терминал</h2>
+    <div class="seg-note">Команды выполняются от root на колонке. Без TTY: vim, top и другие интерактивные программы не работают. Если PIN выключен, терминал доступен всем в локальной сети.</div>
+    <pre class="term-out" id="termOut" aria-live="polite"></pre>
+    <div class="term-line">
+      <span class="term-prompt" id="termPrompt">#</span>
+      <input id="termInput" class="net-input" type="text" autocomplete="off"
+             spellcheck="false" placeholder="ls -la">
+      <button class="btn sm" id="btnTermRun" type="button">Выполнить</button>
+      <button class="btn sm ghost" id="btnTermClear" type="button">Очистить</button>
+    </div>
   </section>
 
   <dialog id="ymDlg" class="ym-dlg" aria-labelledby="ymTitle">
@@ -15136,6 +15171,142 @@ body.light dialog.queue-dlg.ym-look{
     return refreshState();
   }
 
+  /* ─────────── терминал ─────────── */
+  var TERM_KEY = 'mypult.term.sid';
+  var TERM_HIST = 'mypult.term.history';
+  var termCwd = '/data/myweb';
+  var termBusy = false;
+  var termHistory = [];
+  var termHistIndex = 0;
+  var termSid = '';
+
+  function termInitSid() {
+    try {
+      termSid = localStorage.getItem(TERM_KEY) || '';
+    } catch (e) {}
+    if (!/^[a-z0-9]{8,32}$/.test(termSid)) {
+      var stamp = Date.now().toString(36) + Math.floor((window.performance && performance.now ? performance.now() : 0) * 1000).toString(36);
+      termSid = ('t' + stamp).replace(/[^a-z0-9]/g, '').slice(0, 24);
+      try { localStorage.setItem(TERM_KEY, termSid); } catch (e) {}
+    }
+    try {
+      var saved = JSON.parse(localStorage.getItem(TERM_HIST) || '[]');
+      if (Array.isArray(saved)) termHistory = saved.slice(-100);
+    } catch (e) { termHistory = []; }
+    termHistIndex = termHistory.length;
+  }
+
+  function termShortCwd() {
+    if (termCwd === '/data/myweb') return '~';
+    return termCwd || '/';
+  }
+
+  function termPrompt() {
+    if (el.termPrompt) el.termPrompt.textContent = 'root@midi:' + termShortCwd() + '#';
+  }
+
+  function termScroll() {
+    if (el.termOut) el.termOut.scrollTop = el.termOut.scrollHeight;
+  }
+
+  function termAppend(text, cls) {
+    if (!el.termOut || !text) return;
+    var node = document.createElement(cls ? 'span' : 'span');
+    if (cls) node.className = cls;
+    node.textContent = text;
+    el.termOut.appendChild(node);
+    if (el.termOut.textContent.length > 240000) {
+      el.termOut.textContent = el.termOut.textContent.slice(-160000);
+    }
+    termScroll();
+  }
+
+  function termClear() {
+    if (el.termOut) el.termOut.textContent = '';
+    termPrompt();
+  }
+
+  function termHistorySave(cmd) {
+    if (!cmd) return;
+    if (termHistory[termHistory.length - 1] !== cmd) termHistory.push(cmd);
+    termHistory = termHistory.slice(-100);
+    try { localStorage.setItem(TERM_HIST, JSON.stringify(termHistory)); } catch (e) {}
+    termHistIndex = termHistory.length;
+  }
+
+  function termRun() {
+    if (termBusy || !el.termInput) return;
+    var cmd = (el.termInput.value || '').trim();
+    if (!cmd) return;
+    if (cmd === 'clear' || cmd === 'cls') {
+      el.termInput.value = '';
+      termClear();
+      return;
+    }
+    termBusy = true;
+    el.termInput.value = '';
+    el.termInput.disabled = true;
+    if (el.btnTermRun) el.btnTermRun.disabled = true;
+    termAppend((el.termOut && el.termOut.textContent ? '\n' : '') +
+      'root@midi:' + termShortCwd() + '# ' + cmd + '\n', 'term-cmd');
+    termHistorySave(cmd);
+    return cgi('terminal.py', { cmd: cmd, sid: termSid }, { timeout: 40000 })
+      .then(function (data) {
+        if (data && typeof data.cwd === 'string' && data.cwd) termCwd = data.cwd;
+        var out = (data && data.out) || '';
+        if (out) termAppend(out.replace(/\s+$/, '\n'));
+        if (data && typeof data.code === 'number' && data.code !== 0) {
+          termAppend('[код ' + data.code + ']\n', 'term-code');
+        }
+        termPrompt();
+      })
+      .catch(function (err) {
+        termAppend('ошибка: ' + err.message + '\n', 'term-code');
+      })
+      .then(function () {
+        termBusy = false;
+        if (el.termInput) {
+          el.termInput.disabled = false;
+          el.termInput.focus();
+        }
+        if (el.btnTermRun) el.btnTermRun.disabled = false;
+      });
+  }
+
+  function termKeydown(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      termRun();
+      return;
+    }
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      if (!termHistory.length) return;
+      event.preventDefault();
+      if (event.key === 'ArrowUp') termHistIndex = Math.max(0, termHistIndex - 1);
+      else termHistIndex = Math.min(termHistory.length, termHistIndex + 1);
+      if (el.termInput) {
+        el.termInput.value = termHistIndex >= termHistory.length
+          ? '' : termHistory[termHistIndex];
+        var end = el.termInput.value.length;
+        try { el.termInput.setSelectionRange(end, end); } catch (e) {}
+      }
+    }
+  }
+
+  function termInit() {
+    termInitSid();
+    termPrompt();
+    if (el.termOut && !el.termOut.textContent) {
+      el.termOut.textContent = '';
+    }
+    cgi('terminal.py', { sid: termSid }, { timeout: 8000, silent: true })
+      .then(function (data) {
+        if (data && data.cwd) {
+          termCwd = data.cwd;
+          termPrompt();
+        }
+      }).catch(function () { /* сервер ответит при первой команде */ });
+  }
   /* ─────────── версия ─────────── */
   function loadVersion() {
     return fetch('/version.json', { cache: 'no-store' }).then(function (res) {
@@ -16122,6 +16293,9 @@ body.light dialog.queue-dlg.ym-look{
     el.btnPoweroff.addEventListener('click', doPoweroff);
     el.autoBright.addEventListener('change', toggleAutoBright);
     el.displayAuto.addEventListener('change', toggleDisplayAuto);
+    if (el.btnTermRun) el.btnTermRun.addEventListener('click', termRun);
+    if (el.btnTermClear) el.btnTermClear.addEventListener('click', termClear);
+    if (el.termInput) el.termInput.addEventListener('keydown', termKeydown);
     if (el.btnDisplayCurve) el.btnDisplayCurve.addEventListener('click', curveOpen);
     if (el.btnCurveClose) el.btnCurveClose.addEventListener('click', curveClose);
     if (el.btnCurveAdd) el.btnCurveAdd.addEventListener('click', curveAdd);
@@ -17704,6 +17878,7 @@ body.light dialog.queue-dlg.ym-look{
       'btnVoiceDaemon', 'voiceDaemonStatus', 'voiceIdleMode', 'voiceIdleNote',
     'voiceMicMode', 'voiceMicNote', 'voicePanel',
       'voiceMusicVoice', 'voiceMusicVoiceNote', 'voiceMusicDefault', 'voiceMusicDefaultNote',
+      'termOut', 'termPrompt', 'termInput', 'btnTermRun', 'btnTermClear',
       'cardPanel', 'panelBright', 'panelBrightVal', 'btnPanelOff', 'btnPanelRestore', 'panelStatus',
       'radioChips', 'btnRadioPrev', 'btnRadioStop', 'btnRadioNext', 'radioStatus',
       'radioName', 'btnRadioAdd', 'radioUrl', 'btnRadioStream',
@@ -17751,6 +17926,7 @@ body.light dialog.queue-dlg.ym-look{
     bind();
     buildMobileTabs();
     measureTabs();
+    termInit();
     initHome();
     initRingMusic();
     initLogo();

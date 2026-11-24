@@ -1193,6 +1193,19 @@
     <div class="seg-note" style="margin-top:8px">Запись разрешена только в <code>/data/mypult</code> и <code>/tmp</code>.</div>
   </section>
 
+  <section class="card c-term" data-group="system" aria-labelledby="h-term">
+    <h2 id="h-term"><span class="dot"></span>Терминал</h2>
+    <div class="seg-note">Команды выполняются от root на колонке. Без TTY: vim, top и другие интерактивные программы не работают. Если PIN выключен, терминал доступен всем в локальной сети.</div>
+    <pre class="term-out" id="termOut" aria-live="polite"></pre>
+    <div class="term-line">
+      <span class="term-prompt" id="termPrompt">#</span>
+      <input id="termInput" class="net-input" type="text" autocomplete="off"
+             spellcheck="false" placeholder="ls -la">
+      <button class="btn sm" id="btnTermRun" type="button">Выполнить</button>
+      <button class="btn sm ghost" id="btnTermClear" type="button">Очистить</button>
+    </div>
+  </section>
+
   <dialog id="ymDlg" class="ym-dlg" aria-labelledby="ymTitle">
     <div class="ym-shell">
       <header class="ym-top">

@@ -42,6 +42,7 @@ import state_daemon  # noqa: E402
 import update  # noqa: E402
 import voice_daemon  # noqa: E402
 import zvuk  # noqa: E402
+import terminal  # noqa: E402
 import volume  # noqa: E402
 import vpn  # noqa: E402
 import websearch  # noqa: E402
@@ -1337,6 +1338,21 @@ def test_display_curve():
           display.clean_curve([{"lux": 10, "level": 40}, [5, 20]]) == [[5, 20], [10, 40]])
     check("дисплей: кривая по умолчанию из min/max",
           display.default_display_curve(10, 170) == [[0, 10], [50, 90], [200, 170]])
+
+
+def test_terminal_helpers():
+    check("терминал: sid с мусором заменяется",
+          terminal.clean_sid("../../etc") == "default0")
+    check("терминал: нормальный sid проходит",
+          terminal.clean_sid("abc12345") == "abc12345")
+    short, clipped = terminal.limit_output("x" * 100)
+    check("терминал: короткий вывод не режется",
+          short == "x" * 100 and clipped is False)
+    long_text, clipped = terminal.limit_output("x" * (terminal.MAX_OUT + 10))
+    check("терминал: длинный вывод обрезается",
+          clipped is True and len(long_text) < terminal.MAX_OUT + 200)
+    check("терминал: путь к оболочке задан",
+          terminal.shell_path().startswith("/"))
 
 
 def test_voice_passive_wants():
@@ -2955,6 +2971,7 @@ def main():
         test_zvuk_token_extract,
         test_zvuk_stale_state,
         test_display_curve,
+        test_terminal_helpers,
         test_voice_native_phrase,
         test_status_probe_cache,
         test_lyrics_parse,

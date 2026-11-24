@@ -1,0 +1,22 @@
+.c-term{overflow:hidden}
+.term-out{
+  margin:10px 0 0;padding:12px 14px;min-height:140px;max-height:360px;overflow:auto;
+  background:#070a10;border:1px solid var(--stroke);border-radius:12px;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  color:#cfe3ff;white-space:pre-wrap;word-break:break-word;overscroll-behavior:contain;
+}
+.term-out .term-cmd{color:#9d8fff}
+.term-out .term-code{color:#ff9d7a;opacity:.9}
+.term-line{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.term-prompt{
+  flex:0 0 auto;color:#22d3ee;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.term-line .net-input{
+  flex:1 1 220px;min-width:0;height:38px;
+  font:13px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media(max-width:560px){
+  .term-line .net-input{flex-basis:100%}
+  .term-prompt{max-width:100%}
+}
