@@ -128,39 +128,65 @@ def player_signature(value):
     )
 
 
+def notify_watchers():
+    global PLAYER_VERSION
+    with PLAYER_COND:
+        PLAYER_VERSION += 1
+        PLAYER_COND.notify_all()
+
+
+def player_changed(before, after, elapsed):
+    if player_signature(before) != player_signature(after):
+        return True
+    if not before:
+        return False
+    old_progress = float(before.get("progress") or 0)
+    new_progress = float(after.get("progress") or 0)
+    return abs(new_progress - old_progress - elapsed) > 6
+
+
+def publish_player(value, now=None):
+    global PLAYER_STATE, PLAYER_AT
+    now = time.time() if now is None else now
+    elapsed = now - PLAYER_AT if PLAYER_AT else 0
+    changed = player_changed(PLAYER_STATE, value, elapsed)
+    with LOCK:
+        PLAYER_STATE = value
+        STATE["player"] = value
+    PLAYER_AT = now
+    if changed:
+        notify_watchers()
+    return value
+
+
+def on_glagol_state(_state=None):
+    """Watcher прислал state — обновляем плеер без ожидания цикла."""
+    try:
+        value = player_now()
+    except Exception:  # noqa: BLE001
+        return
+    publish_player(value)
+
+
 def refresh_loop():
-    global STATE, PLAYER_STATE
+    global STATE
     while True:
         payload = {"ok": True, "status": {}, "player": {}}
         try:
             payload["status"] = status.build()
         except Exception as exc:  # noqa: BLE001
             payload["status"] = {"ok": False, "error": str(exc)[:200]}
-        # Watcher держит WS к Glagol и обновляет state пушем, поэтому снимок
-        # дешёвый: берём его каждые 2 с, а не раз в 10.
-        global PLAYER_VERSION, PLAYER_AT
-        before = PLAYER_STATE
-        now = time.time()
-        PLAYER_STATE = player_now()
-        payload["player"] = PLAYER_STATE
+        # Плеер обновляется по пушам watcher; раз в 2 секунды — только
+        # страховка на случай, если пушей давно не было.
+        if PLAYER_AT and time.time() - PLAYER_AT < 1.5:
+            with LOCK:
+                payload["player"] = PLAYER_STATE
+        else:
+            payload["player"] = publish_player(player_now())
         with LOCK:
             payload["system"] = SYSTEM_STATE
             payload["sounds"] = SOUNDS_STATE
             STATE = payload
-        changed = player_signature(PLAYER_STATE) != player_signature(before)
-        if not changed and before:
-            # Перемотка меняет только progress: обычный ход трека не считаем
-            # изменением, а скачок больше 6 секунд — считаем.
-            old_progress = float(before.get("progress") or 0)
-            new_progress = float(PLAYER_STATE.get("progress") or 0)
-            elapsed = now - PLAYER_AT if PLAYER_AT else 0
-            if abs(new_progress - old_progress - elapsed) > 6:
-                changed = True
-        PLAYER_AT = now
-        if changed:
-            with PLAYER_COND:
-                PLAYER_VERSION += 1
-                PLAYER_COND.notify_all()
         time.sleep(2)
 
 
@@ -471,6 +497,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     try:
         glagol.start_watcher()
+        glagol.on_state(on_glagol_state)
     except Exception:  # noqa: BLE001 - без watcher плеер работает через запросы
         pass
     threading.Thread(target=refresh_loop, daemon=True).start()

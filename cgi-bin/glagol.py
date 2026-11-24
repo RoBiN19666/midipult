@@ -314,6 +314,7 @@ def _envelope(payload, request_id, access_token):
 _watch_lock = threading.Lock()
 _watch = {"state": None, "updated": 0.0, "connected": False, "error": None}
 _watcher = None
+_watch_callbacks = []
 
 
 def latest(max_age=None):
@@ -331,6 +332,12 @@ def latest(max_age=None):
 def watch_status():
     with _watch_lock:
         return dict(_watch)
+
+
+def on_state(callback):
+    """Подписаться на каждый state от watcher (без HTTP-запросов)."""
+    if callback not in _watch_callbacks:
+        _watch_callbacks.append(callback)
 
 
 class _Watcher(threading.Thread):
@@ -384,6 +391,11 @@ class _Watcher(threading.Thread):
                             with _watch_lock:
                                 _watch.update(state=state, updated=time.time(),
                                               connected=True, error=None)
+                            for callback in list(_watch_callbacks):
+                                try:
+                                    callback(state)
+                                except Exception:  # noqa: BLE001
+                                    pass
                 if time.time() - last_ping > 20:
                     try:
                         connection.send(_envelope(
