@@ -3064,14 +3064,14 @@ body.light dialog.queue-dlg.ym-look{
     </div>
 
     <div class="prov-pane" id="provPaneZvuk" role="tabpanel" data-provider-pane="zvuk" hidden>
-      <div class="seg-note">Без аккаунта Сбер Звук отдаёт только 30-секундный фрагмент. Для полного трека нужен токен: войдите на zvuk.com, откройте страницу профиля API и скопируйте поле <b>token</b>.</div>
+      <div class="seg-note">Без аккаунта Сбер Звук отдаёт только 30-секундный фрагмент. Для полного трека нужен токен: войдите на zvuk.com, откройте страницу профиля API и скопируйте её целиком — панель сама найдёт строку <b>token</b>.</div>
       <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
         <button class="btn sm ghost" id="btnZvukSite">Войти на zvuk.com</button>
         <button class="btn sm ghost" id="btnZvukProfile">Страница с токеном</button>
       </div>
       <div class="zvuk-token-wrap">
-        <input id="zvukToken" class="net-input" type="password" autocomplete="off"
-               placeholder="Вставьте token из профиля">
+        <textarea id="zvukToken" class="net-input" rows="2" autocomplete="off"
+                  placeholder="Вставьте токен или весь текст страницы — token найдётся сам"></textarea>
         <button class="btn sm" id="btnZvukSave">Сохранить</button>
         <button class="btn sm ghost" id="btnZvukClear">Убрать</button>
       </div>
@@ -11590,6 +11590,7 @@ body.light dialog.queue-dlg.ym-look{
   }
 
   function zvukStop() {
+    cgi('zvuk.py', { action: 'stop' }, { timeout: 12000, silent: true }).catch(function () {});
     cgi('media.py', { action: 'pause' }, { timeout: 12000 })
       .then(function () { zvukShowNow(null); zvukSetStatus('Остановлено'); })
       .catch(function (err) { zvukSetStatus('Ошибка остановки: ' + err.message, 'bad'); });

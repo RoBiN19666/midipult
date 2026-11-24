@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import time
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
@@ -22,6 +23,38 @@ CACHE_DIR = os.path.join(DATA_DIR, "zvuk-cache")
 STATE_PATH = os.path.join(DATA_DIR, "zvuk_state.json")
 SELF_URL = "http://127.0.0.1:8055/cgi-bin/zvuk_stream.py"
 ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
+JWT_RE = re.compile(r"eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}")
+TOKEN_KEY_RE = re.compile(
+    r'token["\']?\s*[:=]\s*["\']?([A-Za-z0-9._\-]{16,})', re.I)
+RAW_TOKEN_RE = re.compile(r"^[A-Za-z0-9._\-]{16,}$")
+
+
+def extract_token(raw):
+    """Достать токен из вставленного текста: JSON, «token: …» или голой строки."""
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+    match = JWT_RE.search(text) or TOKEN_KEY_RE.search(text)
+    if match:
+        return match.group(0) if match.re is JWT_RE else match.group(1)
+    plain = text.strip().strip("\"'")
+    if RAW_TOKEN_RE.match(plain):
+        return plain
+    for part in re.split(r"\s+", text):
+        part = part.strip("\"',;")
+        if RAW_TOKEN_RE.match(part):
+            return part
+    return ""
+
+
+def _player_snapshot():
+    try:
+        with urllib.request.urlopen(
+                "http://127.0.0.1:8055/cgi-bin/player.py", timeout=4) as resp:
+            import json
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def _auth():
@@ -45,11 +78,37 @@ def _api():
     return zvuk_api.Api(token)
 
 
+def _clear_state():
+    try:
+        os.unlink(STATE_PATH)
+    except OSError:
+        pass
+
+
 def _state():
-    return common.read_json(STATE_PATH, {}) or {}
+    data = common.read_json(STATE_PATH, {}) or {}
+    if not data:
+        return {}
+    # Пока трек только запускается, плеер может ещё не успеть обновиться.
+    if time.time() - float(data.get("at") or 0) < 20:
+        return data
+    snap = _player_snapshot()
+    if not snap:
+        return data
+    title = str(data.get("title") or "").strip().lower()
+    playing_title = str(snap.get("title") or "").strip().lower()
+    same = bool(title and playing_title and
+                (title in playing_title or playing_title in title))
+    if not same:
+        # В плеере давно другой трек или тишина — состояние устарело.
+        _clear_state()
+        return {}
+    return data
 
 
 def _save_state(data):
+    data = dict(data or {})
+    data["at"] = time.time()
     common.write_json(STATE_PATH, data, mode=0o600)
 
 
@@ -101,9 +160,12 @@ def main():
         return
 
     if action == "token":
-        token = str(data.get("token") or "").strip()
+        raw = str(data.get("token") or "")
+        token = extract_token(raw)
         if not token:
-            raise zvuk_api.AuthError("Токен пустой")
+            raise zvuk_api.AuthError(
+                "Не нашёл токен. Вставьте весь текст со страницы профиля — "
+                "строка вида token: \"…\" подойдёт целиком")
         try:
             zvuk_api.account_profile(token)
         except zvuk_api.Error as profile_error:
@@ -116,6 +178,11 @@ def main():
                     "Токен не принят: %s; поиск: %s" % (profile_error, search_error))
         auth.save(token)
         common.ok(has_token=True)
+        return
+
+    if action == "stop":
+        _clear_state()
+        common.ok(playing=False, track={})
         return
 
     if action == "clear":

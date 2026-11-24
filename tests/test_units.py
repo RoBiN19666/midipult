@@ -41,6 +41,7 @@ import speak  # noqa: E402
 import state_daemon  # noqa: E402
 import update  # noqa: E402
 import voice_daemon  # noqa: E402
+import zvuk  # noqa: E402
 import volume  # noqa: E402
 import vpn  # noqa: E402
 import websearch  # noqa: E402
@@ -1295,6 +1296,36 @@ def test_voice_music_transport():
         voice_daemon.MUSIC_QUEUE_PATH = old_path
         voice_daemon.post = old_post
         voice_daemon.music_fetch = old_fetch
+
+
+def test_zvuk_token_extract():
+    check("звук: токен из строки token: …",
+          zvuk.extract_token('token: "abcDEF123456789012345"') ==
+          "abcDEF123456789012345")
+    check("звук: токен из JSON",
+          zvuk.extract_token('{"token":"abcDEF123456789012345"}') ==
+          "abcDEF123456789012345")
+    check("звук: голый токен",
+          zvuk.extract_token("abcDEF123456789012345") ==
+          "abcDEF123456789012345")
+    check("звук: текст без токена",
+          zvuk.extract_token("привет, как дела") == "")
+
+
+def test_zvuk_stale_state():
+    old_path = zvuk.STATE_PATH
+    old_snap = zvuk._player_snapshot
+    try:
+        zvuk.STATE_PATH = os.path.join(
+            tempfile.mkdtemp(prefix="mypult-zvuk-"), "state.json")
+        zvuk._player_snapshot = lambda: {"playing": False, "title": ""}
+        common.write_json(zvuk.STATE_PATH, {"title": "Матушка", "at": 1}, mode=0o600)
+        check("звук: замолчавшее состояние сбрасывается", zvuk._state() == {})
+        check("звук: файл состояния удалён",
+              not os.path.exists(zvuk.STATE_PATH))
+    finally:
+        zvuk.STATE_PATH = old_path
+        zvuk._player_snapshot = old_snap
 
 
 def test_voice_passive_wants():
@@ -2910,6 +2941,8 @@ def main():
         test_voice_music_play,
         test_voice_music_wave,
         test_voice_music_transport,
+        test_zvuk_token_extract,
+        test_zvuk_stale_state,
         test_voice_native_phrase,
         test_status_probe_cache,
         test_lyrics_parse,

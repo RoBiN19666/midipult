@@ -92,6 +92,7 @@
   }
 
   function zvukStop() {
+    cgi('zvuk.py', { action: 'stop' }, { timeout: 12000, silent: true }).catch(function () {});
     cgi('media.py', { action: 'pause' }, { timeout: 12000 })
       .then(function () { zvukShowNow(null); zvukSetStatus('Остановлено'); })
       .catch(function (err) { zvukSetStatus('Ошибка остановки: ' + err.message, 'bad'); });
