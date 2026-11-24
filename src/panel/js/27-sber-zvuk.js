@@ -94,6 +94,13 @@
   }
 
   function zvukStop() {
+    var kind = document.getElementById('mediaKind');
+    if (kind) kind.textContent = '';
+    if (State.waveService === 'zvuk' && typeof waveStop === 'function') {
+      zvukShowNow(null);
+      zvukSetStatus('Остановлено');
+      return waveStop();
+    }
     cgi('zvuk.py', { action: 'stop' }, { timeout: 12000, silent: true }).catch(function () {});
     cgi('media.py', { action: 'pause' }, { timeout: 12000 })
       .then(function () { zvukShowNow(null); zvukSetStatus('Остановлено'); })

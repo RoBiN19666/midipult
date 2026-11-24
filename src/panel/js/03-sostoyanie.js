@@ -110,6 +110,8 @@
     mediaCover: '',
     liked: false,
   disliked: false,
+  waveService: '',
+  waveKey: '',
     queueTab: 'queue',
     llmTzAutosaved: false,
     alarmMode: 'radio',

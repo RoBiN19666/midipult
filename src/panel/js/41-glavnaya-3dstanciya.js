@@ -1469,6 +1469,19 @@
     setInterval(function () {
       if (State.tab === 'home' && !document.hidden) refreshSystem();
     }, 15000);
+    // Страховка: если long-poll потерял событие остановки волны, карточка
+    // сервиса и подпись плеера не должны висеть до перезагрузки.
+    setInterval(function () {
+      if (document.hidden || !State.waveService) return;
+      if (State.tab !== 'sound' && State.tab !== 'home') return;
+      cgi('wave.py', { action: 'status' }, { timeout: 8000, silent: true })
+        .then(function (data) {
+          if (data && data.active) return;
+          if (typeof syncWaveCard === 'function') syncWaveCard({});
+          if (el.mediaKind) el.mediaKind.textContent = '';
+          if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
+        }).catch(function () {});
+    }, 4000);
     // Клик мимо поля ввода снимает фокус: на Android WebView каретка иногда
     // продолжает мигать после закрытия клавиатуры, и это раздражает.
     document.addEventListener('pointerdown', function (event) {

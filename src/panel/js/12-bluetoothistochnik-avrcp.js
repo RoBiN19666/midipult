@@ -219,6 +219,7 @@
           : (data.kind === 'FmRadio' ? 'сейчас радио' :
             (data.kind === 'Track' ? 'сейчас музыка' : '')));
     }
+    syncWaveCard(data);
     if (data.title) {
       if (data.title !== State.mediaTitle) {
         State.mediaTitle = data.title;
@@ -326,7 +327,34 @@
     }
   };
 
-  function applyState(data) {
+  function syncWaveCard(data) {
+    var service = data && data.service;
+    var title = data && data.title;
+    if (service && title) {
+      var key = service + "|" + title;
+      if (State.waveKey === key && State.waveService === service) return;
+      State.waveService = service;
+      State.waveKey = key;
+      if (service === "zvuk" && typeof zvukShowNow === "function") {
+        zvukShowNow({ title: title, artist: data.artist || "", cover: data.cover || "" });
+      } else if (typeof extNow === "function") {
+        extNow({ title: title, artist: data.artist || "", cover: data.cover || "" });
+      }
+      return;
+    }
+    if (State.waveService) {
+      var previous = State.waveService;
+      State.waveService = "";
+      State.waveKey = "";
+      if (previous === "zvuk" && typeof zvukShowNow === "function") zvukShowNow(null);
+      else if (typeof extNow === "function") extNow(null);
+      var kind = document.getElementById("mediaKind");
+      if (kind) kind.textContent = "";
+    }
+  }
+
+
+function applyState(data) {
     if (data.status) applyStatusData(data.status);
     if (data.player && !data.player.error) applyPlayerData(data.player);
     else State.stationActive = false;

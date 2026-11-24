@@ -314,6 +314,11 @@ def stop():
         except Exception:  # noqa: BLE001
             pass
     clear()
+    if common is not None:
+        try:
+            common.now_playing_clear()
+        except Exception:  # noqa: BLE001
+            pass
     log("волна остановлена")
     return {"ok": True}
 

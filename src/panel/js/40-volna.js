@@ -2,6 +2,12 @@
   function waveStop() {
     return cgi('wave.py', { action: 'stop' }, { timeout: 30000 }).then(function () {
       toast('Волна остановлена', 'ok');
+      if (State.waveService === 'zvuk' && typeof zvukShowNow === 'function') zvukShowNow(null);
+      else if (typeof extNow === 'function') extNow(null);
+      State.waveService = '';
+      State.waveKey = '';
+      var kind = document.getElementById('mediaKind');
+      if (kind) kind.textContent = '';
       if (typeof extSetStatus === 'function') extSetStatus('Волна остановлена');
       if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
     }).catch(function (err) {

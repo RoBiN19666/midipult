@@ -259,6 +259,13 @@
   }
 
   function extStop() {
+    var kind = document.getElementById('mediaKind');
+    if (kind) kind.textContent = '';
+    if (State.waveService && State.waveService !== 'zvuk' && typeof waveStop === 'function') {
+      extNow(null);
+      extSetStatus('Остановлено');
+      return waveStop();
+    }
     extStopBackends().then(function () {
       return cgi('media.py', { action: 'pause' }, { timeout: 12000 }).catch(function () {});
     }).then(function () {

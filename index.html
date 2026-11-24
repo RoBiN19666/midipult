@@ -4964,6 +4964,8 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
     mediaCover: '',
     liked: false,
   disliked: false,
+  waveService: '',
+  waveKey: '',
     queueTab: 'queue',
     llmTzAutosaved: false,
     alarmMode: 'radio',
@@ -9261,6 +9263,7 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
           : (data.kind === 'FmRadio' ? 'сейчас радио' :
             (data.kind === 'Track' ? 'сейчас музыка' : '')));
     }
+    syncWaveCard(data);
     if (data.title) {
       if (data.title !== State.mediaTitle) {
         State.mediaTitle = data.title;
@@ -9368,7 +9371,34 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
     }
   };
 
-  function applyState(data) {
+  function syncWaveCard(data) {
+    var service = data && data.service;
+    var title = data && data.title;
+    if (service && title) {
+      var key = service + "|" + title;
+      if (State.waveKey === key && State.waveService === service) return;
+      State.waveService = service;
+      State.waveKey = key;
+      if (service === "zvuk" && typeof zvukShowNow === "function") {
+        zvukShowNow({ title: title, artist: data.artist || "", cover: data.cover || "" });
+      } else if (typeof extNow === "function") {
+        extNow({ title: title, artist: data.artist || "", cover: data.cover || "" });
+      }
+      return;
+    }
+    if (State.waveService) {
+      var previous = State.waveService;
+      State.waveService = "";
+      State.waveKey = "";
+      if (previous === "zvuk" && typeof zvukShowNow === "function") zvukShowNow(null);
+      else if (typeof extNow === "function") extNow(null);
+      var kind = document.getElementById("mediaKind");
+      if (kind) kind.textContent = "";
+    }
+  }
+
+
+function applyState(data) {
     if (data.status) applyStatusData(data.status);
     if (data.player && !data.player.error) applyPlayerData(data.player);
     else State.stationActive = false;
@@ -12138,6 +12168,13 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
   }
 
   function zvukStop() {
+    var kind = document.getElementById('mediaKind');
+    if (kind) kind.textContent = '';
+    if (State.waveService === 'zvuk' && typeof waveStop === 'function') {
+      zvukShowNow(null);
+      zvukSetStatus('Остановлено');
+      return waveStop();
+    }
     cgi('zvuk.py', { action: 'stop' }, { timeout: 12000, silent: true }).catch(function () {});
     cgi('media.py', { action: 'pause' }, { timeout: 12000 })
       .then(function () { zvukShowNow(null); zvukSetStatus('Остановлено'); })
@@ -12450,6 +12487,13 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
   }
 
   function extStop() {
+    var kind = document.getElementById('mediaKind');
+    if (kind) kind.textContent = '';
+    if (State.waveService && State.waveService !== 'zvuk' && typeof waveStop === 'function') {
+      extNow(null);
+      extSetStatus('Остановлено');
+      return waveStop();
+    }
     extStopBackends().then(function () {
       return cgi('media.py', { action: 'pause' }, { timeout: 12000 }).catch(function () {});
     }).then(function () {
@@ -16953,6 +16997,12 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
   function waveStop() {
     return cgi('wave.py', { action: 'stop' }, { timeout: 30000 }).then(function () {
       toast('Волна остановлена', 'ok');
+      if (State.waveService === 'zvuk' && typeof zvukShowNow === 'function') zvukShowNow(null);
+      else if (typeof extNow === 'function') extNow(null);
+      State.waveService = '';
+      State.waveKey = '';
+      var kind = document.getElementById('mediaKind');
+      if (kind) kind.textContent = '';
       if (typeof extSetStatus === 'function') extSetStatus('Волна остановлена');
       if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
     }).catch(function (err) {
@@ -18447,6 +18497,19 @@ body.light .term-dlg-head .seg-note{color:#7a7064}
     setInterval(function () {
       if (State.tab === 'home' && !document.hidden) refreshSystem();
     }, 15000);
+    // Страховка: если long-poll потерял событие остановки волны, карточка
+    // сервиса и подпись плеера не должны висеть до перезагрузки.
+    setInterval(function () {
+      if (document.hidden || !State.waveService) return;
+      if (State.tab !== 'sound' && State.tab !== 'home') return;
+      cgi('wave.py', { action: 'status' }, { timeout: 8000, silent: true })
+        .then(function (data) {
+          if (data && data.active) return;
+          if (typeof syncWaveCard === 'function') syncWaveCard({});
+          if (el.mediaKind) el.mediaKind.textContent = '';
+          if (typeof refreshPlayer === 'function') refreshPlayer(true, true);
+        }).catch(function () {});
+    }, 4000);
     // Клик мимо поля ввода снимает фокус: на Android WebView каретка иногда
     // продолжает мигать после закрытия клавиатуры, и это раздражает.
     document.addEventListener('pointerdown', function (event) {
