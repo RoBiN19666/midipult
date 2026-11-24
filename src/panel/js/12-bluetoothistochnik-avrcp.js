@@ -214,6 +214,7 @@
         State.mediaTitle = data.title;
         State.mediaArtist = data.artist || '';
         State.mediaId = data.id || '';
+        if (typeof setDislikeUI === 'function') setDislikeUI(false);
         clearLyrics();
         loadLiked();
         if (State.lyricsInline) {

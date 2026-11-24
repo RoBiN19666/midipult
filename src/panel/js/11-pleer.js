@@ -1151,6 +1151,16 @@
     });
   }
 
+  function setDislikeUI(on) {
+    State.disliked = !!on;
+    ['btnDislike', 'ymNowDislike', 'ymBarDislike'].forEach(function (id) {
+      var button = document.getElementById(id);
+      if (!button) return;
+      button.classList.toggle('on', State.disliked);
+      button.setAttribute('aria-pressed', State.disliked ? 'true' : 'false');
+    });
+  }
+
   function loadLiked() {
     if (!State.mediaTitle) {
       setLikeUI(false);
@@ -1187,6 +1197,7 @@
     return cgi('musicapi.py', { dislike: 1 }, { timeout: 25000 })
       .then(function () {
         setLikeUI(false);
+        setDislikeUI(true);
         toast('Больше не буду предлагать этот трек', 'ok');
       }).catch(function (err) {
         toast('Дизлайк: ' + err.message, 'bad');

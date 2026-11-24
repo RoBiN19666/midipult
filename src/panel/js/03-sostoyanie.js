@@ -109,6 +109,7 @@
     mediaId: '',
     mediaCover: '',
     liked: false,
+  disliked: false,
     queueTab: 'queue',
     llmTzAutosaved: false,
     alarmMode: 'radio',
