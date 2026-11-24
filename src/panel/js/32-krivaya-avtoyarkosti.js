@@ -52,6 +52,10 @@
     ctx.fillStyle = 'rgba(255,255,255,.45)';
     ctx.font = '10px sans-serif';
     ctx.lineWidth = 1;
+    ctx.fillText('яркость', 2, 10);
+    ctx.textAlign = 'right';
+    ctx.fillText('lux', g.width - 10, 10);
+    ctx.textAlign = 'start';
     [0, 10, 100, 1000, 10000].forEach(function (lux) {
       var x = curveLuxToX(lux, g);
       ctx.beginPath();

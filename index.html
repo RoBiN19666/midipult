@@ -2646,15 +2646,19 @@ body.light dialog.queue-dlg.ym-look{
 #curveDlg{margin:auto}
 #curveCanvas{width:100%;height:auto;background:rgba(255,255,255,.03);border:1px solid var(--stroke);
   border-radius:10px;touch-action:none;cursor:crosshair}
+.curve-head,.curve-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;
+  gap:8px;align-items:center}
+.curve-head{font-size:11px;color:var(--muted);letter-spacing:.02em;padding:0 2px}
+.curve-head span:nth-child(3){text-align:center}
 .curve-rows{display:flex;flex-direction:column;gap:6px}
-.curve-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.curve-row input{flex:1 1 96px;width:96px;min-width:78px;height:38px;padding:0 8px;
+.curve-row input{width:100%;min-width:0;height:38px;padding:0 8px;
   text-align:center;font-size:16px}
 .curve-row .seg-note{flex:0 0 auto}
-.curve-row .curve-del{flex:0 0 auto;margin-left:auto}
+.curve-row .curve-del{flex:0 0 auto;min-width:86px;padding:0 10px}
 @media(max-width:420px){
-  .curve-row input{flex:1 1 78px;min-width:66px;padding:0 4px}
-  .curve-row .curve-del{padding:0 10px}
+  .curve-row input{padding:0 4px}
+  .curve-row .curve-del{min-width:74px;padding:0 8px}
+  .curve-head{font-size:10px}
 }
 </style>
 </head>
@@ -13633,6 +13637,10 @@ body.light dialog.queue-dlg.ym-look{
     ctx.fillStyle = 'rgba(255,255,255,.45)';
     ctx.font = '10px sans-serif';
     ctx.lineWidth = 1;
+    ctx.fillText('яркость', 2, 10);
+    ctx.textAlign = 'right';
+    ctx.fillText('lux', g.width - 10, 10);
+    ctx.textAlign = 'start';
     [0, 10, 100, 1000, 10000].forEach(function (lux) {
       var x = curveLuxToX(lux, g);
       ctx.beginPath();
@@ -17637,7 +17645,14 @@ body.light dialog.queue-dlg.ym-look{
     <button type="button" class="btn sm ghost" id="btnCurveClose">Закрыть</button>
   </div>
   <div class="curve-body">
+    <div class="seg-note">График: по горизонтали — освещённость (lux, логарифмическая шкала), по вертикали — яркость.</div>
     <canvas id="curveCanvas" width="360" height="170" aria-label="График кривой"></canvas>
+    <div class="curve-head">
+      <span>Освещённость, lux</span>
+      <span></span>
+      <span>Яркость</span>
+      <span></span>
+    </div>
     <div class="curve-rows" id="curveRows"></div>
     <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px">
       <button type="button" class="btn sm ghost" id="btnCurveAdd">Добавить точку</button>

@@ -3,13 +3,17 @@
 #curveDlg{margin:auto}
 #curveCanvas{width:100%;height:auto;background:rgba(255,255,255,.03);border:1px solid var(--stroke);
   border-radius:10px;touch-action:none;cursor:crosshair}
+.curve-head,.curve-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;
+  gap:8px;align-items:center}
+.curve-head{font-size:11px;color:var(--muted);letter-spacing:.02em;padding:0 2px}
+.curve-head span:nth-child(3){text-align:center}
 .curve-rows{display:flex;flex-direction:column;gap:6px}
-.curve-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.curve-row input{flex:1 1 96px;width:96px;min-width:78px;height:38px;padding:0 8px;
+.curve-row input{width:100%;min-width:0;height:38px;padding:0 8px;
   text-align:center;font-size:16px}
 .curve-row .seg-note{flex:0 0 auto}
-.curve-row .curve-del{flex:0 0 auto;margin-left:auto}
+.curve-row .curve-del{flex:0 0 auto;min-width:86px;padding:0 10px}
 @media(max-width:420px){
-  .curve-row input{flex:1 1 78px;min-width:66px;padding:0 4px}
-  .curve-row .curve-del{padding:0 10px}
+  .curve-row input{padding:0 4px}
+  .curve-row .curve-del{min-width:74px;padding:0 8px}
+  .curve-head{font-size:10px}
 }

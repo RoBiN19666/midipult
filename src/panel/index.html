@@ -1727,7 +1727,14 @@
     <button type="button" class="btn sm ghost" id="btnCurveClose">Закрыть</button>
   </div>
   <div class="curve-body">
+    <div class="seg-note">График: по горизонтали — освещённость (lux, логарифмическая шкала), по вертикали — яркость.</div>
     <canvas id="curveCanvas" width="360" height="170" aria-label="График кривой"></canvas>
+    <div class="curve-head">
+      <span>Освещённость, lux</span>
+      <span></span>
+      <span>Яркость</span>
+      <span></span>
+    </div>
     <div class="curve-rows" id="curveRows"></div>
     <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:10px">
       <button type="button" class="btn sm ghost" id="btnCurveAdd">Добавить точку</button>
