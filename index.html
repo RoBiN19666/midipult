@@ -2794,12 +2794,18 @@ body.light dialog.queue-dlg.ym-look{
   }
   html:not(.touch-ui) body[data-menu="left"] .tabs{left:12px;right:auto}
   html:not(.touch-ui) body[data-menu="right"] .tabs{right:12px;left:auto}
-  /* Симметричные отступы: контент остаётся по центру экрана, а не
-     сдвигается в сторону из-за рейки меню. */
-  html:not(.touch-ui) body[data-menu="left"] main.grid,
-  html:not(.touch-ui) body[data-menu="right"] main.grid{
+  /* Место под рейку резервируем только с её стороны, а ширину сетки
+     увеличиваем на столько же — карточки не сужаются и занимают
+     свободную половину экрана. */
+  html:not(.touch-ui) body[data-menu="left"] main.grid{
     padding-left:calc(var(--page-x) + 72px);
+    padding-right:var(--page-x);
+    max-width:1272px;
+  }
+  html:not(.touch-ui) body[data-menu="right"] main.grid{
     padding-right:calc(var(--page-x) + 72px);
+    padding-left:var(--page-x);
+    max-width:1272px;
   }
   html:not(.touch-ui) body[data-menu="left"] .tab,
   html:not(.touch-ui) body[data-menu="right"] .tab{
@@ -2832,8 +2838,15 @@ body.light dialog.queue-dlg.ym-look{
   html.touch-ui body[data-menu="right"] .tabs{right:10px;left:auto}
   html.touch-ui body[data-menu="left"] main.grid,
   html.touch-ui body[data-menu="right"] main.grid{
+    padding-top:0;
+  }
+  html.touch-ui body[data-menu="left"] main.grid{
     padding-left:calc(var(--page-x) + 150px);
+    padding-right:var(--page-x);
+  }
+  html.touch-ui body[data-menu="right"] main.grid{
     padding-right:calc(var(--page-x) + 150px);
+    padding-left:var(--page-x);
   }
   html.touch-ui body[data-menu="left"] .tab,
   html.touch-ui body[data-menu="right"] .tab{
