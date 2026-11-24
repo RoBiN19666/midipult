@@ -9,11 +9,27 @@
     return [[0, lo], [50, Math.round((lo + hi) / 2)], [200, hi]];
   }
 
+  function curveResize() {
+    var canvas = el.curveCanvas;
+    if (!canvas) return;
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = Math.max(240, Math.round(canvas.clientWidth || 320));
+    var cssH = 190;
+    var pixelW = Math.round(cssW * dpr);
+    var pixelH = Math.round(cssH * dpr);
+    if (canvas.width !== pixelW || canvas.height !== pixelH) {
+      canvas.width = pixelW;
+      canvas.height = pixelH;
+    }
+    canvas.style.height = cssH + 'px';
+  }
+
   function curveGeom() {
     var canvas = el.curveCanvas;
     return {
-      width: canvas.width, height: canvas.height,
-      left: 42, right: 16, top: 12, bottom: 26,
+      width: canvas.clientWidth || 320,
+      height: canvas.clientHeight || 190,
+      left: 44, right: 16, top: 24, bottom: 30,
       maxLux: 10000, maxLevel: 255
     };
   }
@@ -47,13 +63,22 @@
   function curveDraw() {
     var canvas = el.curveCanvas;
     if (!canvas) return;
+    curveResize();
     var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     var g = curveGeom();
     var axis = 'rgba(255,255,255,.16)';
     var grid = 'rgba(255,255,255,.055)';
     ctx.clearRect(0, 0, g.width, g.height);
     ctx.font = '10px sans-serif';
     ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText('яркость', 8, 13);
+    ctx.textAlign = 'right';
+    ctx.fillText('lux', g.width - 16, 13);
+    ctx.textAlign = 'start';
 
     var luxTicks = [0, 10, 100, 1000, 10000];
     var levelTicks = [10, 100, 255];
@@ -119,10 +144,8 @@
   function curveCanvasPos(event) {
     var canvas = el.curveCanvas;
     var rect = canvas.getBoundingClientRect();
-    var scaleX = canvas.width / rect.width;
-    var scaleY = canvas.height / rect.height;
-    return { x: (event.clientX - rect.left) * scaleX,
-             y: (event.clientY - rect.top) * scaleY };
+    return { x: event.clientX - rect.left,
+             y: event.clientY - rect.top };
   }
 
   function curvePointIndexAt(pos) {
@@ -202,6 +225,9 @@
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
     window.addEventListener('pointerup', finish);
+    window.addEventListener('resize', function () {
+      if (el.curveDlg && el.curveDlg.open) curveDraw();
+    });
     // ПКМ по точке удаляет её; ЛКМ по пустому месту — добавляет.
     canvas.addEventListener('contextmenu', function (event) {
       event.preventDefault();

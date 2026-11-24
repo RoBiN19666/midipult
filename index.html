@@ -2646,8 +2646,8 @@ body.light dialog.queue-dlg.ym-look{
 .curve-dlg-head b{font-size:17px;line-height:1.25;min-width:0}
 .curve-body{display:flex;flex-direction:column;gap:10px;padding:8px 18px 16px;
   max-height:calc(100dvh - 140px);overflow-y:auto;overscroll-behavior:contain}
-#curveDlg{margin:auto}
-#curveCanvas{width:100%;height:auto;background:rgba(255,255,255,.03);border:1px solid var(--stroke);
+#curveDlg{height:fit-content;max-height:calc(100dvh - 24px);margin:auto}
+#curveCanvas{width:100%;display:block;background:rgba(255,255,255,.03);border:1px solid var(--stroke);
   border-radius:10px;touch-action:none;cursor:crosshair}
 .curve-head,.curve-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;
   gap:8px;align-items:center}
@@ -13597,11 +13597,27 @@ body.light dialog.queue-dlg.ym-look{
     return [[0, lo], [50, Math.round((lo + hi) / 2)], [200, hi]];
   }
 
+  function curveResize() {
+    var canvas = el.curveCanvas;
+    if (!canvas) return;
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = Math.max(240, Math.round(canvas.clientWidth || 320));
+    var cssH = 190;
+    var pixelW = Math.round(cssW * dpr);
+    var pixelH = Math.round(cssH * dpr);
+    if (canvas.width !== pixelW || canvas.height !== pixelH) {
+      canvas.width = pixelW;
+      canvas.height = pixelH;
+    }
+    canvas.style.height = cssH + 'px';
+  }
+
   function curveGeom() {
     var canvas = el.curveCanvas;
     return {
-      width: canvas.width, height: canvas.height,
-      left: 42, right: 16, top: 12, bottom: 26,
+      width: canvas.clientWidth || 320,
+      height: canvas.clientHeight || 190,
+      left: 44, right: 16, top: 24, bottom: 30,
       maxLux: 10000, maxLevel: 255
     };
   }
@@ -13635,13 +13651,22 @@ body.light dialog.queue-dlg.ym-look{
   function curveDraw() {
     var canvas = el.curveCanvas;
     if (!canvas) return;
+    curveResize();
     var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     var g = curveGeom();
     var axis = 'rgba(255,255,255,.16)';
     var grid = 'rgba(255,255,255,.055)';
     ctx.clearRect(0, 0, g.width, g.height);
     ctx.font = '10px sans-serif';
     ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.textAlign = 'left';
+    ctx.fillText('яркость', 8, 13);
+    ctx.textAlign = 'right';
+    ctx.fillText('lux', g.width - 16, 13);
+    ctx.textAlign = 'start';
 
     var luxTicks = [0, 10, 100, 1000, 10000];
     var levelTicks = [10, 100, 255];
@@ -13707,10 +13732,8 @@ body.light dialog.queue-dlg.ym-look{
   function curveCanvasPos(event) {
     var canvas = el.curveCanvas;
     var rect = canvas.getBoundingClientRect();
-    var scaleX = canvas.width / rect.width;
-    var scaleY = canvas.height / rect.height;
-    return { x: (event.clientX - rect.left) * scaleX,
-             y: (event.clientY - rect.top) * scaleY };
+    return { x: event.clientX - rect.left,
+             y: event.clientY - rect.top };
   }
 
   function curvePointIndexAt(pos) {
@@ -13790,6 +13813,9 @@ body.light dialog.queue-dlg.ym-look{
     canvas.addEventListener('pointerup', finish);
     canvas.addEventListener('pointercancel', finish);
     window.addEventListener('pointerup', finish);
+    window.addEventListener('resize', function () {
+      if (el.curveDlg && el.curveDlg.open) curveDraw();
+    });
     // ПКМ по точке удаляет её; ЛКМ по пустому месту — добавляет.
     canvas.addEventListener('contextmenu', function (event) {
       event.preventDefault();
