@@ -29,7 +29,7 @@
     return {
       width: canvas.clientWidth || 320,
       height: canvas.clientHeight || 190,
-      left: 44, right: 16, top: 24, bottom: 30,
+      left: 44, right: 16, top: 18, bottom: 30,
       maxLux: 10000, maxLevel: 255
     };
   }
@@ -75,9 +75,9 @@
     ctx.lineWidth = 1;
     ctx.fillStyle = 'rgba(255,255,255,.5)';
     ctx.textAlign = 'left';
-    ctx.fillText('яркость', 8, 13);
+    ctx.fillText('яркость', 8, 11);
     ctx.textAlign = 'right';
-    ctx.fillText('lux', g.width - 16, 13);
+    ctx.fillText('lux', g.width - 16, 11);
     ctx.textAlign = 'start';
 
     var luxTicks = [0, 10, 100, 1000, 10000];
