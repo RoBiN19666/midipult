@@ -340,6 +340,20 @@ def hush_native():
         pass
 
 
+def cancel_native_dialog_ipc():
+    """Остановить штатный ответ Алисы и очистить очередь речи."""
+    try:
+        from speak import SUBSCRIBE_FRAME, connect_ipc, integer, rpc_frame
+
+        cancel_frame = rpc_frame(8, integer(1, 6))  # CANCEL_DIALOG_AND_CLEAR_QUEUE
+        with connect_ipc()[0] as sock:
+            sock.sendall(SUBSCRIBE_FRAME + cancel_frame)
+            time.sleep(0.5)
+        log("прямая отмена Алисы: команда отправлена")
+    except Exception as exc:
+        log("прямая отмена Алисы: %s" % exc)
+
+
 def announce(text, pause=False):
     """Отменить ответ Алисы и сказать своё подтверждение один раз."""
     if pause:
@@ -972,12 +986,12 @@ def handle(text, request_id=""):
             generation = time.time() - started_at
             if mic_mode_now() == "alice":
                 cancel_native_dialog(fast=True)
+                cancel_native_dialog_ipc()
+                say(answer)
             else:
                 cancel_native_dialog()
-            # Чистим очередь TTS Алисы: на unmute её недоигранная фраза
-            # возобновляется, и наш ответ встаёт за ней.
-            hush_native()
-            say(answer, append=answer_append(alice_state()))
+                hush_native()
+                say(answer, append=answer_append(alice_state()))
             log("llm answer: %d символов, генерация %.1f с"
                 % (len(answer), generation))
             # issue #2: после ответа слушаем продолжение без «Алисы».
