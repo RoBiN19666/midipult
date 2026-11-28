@@ -1057,6 +1057,49 @@ def test_voice_cancel_native():
         voice_daemon.stop_alice_speech = old_stop
 
 
+def test_voice_passive_reply_cancels_before_unmute():
+    from unittest import mock
+
+    answer = "Ответ нейросети"
+    events = []
+    sock = mock.MagicMock()
+    sock.__enter__.return_value = sock
+    sock.sendall.side_effect = lambda frame: events.append(("cancel", frame))
+
+    def fake_post(url, payload, timeout=None):
+        name = url.rsplit("/", 1)[-1]
+        if name == "llm.py":
+            return {"answer": answer}
+        events.append((name, payload))
+        return {"started": True}
+
+    with (
+        mock.patch.multiple(
+            voice_daemon,
+            post=fake_post,
+            scenario_may_match=lambda text: False,
+            llm_switch=lambda text: False,
+            music_wave_active=lambda: False,
+            music_voice_on=lambda: False,
+            llm_snapshot=lambda: {"max_tokens": 260},
+            llm_enabled_cached=lambda: True,
+            mic_mode_now=lambda: "alice",
+            cancel_native_dialog=mock.Mock(),
+        ),
+        mock.patch.object(speak, "connect_ipc", return_value=(sock, "test")),
+        mock.patch.object(voice_daemon.time, "sleep"),
+    ):
+        handled = voice_daemon.handle("Где зимуют комары")
+
+    cancel_frame = speak.SUBSCRIBE_FRAME + speak.rpc_frame(8, speak.integer(1, 6))
+    check("голос: прямая отмена до возврата звука и продолжения очереди",
+          handled and events == [
+              ("cancel", cancel_frame),
+              ("volume.py", {"unmute": 1}),
+              ("speak.py", {"text": answer, "wait": 30}),
+          ], str(events))
+
+
 def test_voice_follow_up_skip():
     events = [
         {"text": "Как дела", "request_id": "r1", "phase": "listening"},
@@ -2953,6 +2996,7 @@ def main():
         test_voice_repeat_filter,
         test_voice_say_append,
         test_voice_cancel_native,
+        test_voice_passive_reply_cancels_before_unmute,
         test_voice_follow_up_skip,
         test_voice_follow_up_closes_alice,
         test_voice_auto_follow_up,
